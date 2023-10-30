@@ -66,3 +66,9 @@ repos:
   - id: mixed-line-ending
   - id: requirements-txt-fixer
   - id: trailing-whitespace
+
+# Convert Python strings to f-strings
+- repo: https://github.com/ikamensh/flynt/
+  rev: 1.0.1
+  hooks:
+  -   id: flynt
