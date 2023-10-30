@@ -39,6 +39,13 @@ repos:
   hooks:
     - id: ruff
 
+
+# Upgrade Python syntax
+-   repo: https://github.com/asottile/pyupgrade
+    rev: v3.15.0
+    hooks:
+    -   id: pyupgrade
+
 # Spellchecking
 - repo: https://github.com/codespell-project/codespell
   rev: v2.2.4
@@ -66,9 +73,3 @@ repos:
   - id: mixed-line-ending
   - id: requirements-txt-fixer
   - id: trailing-whitespace
-
-# Convert Python strings to f-strings
-- repo: https://github.com/ikamensh/flynt/
-  rev: 1.0.1
-  hooks:
-  -   id: flynt
