@@ -47,6 +47,7 @@ maintainers = []
 keywords = []
 requires-python = ">=3.8,<4"
 dependencies = [
+    "directory-tree", # may remove in future
     "numpy ~= 1.21",
     "protobuf>=3.7.0",
     "tritonclient[all] ~= 2.36",
