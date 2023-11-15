@@ -76,7 +76,6 @@ class ModelRepository:
     def clear(self):
         logger.info(f"Clearing all contents from {self.repo}...")
         shutil.rmtree(self.repo)
-        self.list()
 
     # No support for removing individual versions for now
     def remove(self, name: str):

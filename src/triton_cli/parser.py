@@ -30,7 +30,7 @@ def handle_infer(args):
     raise NotImplementedError
 
 
-def parse_args_infer(subcommands: argparse.ArgumentParser):
+def parse_args_infer(subcommands):
     # Infer
     infer = subcommands.add_parser("infer", help="Send inference requests to models")
     infer.set_defaults(func=handle_infer)
@@ -52,7 +52,7 @@ def parse_args_infer(subcommands: argparse.ArgumentParser):
     return infer
 
 
-def parse_args_repo(subcommands: argparse.ArgumentParser):
+def parse_args_repo(subcommands):
     # Model Repository Management
     repo = subcommands.add_parser(
         "repo", help="Interact with a Triton model repository."
@@ -111,7 +111,9 @@ def parse_args_repo(subcommands: argparse.ArgumentParser):
         required=False,
         help="Path to local model repository to use. Will use ${HOME}/models by default.",
     )
-    repo_list = repo_commands.add_parser("list", help="Add model to model repository")
+    repo_list = repo_commands.add_parser(
+        "list", help="List the models in the model repository"
+    )
     repo_list.add_argument(
         "--repo",
         type=Path,
