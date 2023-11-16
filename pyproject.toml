@@ -54,6 +54,10 @@ dependencies = [
     "tritonclient[all] ~= 2.36",
 ]
 
+# CLI Entrypoint
+[project.scripts]
+triton = "triton_cli.main:main"
+
 [project.urls]
 "Homepage" = "https://github.com/triton-inference-server/triton_cli"
 "Bug Tracker" = "https://github.com/triton-inference-server/triton_cli/issues"

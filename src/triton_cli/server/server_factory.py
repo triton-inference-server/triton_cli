@@ -21,7 +21,11 @@ import shutil
 from .server_local import TritonServerLocal
 from .server_docker import TritonServerDocker
 from .server_config import TritonServerConfig
-from constants import LOGGER_NAME, DEFAULT_SHM_SIZE, DEFAULT_TRITONSERVER_PATH
+from triton_cli.constants import (
+    LOGGER_NAME,
+    DEFAULT_SHM_SIZE,
+    DEFAULT_TRITONSERVER_PATH,
+)
 
 logger = logging.getLogger(LOGGER_NAME)
 

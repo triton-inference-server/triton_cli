@@ -14,13 +14,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import logging
 import os
+import logging
 from subprocess import STDOUT, PIPE, Popen, TimeoutExpired
 
-from constants import LOGGER_NAME
-
 from .server import TritonServer
+from triton_cli.constants import LOGGER_NAME
 
 logger = logging.getLogger(LOGGER_NAME)
 SERVER_OUTPUT_TIMEOUT_SECS = 30

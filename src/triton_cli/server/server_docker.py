@@ -15,11 +15,10 @@
 # limitations under the License.
 
 import docker
+import logging
 
 from .server import TritonServer
-
-import logging
-from constants import LOGGER_NAME
+from triton_cli.constants import LOGGER_NAME
 
 logger = logging.getLogger(LOGGER_NAME)
 
@@ -56,6 +55,7 @@ class TritonServerDocker(TritonServer):
         self._tritonserver_image = image
         self._tritonserver_container = None
         self._mounts = mounts
+        # NOTE: Could use labels to determine containers started/owned by CLI
         self._labels = labels if labels else {}
         self._gpus = gpus
         self._shm_size = shm_size

@@ -1,6 +1,6 @@
 import argparse
 from pathlib import Path
-from constants import DEFAULT_MODEL_REPO
+from triton_cli.constants import DEFAULT_MODEL_REPO
 
 import logging
 
@@ -8,9 +8,9 @@ logger = logging.getLogger("triton")
 
 
 def handle_repo(args: argparse.Namespace):
-    from repository import ModelRepository
+    from triton_cli.repository import ModelRepository
 
-    repo = ModelRepository(args.repo)
+    repo = ModelRepository(args.model_repository)
     if args.subcommand == "add":
         repo.add(
             args.name,
@@ -30,7 +30,7 @@ def handle_repo(args: argparse.Namespace):
 
 
 def handle_infer(args: argparse.Namespace):
-    from client.client import TritonClient
+    from triton_cli.client.client import TritonClient
 
     logger.debug("handle_infer")
     _ = TritonClient()
@@ -38,14 +38,16 @@ def handle_infer(args: argparse.Namespace):
 
 
 def handle_server(args: argparse.Namespace):
-    from server.server_factory import TritonServerFactory
+    from triton_cli.server.server_factory import TritonServerFactory
 
     logger.debug("handle_server")
     gpus = []
     server = TritonServerFactory.get_server_handle(args, gpus)
     logger.debug(server)
     try:
-        logger.info("Starting server...")
+        logger.info(
+            f"Starting server with model repository: [{args.model_repository}]..."
+        )
         server.start()
         logger.info("Reading server output...")
         server.logs()
@@ -96,6 +98,9 @@ def parse_args_repo(subcommands):
     )
     repo_add.add_argument(
         "--repo",
+        "--model-repository",
+        "--model-store",
+        dest="model_repository",
         type=Path,
         required=False,
         help="Path to local model repository to use. Will use ${HOME}/models by default.",
@@ -134,6 +139,9 @@ def parse_args_repo(subcommands):
     )
     repo_remove.add_argument(
         "--repo",
+        "--model-repository",
+        "--model-store",
+        dest="model_repository",
         type=Path,
         required=False,
         help="Path to local model repository to use. Will use ${HOME}/models by default.",
@@ -143,6 +151,9 @@ def parse_args_repo(subcommands):
     )
     repo_list.add_argument(
         "--repo",
+        "--model-repository",
+        "--model-store",
+        dest="model_repository",
         type=Path,
         required=False,
         help="Path to local model repository to use. Will use ${HOME}/models by default.",
@@ -152,6 +163,9 @@ def parse_args_repo(subcommands):
     )
     repo_clear.add_argument(
         "--repo",
+        "--model-repository",
+        "--model-store",
+        dest="model_repository",
         type=Path,
         required=False,
         help="Path to local model repository to use. Will use ${HOME}/models by default.",
@@ -175,8 +189,10 @@ def parse_args_server(subcommands):
     )
     server_start.add_argument(
         "--repo",
-        type=Path,
+        "--model-repository",
+        "--model-store",
         dest="model_repository",
+        type=Path,
         required=False,
         default=DEFAULT_MODEL_REPO,
         help="Path to local model repository to use. (Default: '${HOME}/models')",

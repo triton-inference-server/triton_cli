@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-import parser
+
+from triton_cli import parser
 
 import logging
 
