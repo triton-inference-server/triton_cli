@@ -36,7 +36,6 @@ class TritonServerFactory:
         image,
         config,
         gpus,
-        log_path=None,
         mounts=None,
         labels=None,
         shm_size=None,
@@ -52,8 +51,6 @@ class TritonServerFactory:
         gpus : list of str
             List of GPU UUIDs to be mounted and used in the container
             Use ["all"] to include all GPUs
-        log_path: str
-            Absolute path to the triton log file
         mounts: list of str
             The volumes to be mounted to the tritonserver container
         labels: dict
@@ -72,7 +69,6 @@ class TritonServerFactory:
             image=image,
             config=config,
             gpus=gpus,
-            log_path=log_path,
             mounts=mounts,
             labels=labels,
             shm_size=shm_size,
@@ -80,7 +76,7 @@ class TritonServerFactory:
         )
 
     @staticmethod
-    def create_server_local(path, config, gpus, log_path=None):
+    def create_server_local(path, config, gpus):
         """
         Parameters
         ----------
@@ -91,15 +87,13 @@ class TritonServerFactory:
         gpus: list of str
             List of GPU UUIDs to be made visible to Triton
             Use ["all"] to include all GPUs
-        log_path: str
-            Absolute path to the triton log file
 
         Returns
         -------
         TritonServerLocal
         """
 
-        return TritonServerLocal(path=path, config=config, gpus=gpus, log_path=log_path)
+        return TritonServerLocal(path=path, config=config, gpus=gpus)
 
     @staticmethod
     def get_server_handle(config, gpus):
@@ -137,12 +131,11 @@ class TritonServerFactory:
 
         triton_config = TritonServerConfig()
         triton_config["model-repository"] = config.model_repository
-        logger.info("Starting a local Triton Server")
+        logger.info("Starting a Triton Server locally")
         server = TritonServerFactory.create_server_local(
             path=tritonserver_path,
             config=triton_config,
             gpus=gpus,
-            log_path=None,
         )
 
         return server
@@ -157,7 +150,6 @@ class TritonServerFactory:
             image=config.image,
             config=triton_config,
             gpus=gpus,
-            log_path=None,
             mounts=None,
             labels=None,
             shm_size=DEFAULT_SHM_SIZE,

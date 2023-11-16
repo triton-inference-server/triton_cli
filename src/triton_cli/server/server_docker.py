@@ -14,11 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import tempfile
-from io import TextIOWrapper
-from multiprocessing.pool import ThreadPool
-from subprocess import DEVNULL
-
 import docker
 
 from .server import TritonServer
@@ -35,7 +30,7 @@ class TritonServerDocker(TritonServer):
     triton in a docker container.
     """
 
-    def __init__(self, image, config, gpus, log_path, mounts, labels, shm_size, args):
+    def __init__(self, image, config, gpus, mounts, labels, shm_size, args):
         """
         Parameters
         ----------
@@ -45,8 +40,6 @@ class TritonServerDocker(TritonServer):
             the config object containing arguments for this server instance
         gpus : list of str
             List of GPU UUIDs to be mounted and used in the container
-        log_path: str
-            Absolute path to the triton log file
         mounts: list of str
             The volumes to be mounted to the tritonserver container
         labels: dict
@@ -62,8 +55,6 @@ class TritonServerDocker(TritonServer):
         self._docker_client = docker.from_env()
         self._tritonserver_image = image
         self._tritonserver_container = None
-        self._log_path = log_path
-        self._log_file = DEVNULL
         self._mounts = mounts
         self._labels = labels if labels else {}
         self._gpus = gpus
@@ -150,25 +141,6 @@ class TritonServerDocker(TritonServer):
             else:
                 raise Exception(e)
 
-        if self._log_path:
-            try:
-                self._log_file = open(self._log_path, "a+")
-                self._log_pool = ThreadPool(processes=1)
-                self._log_pool.apply_async(self._logging_worker)
-            except OSError as e:
-                raise Exception(e)
-        else:
-            self._log_file = tempfile.NamedTemporaryFile()
-
-    def _logging_worker(self):
-        """
-        streams logs to
-        log file
-        """
-
-        for chunk in self._tritonserver_container.logs(stream=True):
-            self._log_file.write(chunk.decode("utf-8"))
-
     def stop(self):
         """
         Stops the tritonserver docker container
@@ -176,20 +148,11 @@ class TritonServerDocker(TritonServer):
         """
 
         if self._tritonserver_container is not None:
-            if self._log_path:
-                if self._log_pool:
-                    self._log_pool.terminate()
-                    self._log_pool.close()
-                if self._log_file:
-                    self._log_file.close()
             self._tritonserver_container.stop()
             self._tritonserver_container.remove(force=True)
             self._tritonserver_container = None
             logger.info("Stopped Triton Server.")
         self._docker_client.close()
-
-    def log_file(self) -> TextIOWrapper:
-        return self._log_file
 
     def logs(self):
         for chunk in self._tritonserver_container.logs(stream=True):

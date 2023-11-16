@@ -15,7 +15,6 @@
 # limitations under the License.
 
 from abc import ABC, abstractmethod
-from io import TextIOWrapper
 
 
 class TritonServer(ABC):
@@ -42,9 +41,9 @@ class TritonServer(ABC):
         """
 
     @abstractmethod
-    def log_file(self) -> TextIOWrapper:
+    def logs(self):
         """
-        Returns the server's log file
+        Outputs and follows the server's log file in a blocking manner
         """
 
     def update_config(self, params):

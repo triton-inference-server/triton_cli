@@ -16,9 +16,7 @@
 
 import logging
 import os
-import tempfile
-from io import TextIOWrapper
-from subprocess import DEVNULL, STDOUT, PIPE, Popen, TimeoutExpired
+from subprocess import STDOUT, PIPE, Popen, TimeoutExpired
 
 from constants import LOGGER_NAME
 
@@ -34,7 +32,7 @@ class TritonServerLocal(TritonServer):
     tritonserver locally as as subprocess.
     """
 
-    def __init__(self, path, config, gpus, log_path):
+    def __init__(self, path, config, gpus):
         """
         Parameters
         ----------
@@ -44,16 +42,12 @@ class TritonServerLocal(TritonServer):
             the config object containing arguments for this server instance
         gpus: list of str
             List of GPU UUIDs to be made visible to Triton
-        log_path: str
-            Absolute path to the triton log file
         """
 
         self._tritonserver_process = None
         self._server_config = config
         self._server_path = path
         self._gpus = gpus
-        self._log_path = log_path
-        self._log_file = DEVNULL
         self._is_first_time_starting_server = True
 
         assert self._server_config[
@@ -87,17 +81,6 @@ class TritonServerLocal(TritonServer):
                 raise Exception(
                     "GPUs aren't configurable at this time, leave it unspecified."
                 )
-
-            if self._log_path:
-                try:
-                    if self._is_first_time_starting_server:
-                        if os.path.exists(self._log_path):
-                            os.remove(self._log_path)
-                    self._log_file = open(self._log_path, "a+")
-                except OSError as e:
-                    raise Exception(e)
-            else:
-                self._log_file = tempfile.NamedTemporaryFile()
 
             self._is_first_time_starting_server = False
 
@@ -133,12 +116,7 @@ class TritonServerLocal(TritonServer):
                 self._tritonserver_process.kill()
                 self._tritonserver_process.communicate()
             self._tritonserver_process = None
-            if self._log_path:
-                self._log_file.close()
             logger.debug("Stopped Triton Server.")
-
-    def log_file(self) -> TextIOWrapper:
-        return self._log_file
 
     def logs(self):
         for line in self._tritonserver_process.stdout:
