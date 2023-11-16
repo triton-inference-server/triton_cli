@@ -2,11 +2,13 @@ from pathlib import Path
 import json
 import shutil
 
-from logger import logger
+from constants import DEFAULT_MODEL_REPO
 
 from directory_tree import display_tree
 
-DEFAULT_MODEL_REPO: Path = Path.home() / "models"
+import logging
+
+logger = logging.getLogger("triton")
 
 # For now, generated model configs will be limited to only backends
 # that can be fully autocompleted for a simple deployment.

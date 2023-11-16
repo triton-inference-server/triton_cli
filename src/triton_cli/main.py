@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 import parser
-from logger import logger
+
+import logging
+
+logging.basicConfig(level=logging.INFO, format="%(name)s - %(levelname)s - %(message)s")
+logger = logging.getLogger("triton")
 
 
 def main():
@@ -9,6 +13,7 @@ def main():
         args.func(args)
     except Exception as e:
         logger.error(f"{e}")
+        raise e
 
 
 if __name__ == "__main__":

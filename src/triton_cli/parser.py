@@ -1,10 +1,15 @@
 import argparse
 from pathlib import Path
-from repository import ModelRepository
-from client import TritonClient
+from constants import DEFAULT_MODEL_REPO
+
+import logging
+
+logger = logging.getLogger("triton")
 
 
-def handle_repo(args):
+def handle_repo(args: argparse.Namespace):
+    from repository import ModelRepository
+
     repo = ModelRepository(args.repo)
     if args.subcommand == "add":
         repo.add(
@@ -21,13 +26,36 @@ def handle_repo(args):
     elif args.subcommand == "clear":
         repo.clear()
     else:
-        raise NotImplementedError
+        raise NotImplementedError("Not implemented yet")
 
 
-def handle_infer(args):
-    print("handle_infer")
+def handle_infer(args: argparse.Namespace):
+    from client.client import TritonClient
+
+    logger.debug("handle_infer")
     _ = TritonClient()
-    raise NotImplementedError
+    raise NotImplementedError("Not implemented yet")
+
+
+def handle_server(args: argparse.Namespace):
+    from server.server_factory import TritonServerFactory
+
+    logger.debug("handle_server")
+    gpus = []
+    server = TritonServerFactory.get_server_handle(args, gpus)
+    logger.debug(server)
+    try:
+        logger.info("Starting server...")
+        server.start()
+        logger.info("Reading server output...")
+        server.logs()
+        logger.info("Done.")
+    except KeyboardInterrupt:
+        print()
+        pass
+
+    logger.info("Stopping server...")
+    server.stop()
 
 
 def parse_args_infer(subcommands):
@@ -35,7 +63,6 @@ def parse_args_infer(subcommands):
     infer = subcommands.add_parser("infer", help="Send inference requests to models")
     infer.set_defaults(func=handle_infer)
     infer.add_argument("-m", "--model", type=str, required=True, help="Model name")
-    # TODO: Think more about this
     infer_data_type = infer.add_mutually_exclusive_group(required=False)
     infer_data_type.add_argument(
         "--random", action="store_true", help="Generate random data"
@@ -132,6 +159,39 @@ def parse_args_repo(subcommands):
     return repo
 
 
+def parse_args_server(subcommands):
+    # Model Repository Management
+    server = subcommands.add_parser("server", help="Interact with a Triton server.")
+    server.set_defaults(func=handle_server)
+    server_commands = server.add_subparsers(required=True, dest="subcommand")
+    server_start = server_commands.add_parser("start", help="Start a Triton server")
+    server_start.add_argument(
+        "--mode",
+        choices=["local", "docker"],
+        type=str,
+        default="docker",
+        required=False,
+        help="Mode to start Triton with. (Default: 'docker')",
+    )
+    server_start.add_argument(
+        "--repo",
+        type=Path,
+        dest="model_repository",
+        required=False,
+        default=DEFAULT_MODEL_REPO,
+        help="Path to local model repository to use. (Default: '${HOME}/models')",
+    )
+    server_start.add_argument(
+        "--image",
+        type=str,
+        required=False,
+        # or eventually 23.10-py3 for generic image
+        # default="nvcr.io/nvidia/tritonserver:23.10-vllm-python-py3",
+        default="gitlab-master.nvidia.com:5005/dl/dgx/tritonserver:master.10736241-vllm-amd64",
+        help="Image to use when starting Triton with 'docker' mode",
+    )
+
+
 def parse_args():
     parser = argparse.ArgumentParser(
         prog="triton", description="CLI to interact with Triton Inference Server"
@@ -139,5 +199,6 @@ def parse_args():
     subcommands = parser.add_subparsers(required=True, dest="command")
     _ = parse_args_infer(subcommands)
     _ = parse_args_repo(subcommands)
+    _ = parse_args_server(subcommands)
     args = parser.parse_args()
     return args
