@@ -94,7 +94,7 @@ class TritonServerLocal(TritonServer):
                     env=triton_env,
                 )
 
-                logger.info("Triton Server started.")
+                logger.info("Triton Server started")
             except Exception as e:
                 logger.error(e)
                 raise Exception(e)

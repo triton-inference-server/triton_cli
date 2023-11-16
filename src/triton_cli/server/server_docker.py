@@ -127,7 +127,7 @@ class TritonServerDocker(TritonServer):
                 shm_size=self._shm_size,
                 **self._args,
             )
-            logger.info("Triton Server started.")
+            logger.info("Triton Server started")
         except docker.errors.APIError as e:
             if e.explanation.find("port is already allocated") != -1:
                 raise Exception(

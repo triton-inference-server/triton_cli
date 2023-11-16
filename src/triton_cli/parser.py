@@ -26,21 +26,27 @@ def handle_repo(args: argparse.Namespace):
     elif args.subcommand == "clear":
         repo.clear()
     else:
-        raise NotImplementedError("Not implemented yet")
+        raise NotImplementedError(
+            f"Repo subcommand {args.subcommand} not implemented yet"
+        )
 
 
-def handle_infer(args: argparse.Namespace):
+def handle_client(args: argparse.Namespace):
     from triton_cli.client.client import TritonClient
 
-    logger.debug("handle_infer")
-    _ = TritonClient()
-    raise NotImplementedError("Not implemented yet")
+    client = TritonClient(args.protocol)
+    if args.subcommand == "infer":
+        client.infer(args.model, args.data)
+    else:
+        raise NotImplementedError(
+            f"Client subcommand {args.subcommand} not implemented yet"
+        )
 
 
 def handle_server(args: argparse.Namespace):
     from triton_cli.server.server_factory import TritonServerFactory
 
-    logger.debug("handle_server")
+    # TODO: No support for specifying GPUs for now, default to all available.
     gpus = []
     server = TritonServerFactory.get_server_handle(args, gpus)
     logger.debug(server)
@@ -51,7 +57,7 @@ def handle_server(args: argparse.Namespace):
         server.start()
         logger.info("Reading server output...")
         server.logs()
-        logger.info("Done.")
+        logger.info("Done")
     except KeyboardInterrupt:
         print()
         pass
@@ -60,23 +66,32 @@ def handle_server(args: argparse.Namespace):
     server.stop()
 
 
-def parse_args_infer(subcommands):
+def parse_args_client(subcommands):
     # Infer
-    infer = subcommands.add_parser("infer", help="Send inference requests to models")
-    infer.set_defaults(func=handle_infer)
+    client = subcommands.add_parser(
+        "client", help="Interact with running server using Client APIs"
+    )
+    client.set_defaults(func=handle_client)
+
+    client_commands = client.add_subparsers(required=True, dest="subcommand")
+    infer = client_commands.add_parser(
+        "infer", help="Send inference requests to models"
+    )
     infer.add_argument("-m", "--model", type=str, required=True, help="Model name")
-    infer_data_type = infer.add_mutually_exclusive_group(required=False)
-    infer_data_type.add_argument(
-        "--random", action="store_true", help="Generate random data"
+    infer.add_argument(
+        "--data",
+        type=str,
+        choices=["random", "scalar"],
+        default="random",
+        help="Method to provide input data to model",
     )
-    infer_data_type.add_argument(
-        "--scalar",
-        type=int,
-        default=0,
-        help="Use scalar data of provided value, default 0",
-    )
-    infer_data_type.add_argument(
-        "--file", type=str, default="", help="Load data from file"
+    infer.add_argument(
+        "-i",
+        "--protocol",
+        type=str,
+        default="grpc",
+        choices=["http", "grpc"],
+        help="Protocol to use for Client APIs",
     )
     return infer
 
@@ -213,7 +228,7 @@ def parse_args():
         prog="triton", description="CLI to interact with Triton Inference Server"
     )
     subcommands = parser.add_subparsers(required=True, dest="command")
-    _ = parse_args_infer(subcommands)
+    _ = parse_args_client(subcommands)
     _ = parse_args_repo(subcommands)
     _ = parse_args_server(subcommands)
     args = parser.parse_args()
