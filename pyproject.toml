@@ -47,10 +47,16 @@ maintainers = []
 keywords = []
 requires-python = ">=3.8,<4"
 dependencies = [
+    "directory-tree", # may remove in future
+    "docker",
     "numpy ~= 1.21",
     "protobuf>=3.7.0",
     "tritonclient[all] ~= 2.36",
 ]
+
+# CLI Entrypoint
+[project.scripts]
+triton = "triton_cli.main:main"
 
 [project.urls]
 "Homepage" = "https://github.com/triton-inference-server/triton_cli"
