@@ -45,7 +45,7 @@ class TritonClient:
         return config
 
     def get_server_metadata(self):
-        return self.client.get_server_metadata()
+        return self.client.get_server_metadata(**self.kwargs)
 
     def is_server_ready(self):
         return self.client.is_server_ready()
@@ -91,11 +91,11 @@ class TritonClient:
 
     def __generate_llm_data(self, name, shape, np_dtype):
         if name.lower() in ["prompt", "text", "text_input"]:
-            prompt = "Hello World!"
-            logger.info(
-                f"LLM input '{name}' detected, using default prompt: '{prompt}'."
-            )
-            data = np.array([prompt], dtype=np_dtype)
+            if not self.prompt:
+                raise Exception(
+                    f"LLM input '{name}' detected, but no prompt provided. Please pass '--prompt' to specify this input."
+                )
+            data = np.array([self.prompt], dtype=np_dtype)
         elif name.lower() == "sampling_parameters":
             parameters = {}
             data = np.array([json.dumps(parameters)], dtype=np_dtype)
@@ -135,6 +135,10 @@ class TritonClient:
                 logger.warning(f"Skipping optional input '{name}'")
                 continue
 
+            # If batching is enabled, pad front of shape with batch dimension
+            if config.get("max_batch_size", 0) > 0:
+                shape = (1, *shape)
+
             # LLM convenience WAR
             # TODO: Move to customized 'triton llm infer' subcommand or similar
             data = self.__generate_llm_data(name, shape, np_dtype)
@@ -155,7 +159,9 @@ class TritonClient:
 
         return infer_inputs
 
-    def infer(self, model: str, data_mode: str):
+    # TODO: Add specialized 'triton llm infer' subcommand for LLM handling
+    def infer(self, model: str, data_mode: str, prompt: str = None):
+        self.prompt = prompt
         config = self.get_model_config(model)
         inputs = self.generate_data(config, data_mode)
         logger.info("Sending inference request...")

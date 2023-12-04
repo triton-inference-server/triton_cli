@@ -47,6 +47,18 @@ class ModelRepository:
         if not source:
             raise Exception("Non-empty model source must be provided")
 
+        # HuggingFace models
+        if source.startswith(SOURCE_PREFIX_HUGGINGFACE):
+            logger.info("HuggingFace prefix detected, parsing HuggingFace ID")
+            source_type = "huggingface"
+        # Local model path
+        else:
+            logger.info("No supported prefix detected, assuming local path")
+            source_type = "local"
+            model_path = Path(source)
+            if not model_path.exists():
+                raise FileNotFoundError(f"{model_path} does not exist")
+
         # Create model directory in repo with name, raise error if
         # repo doesn't exist, or model directory already exists.
         model_dir = self.repo / name
@@ -62,19 +74,10 @@ class ModelRepository:
                 "No support for manually specifying backend at this time."
             )
 
-        # HuggingFace models
-        if source.startswith(SOURCE_PREFIX_HUGGINGFACE):
-            logger.info("HuggingFace prefix detected, parsing HuggingFace ID")
+        if source_type == "huggingface":
             hf_id = source.split(":")[1]
             self.__add_huggingface_model(model_dir, version_dir, hf_id)
-        # Local model path
         else:
-            logger.info("No supported prefix detected, assuming local path")
-            model_path = Path(source)
-            if not model_path.exists():
-                raise FileNotFoundError(f"{model_path} does not exist")
-
-            # Copy model path to model repository version directory
             logger.info(f"Copying {model_path} to {version_dir}")
             shutil.copy(model_path, version_dir)
 

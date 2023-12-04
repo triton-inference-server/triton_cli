@@ -2,6 +2,8 @@ import logging
 import argparse
 from pathlib import Path
 
+from rich import print as rich_print
+
 from triton_cli.constants import DEFAULT_MODEL_REPO
 from triton_cli.client.client import TritonClient
 from triton_cli.metrics import MetricsClient
@@ -20,7 +22,7 @@ def add_client_args(subcommands):
             type=str,
             default="grpc",
             choices=["http", "grpc"],
-            help="Protocol to use for communicating with server",
+            help="Protocol to use for communicating with server (default: grpc)",
         )
         # TODO: "--ip" instead of "--url"?
         subcommand.add_argument(
@@ -52,7 +54,7 @@ def add_repo_args(subcommands):
             type=Path,
             required=False,
             default=DEFAULT_MODEL_REPO,
-            help="Path to local model repository to use. Will use ${HOME}/models by default.",
+            help="Path to local model repository to use (default: ~/models)",
         )
 
 
@@ -65,7 +67,7 @@ def handle_repo(args: argparse.Namespace):
             source=args.source,
             backend=args.backend,
         )
-    elif args.subcommand == "rm":
+    elif args.subcommand == "remove":
         repo.remove(args.model)
     elif args.subcommand == "list":
         repo.list()
@@ -78,20 +80,21 @@ def handle_repo(args: argparse.Namespace):
 
 
 def handle_model(args: argparse.Namespace):
-    client = TritonClient(args.url, args.port, args.protocol)
+    client = TritonClient(url=args.url, port=args.port, protocol=args.protocol)
 
     if args.subcommand == "infer":
-        client.infer(args.model, args.data)
+        client.infer(args.model, args.data, args.prompt)
     elif args.subcommand == "config":
         config = client.get_model_config(args.model)
         if config:
-            logger.info(f"{args.subcommand}:\n{config}")
+            logger.info(f"{args.subcommand}:")
+            # TODO: Table
+            rich_print(config)
+    # TODO: Consider top-level metrics command/handler instead
     elif args.subcommand == "metrics":
         client = MetricsClient(args.url, args.port)
         # For model subcommand, limit metrics to only specified model metrics
-        metrics = client.get(model_name=args.model)
-        if metrics:
-            logger.info(f"{args.subcommand}:\n{metrics}")
+        client.display_table(model_name=args.model)
     else:
         raise Exception(f"model subcommand {args.subcommand} not supported")
 
@@ -114,22 +117,22 @@ def handle_server(args: argparse.Namespace):
 
         logger.info("Stopping server...")
         server.stop()
+    # TODO: Consider top-level metrics command/handler
     elif args.subcommand == "metrics":
         client = MetricsClient(args.url, args.port)
-        # For server subcommand, return all metrics
-        metrics = client.get()
-        if metrics:
-            logger.info(f"{args.subcommand}:\n{metrics}")
+        client.display_table()
     elif args.subcommand == "health":
-        client = TritonClient(args.url, args.protocol)
+        client = TritonClient(url=args.url, port=args.port, protocol=args.protocol)
         health = client.get_server_health()
         if health:
             logger.info(f"{args.subcommand}:\n{health}")
     elif args.subcommand == "metadata":
-        client = TritonClient(args.url, args.protocol)
+        client = TritonClient(url=args.url, port=args.port, protocol=args.protocol)
         metadata = client.get_server_metadata()
         if metadata:
-            logger.info(f"{args.subcommand}:\n{metadata}")
+            logger.info(f"{args.subcommand}:")
+            # TODO: Table
+            rich_print(metadata)
     else:
         raise NotImplementedError(f"server subcommand {args.subcommand} not supported")
 
@@ -150,6 +153,12 @@ def parse_args_model(subcommands):
         choices=["random", "scalar"],
         default="random",
         help="Method to provide input data to model",
+    )
+    infer.add_argument(
+        "--prompt",
+        type=str,
+        default=None,
+        help="Text input to LLM-like models. Required for inference on LLMs, optional otherwise.",
     )
     config = model_commands.add_parser("config", help="Get config for model")
     config.add_argument("-m", "--model", type=str, required=True, help="Model name")
