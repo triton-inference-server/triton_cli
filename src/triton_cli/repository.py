@@ -15,6 +15,8 @@ MODEL_CONFIG_TEMPLATE = """
 backend: "{backend}"
 """
 
+SOURCE_PREFIX_HUGGINGFACE = "hf:"
+
 
 # Can eventually be an interface and have implementations
 # for remote stores or similar, but keeping it simple for now.
@@ -39,22 +41,11 @@ class ModelRepository:
         self,
         name: str,
         version: int = 1,
-        model_path: str = None,
-        huggingface_id: str = None,
+        source: str = None,
         backend: str = None,
     ):
-        if all([model_path, huggingface_id]):
-            raise Exception(
-                "Must specify oneof (model_path, huggingface_id), but not both"
-            )
-        if not any([model_path, huggingface_id]):
-            raise Exception("Must specify oneof (model_path, huggingface_id)")
-        if "/" in name or ".." in name:
-            raise Exception(
-                f"Name argument must not contain any path-like elements like '/' or '..': {name}"
-            )
-        if backend:
-            raise NotImplementedError
+        if not source:
+            raise Exception("Non-empty model source must be provided")
 
         # Create model directory in repo with name, raise error if
         # repo doesn't exist, or model directory already exists.
@@ -66,11 +57,26 @@ class ModelRepository:
         except FileExistsError:
             logger.warning(f"Overwriting existing model in repo at: {version_dir}")
 
-        if model_path:
-            raise NotImplementedError
+        if backend:
+            raise NotImplementedError(
+                "No support for manually specifying backend at this time."
+            )
 
-        if huggingface_id:
-            self.__add_huggingface_model(model_dir, version_dir, huggingface_id)
+        # HuggingFace models
+        if source.startswith(SOURCE_PREFIX_HUGGINGFACE):
+            logger.info("HuggingFace prefix detected, parsing HuggingFace ID")
+            hf_id = source.split(":")[1]
+            self.__add_huggingface_model(model_dir, version_dir, hf_id)
+        # Local model path
+        else:
+            logger.info("No supported prefix detected, assuming local path")
+            model_path = Path(source)
+            if not model_path.exists():
+                raise FileNotFoundError(f"{model_path} does not exist")
+
+            # Copy model path to model repository version directory
+            logger.info(f"Copying {model_path} to {version_dir}")
+            shutil.copy(model_path, version_dir)
 
         self.list()
 
@@ -95,8 +101,9 @@ class ModelRepository:
         if not huggingface_id:
             raise Exception("HuggingFace ID must be non-empty")
 
+        # TODO: Add generic support for HuggingFace models with HF API.
         # For now, use vLLM as a means of deploying HuggingFace Transformers
-        # NOTE: Non-transformer models are not supported at this time.
+        # NOTE: Only transformer models are supported at this time.
         config, files = self.__generate_vllm_model(huggingface_id)
         config_file = model_dir / "config.pbtxt"
         config_file.write_text(config)

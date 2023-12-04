@@ -14,35 +14,26 @@ from triton_cli.constants import LOGGER_NAME
 logger = logging.getLogger(LOGGER_NAME)
 
 
-# Decorator to catch exceptions for convenience
-def exception_handler(msg="Triton Client Error"):
-    def decorator(func):
-        def wrapper(*args, **kwargs):
-            try:
-                # Call the original function
-                return func(*args, **kwargs)
-            except Exception as e:
-                logger.error(f"{msg}: {e}")
-                raise e
-
-        return wrapper
-
-    return decorator
-
-
 class TritonClient:
-    def __init__(self, protocol="http"):
+    def __init__(self, url="localhost", port=None, protocol="grpc"):
         self.protocol = protocol
+        if not url:
+            url = "localhost"
+
         if self.protocol == "grpc":
-            self.url = "localhost:8001"
+            if not port:
+                port = 8001
+            self.url = f"{url}:{port}"
             self.client = tritonclient.grpc.InferenceServerClient(self.url)
             self.kwargs = {"as_json": True}
         elif self.protocol == "http":
-            self.url = "localhost:8000"
+            if not port:
+                port = 8000
+            self.url = f"{url}:{port}"
             self.client = tritonclient.http.InferenceServerClient(self.url)
             self.kwargs = {}
         else:
-            raise Exception("Unsupported protocol: '{protocol}'")
+            raise Exception(f"Unsupported protocol: '{protocol}'")
 
     def get_model_config(self, model: str):
         if self.protocol == "grpc":
@@ -51,9 +42,26 @@ class TritonClient:
             ]
         else:
             config = self.client.get_model_config(model_name=model, **self.kwargs)
-        # TODO: Consider rich table for metadata output
-        logger.info(f"Model config for '{model}':\n{json.dumps(config, indent=4)}")
         return config
+
+    def get_server_metadata(self):
+        return self.client.get_server_metadata()
+
+    def is_server_ready(self):
+        return self.client.is_server_ready()
+
+    def is_server_live(self):
+        return self.client.is_server_live()
+
+    def get_server_health(self):
+        live = self.is_server_live()
+        if not live:
+            return "❌ Server is not live"
+        ready = self.is_server_ready()
+        if not ready:
+            return "❌ Server is live, but not ready for inference"
+
+        return "✅ Server is live and ready for inference"
 
     def __parse_input(self, _input: dict):
         name = _input.get("name", "")
