@@ -239,9 +239,7 @@ def parse_args_server(subcommands):
         "--image",
         type=str,
         required=False,
-        # or eventually 23.10-py3 for generic image
-        # default="nvcr.io/nvidia/tritonserver:23.10-vllm-python-py3",
-        default="gitlab-master.nvidia.com:5005/dl/dgx/tritonserver:master.10736241-vllm-amd64",
+        default="nvcr.io/nvidia/tritonserver:23.11-vllm-python-py3",
         help="Image to use when starting Triton with 'docker' mode",
     )
     add_repo_args([server_start])
