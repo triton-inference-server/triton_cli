@@ -28,7 +28,7 @@ team = {team}
 SOURCE_PREFIX_HUGGINGFACE = "hf:"
 SOURCE_PREFIX_NGC = "ngc:"
 
-TRT_TEMPLATES_PATH = Path(__file__).parent / "templates/trtllm/"
+TRT_TEMPLATES_PATH = Path(__file__).parent / "templates" / "trtllm"
 
 
 # NOTE: Thin wrapper around NGC CLI is a WAR for now.
