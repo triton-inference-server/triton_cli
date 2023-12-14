@@ -48,10 +48,10 @@ class NGCWrapper:
     def __generate_config(self, org="", team="", api_key="", format_type="ascii"):
         config_file = Path.home() / ".ngc" / "config"
         if config_file.exists():
-            logger.debug("Found existing NGC config")
+            logger.info("Found existing NGC config, skipping config generation")
             return
 
-        logger.debug("Generating NGC config")
+        logger.info("Generating NGC config")
         config = NGC_CONFIG_TEMPLATE.format(
             api_key=api_key,
             format_type=format_type,
@@ -69,8 +69,10 @@ class NGCWrapper:
 
         cmd = f"ngc registry model download-version {model} --dest {dest}"
         logger.debug(f"Running '{cmd}'")
-        subprocess.run(cmd.split())
-
+        output = subprocess.run(cmd.split(), capture_output=True)
+        if output.returncode:
+            err = output.stderr.decode("utf-8")
+            raise Exception(f"Failed to download {model} from NGC:\n{err}")
 
 # Can eventually be an interface and have implementations
 # for remote stores or similar, but keeping it simple for now.
