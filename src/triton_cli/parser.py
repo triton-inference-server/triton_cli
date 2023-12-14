@@ -242,6 +242,11 @@ def parse_args_server(subcommands):
         default="nvcr.io/nvidia/tritonserver:23.11-vllm-python-py3",
         help="Image to use when starting Triton with 'docker' mode",
     )
+    server_start.add_argument(
+        "--trtllm",
+        action="store_true",
+        help="Whether the model repo contains a trtllm model.",
+    )
     add_repo_args([server_start])
 
     server_metrics = server_commands.add_parser(

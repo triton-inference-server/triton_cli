@@ -38,6 +38,7 @@ class TritonServerFactory:
     @staticmethod
     def create_server_docker(
         image,
+        trtllm_model,
         config,
         gpus,
         mounts=None,
@@ -50,6 +51,8 @@ class TritonServerFactory:
         ----------
         image : str
             The tritonserver docker image to pull and run
+        image : bool
+            Whether the model repo contains a trtllm model
         config : TritonServerConfig
             the config object containing arguments for this server instance
         gpus : list of str
@@ -71,6 +74,7 @@ class TritonServerFactory:
 
         return TritonServerDocker(
             image=image,
+            trtllm_model=trtllm_model,
             config=config,
             gpus=gpus,
             mounts=mounts,
@@ -148,10 +152,13 @@ class TritonServerFactory:
     def _get_docker_server_handle(config, gpus):
         triton_config = TritonServerConfig()
         triton_config["model-repository"] = os.path.abspath(config.model_repository)
-
+        # Can only do this when assuming world_size=1
+        if config.trtllm:
+            triton_config["backend-config"] = "shm-region-prefix-name=prefix1_"
         logger.info("Starting a Triton Server using docker")
         server = TritonServerFactory.create_server_docker(
             image=config.image,
+            trtllm_model=config.trtllm,
             config=triton_config,
             gpus=gpus,
             mounts=None,

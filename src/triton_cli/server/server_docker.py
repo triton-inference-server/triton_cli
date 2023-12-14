@@ -29,7 +29,9 @@ class TritonServerDocker(TritonServer):
     triton in a docker container.
     """
 
-    def __init__(self, image, config, gpus, mounts, labels, shm_size, args):
+    def __init__(
+        self, image, trtllm_model, config, gpus, mounts, labels, shm_size, args
+    ):
         """
         Parameters
         ----------
@@ -60,6 +62,7 @@ class TritonServerDocker(TritonServer):
         self._gpus = gpus
         self._shm_size = shm_size
         self._args = args if args else {}
+        self._trtllm_model = trtllm_model
 
         assert self._server_config[
             "model-repository"
@@ -105,11 +108,27 @@ class TritonServerDocker(TritonServer):
             server_grpc_port: server_grpc_port,
             server_metrics_port: server_metrics_port,
         }
-
         # Construct run command
-        command = " ".join(
-            env_cmds + ["tritonserver", self._server_config.to_cli_string()]
-        )
+        # TRTLLM models require special handling. For now,
+        # we will 'spell-out' the command.
+        if self._trtllm_model:
+            command = " ".join(
+                [
+                    "mpirun",
+                    "--allow-run-as-root",
+                    "-n",
+                    "1",
+                    "tritonserver",
+                    self._server_config.to_cli_string(),
+                    "--backend-config=shm-region-prefix-name=prefix1_",
+                    "--disable-auto-complete-config",
+                ]
+            )
+        else:
+            command = " ".join(
+                env_cmds + ["tritonserver", self._server_config.to_cli_string()]
+            )
+
         try:
             # Run the docker container and run the command in the container
             self._tritonserver_container = self._docker_client.containers.run(
