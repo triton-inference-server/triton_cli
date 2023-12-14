@@ -25,6 +25,7 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 backend: "python"
+# FIXME: this max_batch_size is hard-coded
 max_batch_size: 1
 
 model_transaction_policy {
