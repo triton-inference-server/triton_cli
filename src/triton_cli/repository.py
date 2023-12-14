@@ -3,7 +3,6 @@ import json
 import shutil
 import logging
 import subprocess
-import inspect
 from pathlib import Path
 
 from directory_tree import display_tree
@@ -29,9 +28,7 @@ team = {team}
 SOURCE_PREFIX_HUGGINGFACE = "hf:"
 SOURCE_PREFIX_NGC = "ngc:"
 
-TRT_TEMPLATES_PATH = (
-    Path(inspect.getabsfile(inspect.currentframe())).parent / "templates/trtllm/"
-)
+TRT_TEMPLATES_PATH = Path(__file__).parent / "templates/trtllm/"
 
 
 # NOTE: Thin wrapper around NGC CLI is a WAR for now.
