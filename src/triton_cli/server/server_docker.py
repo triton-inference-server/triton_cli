@@ -120,8 +120,9 @@ class TritonServerDocker(TritonServer):
                     "1",
                     "tritonserver",
                     self._server_config.to_cli_string(),
-                    "--backend-config=shm-region-prefix-name=prefix1_",
+                    "--backend-config=python,shm-region-prefix-name=prefix1_",
                     "--disable-auto-complete-config",
+                    ":",
                 ]
             )
         else:

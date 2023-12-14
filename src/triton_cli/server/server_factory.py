@@ -152,9 +152,6 @@ class TritonServerFactory:
     def _get_docker_server_handle(config, gpus):
         triton_config = TritonServerConfig()
         triton_config["model-repository"] = os.path.abspath(config.model_repository)
-        # Can only do this when assuming world_size=1
-        if config.trtllm:
-            triton_config["backend-config"] = "shm-region-prefix-name=prefix1_"
         logger.info("Starting a Triton Server using docker")
         server = TritonServerFactory.create_server_docker(
             image=config.image,
