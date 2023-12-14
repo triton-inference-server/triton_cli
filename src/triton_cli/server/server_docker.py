@@ -110,7 +110,7 @@ class TritonServerDocker(TritonServer):
         # Construct run command
         # TRTLLM models require special handling. For now,
         # we will 'spell-out' the command.
-        if self._world_size > -1:
+        if self._world_size >= 1:
             command = " ".join(
                 TritonServerUtils.mpi_run(
                     self._world_size, self._server_config["model-repository"]
