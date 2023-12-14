@@ -72,6 +72,10 @@ build-backend = "hatchling.build"
 [tool.hatch.version]
 path = "src/triton_cli/__init__.py"
 
+# To ship templates as a part of the package
+[tool.hatch.build.targets.wheel.force-include]
+"templates" = "triton_cli/templates"
+
 # Pre-commit hook tool configs
 [tool.codespell]
 # note: pre-commit passes explicit lists of files here, which this skip file list doesn't override -
@@ -89,4 +93,3 @@ quiet-level = 3
 # Same as Black.
 line-length = 88
 indent-width = 4
-
