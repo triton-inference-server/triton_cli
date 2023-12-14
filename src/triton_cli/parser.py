@@ -242,6 +242,13 @@ def parse_args_server(subcommands):
         default="nvcr.io/nvidia/tritonserver:23.11-vllm-python-py3",
         help="Image to use when starting Triton with 'docker' mode",
     )
+    server_start.add_argument(
+        "--world-size",
+        type=int,
+        required=False,
+        default=-1,
+        help="Number of devices to deploy a tensorrtllm model.",
+    )
     add_repo_args([server_start])
 
     server_metrics = server_commands.add_parser(
