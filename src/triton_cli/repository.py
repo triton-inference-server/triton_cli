@@ -8,6 +8,7 @@ from pathlib import Path
 from directory_tree import display_tree
 
 from triton_cli.constants import DEFAULT_MODEL_REPO
+from triton_cli.json_parser import parse_and_substitute
 
 logger = logging.getLogger("triton")
 
@@ -29,6 +30,7 @@ SOURCE_PREFIX_HUGGINGFACE = "hf:"
 SOURCE_PREFIX_NGC = "ngc:"
 
 TRT_TEMPLATES_PATH = Path(__file__).parent / "templates" / "trtllm"
+NGC_ENGINES_PATH = "/tmp/engines"
 
 
 # NOTE: Thin wrapper around NGC CLI is a WAR for now.
@@ -138,10 +140,10 @@ class ModelRepository:
             # NOTE: NGC models likely to contain colons
             ngc_id = source.replace(SOURCE_PREFIX_NGC, "")
             ngc = NGCWrapper()
-            ngc.download_model(ngc_id, dest="/tmp/engines")
+            ngc.download_model(ngc_id, dest=NGC_ENGINES_PATH)
             # TODO: grab downloaded config files,
             #       point to downloaded engines, etc.
-            self.__generate_trtllm_model(name)
+            self.__generate_trtllm_model(name, source)
         else:
             logger.info(f"Copying {model_path} to {version_dir}")
             shutil.copy(model_path, version_dir)
@@ -190,9 +192,15 @@ class ModelRepository:
         model_files = {"model.json": model_contents}
         return model_config, model_files
 
-    def __generate_trtllm_model(self, name: str):
+    def __generate_trtllm_model(self, name: str, source: str):
+        # NOTE: Assuming that `llama2_13b_trt_a100:0.1` from source
+        #       transforms into llama2_13b_trt_a100_v0.1
+        ngc_model_name = source.split("/")[-1].replace(":", "_v")
+        engines_path = NGC_ENGINES_PATH + "/" + ngc_model_name
+        parse_and_substitute(
+            str(self.repo), engines_path, engines_path, "auto", dry_run=False
+        )
         shutil.move(self.repo / "tensorrt_llm_bls", self.repo / name)
-        # TODO: Fill in Triton's config.pbtxt templates from TRT-LLM config.json
 
     def __create_model_repository(
         self, name: str, version: int = 1, backend: str = None
