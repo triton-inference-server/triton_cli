@@ -1,4 +1,3 @@
-#! /usr/bin/env python3
 from argparse import ArgumentParser
 from string import Template
 import json
@@ -18,13 +17,23 @@ def parse_and_substitute(triton_model_dir, engine_dir, token_dir, token_type, dr
     config_dict["triton_max_batch_size"] = config_file["builder_config"][
         "max_batch_size"
     ]
+    # The following parameters are based on NGC's model requirements
+    config_dict["bls_instance_count"] = config_file["builder_config"]["max_batch_size"]
+    config_dict["postprocessing_instance_count"] = config_file["builder_config"][
+        "max_batch_size"
+    ]
+    config_dict["preprocessing_instance_count"] = config_file["builder_config"][
+        "max_batch_size"
+    ]
 
-    trtllm_filepath = triton_model_dir + "tensorrt_llm/config.pbtxt"
+    trtllm_filepath = triton_model_dir + "/tensorrt_llm/config.pbtxt"
     substitute(trtllm_filepath, config_dict, dry_run)
-    preprocessing_filepath = triton_model_dir + "preprocessing/config.pbtxt"
+    preprocessing_filepath = triton_model_dir + "/preprocessing/config.pbtxt"
     substitute(preprocessing_filepath, config_dict, dry_run)
-    postprocessing_filepath = triton_model_dir + "postprocessing/config.pbtxt"
+    postprocessing_filepath = triton_model_dir + "/postprocessing/config.pbtxt"
     substitute(postprocessing_filepath, config_dict, dry_run)
+    tensorrt_llm_bls_filepath = triton_model_dir + "/tensorrt_llm_bls/config.pbtxt"
+    substitute(tensorrt_llm_bls_filepath, config_dict, dry_run)
 
 
 def substitute(file_path, sub_dict, dry_run):
