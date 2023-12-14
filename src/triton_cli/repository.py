@@ -64,14 +64,21 @@ class NGCWrapper:
 
     # TODO: Remove default model after demo
     # Update model with correct string if running on non-A100 GPU
-    def download_model(self, model, dest):
+    def download_model(self, model, ngc_model_name, dest):
         logger.info(f"Downloading NGC model: {model} to {dest}...")
         dest_path = Path(dest)
         dest_path.mkdir(parents=True, exist_ok=True)
+        model_dir = dest_path / ngc_model_name
+        if model_dir.exists():
+            logger.warning(
+                "Found existing directory for {model} at {model_dir}, skipping download."
+            )
+            return
 
         cmd = f"ngc registry model download-version {model} --dest {dest}"
-        logger.debug(f"Running '{cmd}'")
-        output = subprocess.run(cmd.split(), capture_output=True)
+        logger.info(f"Running '{cmd}'")
+        output = subprocess.run(cmd.split())
+        print(output)
         if output.returncode:
             err = output.stderr.decode("utf-8")
             raise Exception(f"Failed to download {model} from NGC:\n{err}")
@@ -140,10 +147,14 @@ class ModelRepository:
             # NOTE: NGC models likely to contain colons
             ngc_id = source.replace(SOURCE_PREFIX_NGC, "")
             ngc = NGCWrapper()
-            ngc.download_model(ngc_id, dest=NGC_ENGINES_PATH)
+            # NOTE: Assuming that `llama2_13b_trt_a100:0.1` from source
+            #       transforms into llama2_13b_trt_a100_v0.1 folder when
+            #       downloaded from NGC CLI.
+            ngc_model_name = source.split("/")[-1].replace(":", "_v")
+            ngc.download_model(ngc_id, ngc_model_name, dest=NGC_ENGINES_PATH)
             # TODO: grab downloaded config files,
             #       point to downloaded engines, etc.
-            self.__generate_trtllm_model(name, source)
+            self.__generate_trtllm_model(name, ngc_model_name)
         else:
             logger.info(f"Copying {model_path} to {version_dir}")
             shutil.copy(model_path, version_dir)
@@ -197,14 +208,12 @@ class ModelRepository:
         return model_config, model_files
 
     def __generate_trtllm_model(self, name: str, source: str):
-        # NOTE: Assuming that `llama2_13b_trt_a100:0.1` from source
-        #       transforms into llama2_13b_trt_a100_v0.1
-        ngc_model_name = source.split("/")[-1].replace(":", "_v")
-        engines_path = NGC_ENGINES_PATH + "/" + ngc_model_name
+        engines_path = NGC_ENGINES_PATH + "/" + source
         parse_and_substitute(
             str(self.repo), engines_path, engines_path, "auto", dry_run=False
         )
-        shutil.move(self.repo / "tensorrt_llm_bls", self.repo / name)
+        bls_model = self.repo / "tensorrt_llm_bls"
+        bls_model.rename(self.repo / name)
 
     def __create_model_repository(
         self, name: str, version: int = 1, backend: str = None
@@ -216,6 +225,12 @@ class ModelRepository:
         version_dir = model_dir / str(version)
         try:
             if backend == "tensorrtllm":
+                # Don't allow existing files for TRT-LLM for now in case we delete large engine files
+                if model_dir.exists():
+                    raise Exception(
+                        f"Found existing model at {version_dir}, skipping repo add."
+                    )
+
                 shutil.copytree(
                     TRT_TEMPLATES_PATH,
                     self.repo,
