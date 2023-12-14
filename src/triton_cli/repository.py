@@ -28,6 +28,7 @@ team = {team}
 SOURCE_PREFIX_HUGGINGFACE = "hf:"
 SOURCE_PREFIX_NGC = "ngc:"
 
+
 # NOTE: Thin wrapper around NGC CLI is a WAR for now.
 # TODO: Move out to generic files/interface for remote model stores
 class NGCWrapper:
@@ -40,7 +41,7 @@ class NGCWrapper:
             team="playground",
             api_key=api_key,
             # For interactive output to see download progress
-            format_type="ascii"
+            format_type="ascii",
         )
 
     # To avoid having to interact with NGC CLI interactively,
@@ -53,10 +54,7 @@ class NGCWrapper:
 
         logger.info("Generating NGC config")
         config = NGC_CONFIG_TEMPLATE.format(
-            api_key=api_key,
-            format_type=format_type,
-            org=org,
-            team=team
+            api_key=api_key, format_type=format_type, org=org, team=team
         )
         config_file.write_text(config)
 
@@ -73,6 +71,7 @@ class NGCWrapper:
         if output.returncode:
             err = output.stderr.decode("utf-8")
             raise Exception(f"Failed to download {model} from NGC:\n{err}")
+
 
 # Can eventually be an interface and have implementations
 # for remote stores or similar, but keeping it simple for now.
