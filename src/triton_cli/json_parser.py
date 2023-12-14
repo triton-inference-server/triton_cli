@@ -9,7 +9,6 @@ def parse_and_substitute(triton_model_dir, engine_dir, token_dir, token_type, dr
     with open(json_path) as j:
         config_file = json.load(j)
 
-    json.dumps(config_file)
     config_dict = {}
     config_dict["engine_dir"] = engine_dir
     config_dict["tokenizer_dir"]=token_dir
