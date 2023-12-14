@@ -155,11 +155,15 @@ class ModelRepository:
         shutil.rmtree(self.repo)
 
     # No support for removing individual versions for now
+    # TODO: remove doesn't support removing groups of models like TRT LLM at this time
+    # Use "clear" instead to clean up the repo as a WAR.
     def remove(self, name: str):
-        for entry in ["postprocessing", "preprocessing", "tensorrt_llm"]:
-            if Path(self.repo / entry).is_dir():
-                self.__remove(entry, verbose=False)
-        self.__remove(name)
+        model_dir = self.repo / name
+        if not model_dir.exists():
+            raise FileNotFoundError(f"No model folder exists at {model_dir}")
+        logger.info(f"Removing model {name} at {model_dir}...")
+        shutil.rmtree(model_dir)
+        self.list()
 
     def __add_huggingface_model(
         self, model_dir: Path, version_dir: Path, huggingface_id: str
@@ -226,12 +230,3 @@ class ModelRepository:
             logger.warning(f"Overwriting existing model in repo at: {version_dir}")
 
         return model_dir, version_dir
-
-    def __remove(self, name: str, verbose: bool = True):
-        model_dir = self.repo / name
-        if not model_dir.exists():
-            raise FileNotFoundError(f"No model folder exists at {model_dir}")
-        logger.info(f"Removing model {name} at {model_dir}...")
-        shutil.rmtree(model_dir)
-        if verbose:
-            self.list()
