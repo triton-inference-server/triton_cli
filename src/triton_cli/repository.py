@@ -3,6 +3,7 @@ import json
 import shutil
 import logging
 import subprocess
+import inspect
 from pathlib import Path
 
 from directory_tree import display_tree
@@ -27,6 +28,10 @@ team = {team}
 
 SOURCE_PREFIX_HUGGINGFACE = "hf:"
 SOURCE_PREFIX_NGC = "ngc:"
+
+TRT_TEMPLATES_PATH = (
+    Path(inspect.getabsfile(inspect.currentframe())).parent / "templates/trtllm/"
+)
 
 
 # NOTE: Thin wrapper around NGC CLI is a WAR for now.
@@ -102,6 +107,11 @@ class ModelRepository:
         if not source:
             raise Exception("Non-empty model source must be provided")
 
+        if backend:
+            raise NotImplementedError(
+                "No support for manually specifying backend at this time."
+            )
+
         # HuggingFace models
         if source.startswith(SOURCE_PREFIX_HUGGINGFACE):
             logger.info("HuggingFace prefix detected, parsing HuggingFace ID")
@@ -110,6 +120,7 @@ class ModelRepository:
         elif source.startswith(SOURCE_PREFIX_NGC):
             logger.info("NGC prefix detected, parsing NGC ID")
             source_type = "ngc"
+            backend = "tensorrtllm"
         # Local model path
         else:
             logger.info("No supported prefix detected, assuming local path")
@@ -118,20 +129,7 @@ class ModelRepository:
             if not model_path.exists():
                 raise FileNotFoundError(f"{model_path} does not exist")
 
-        # Create model directory in repo with name, raise error if
-        # repo doesn't exist, or model directory already exists.
-        model_dir = self.repo / name
-        version_dir = model_dir / str(version)
-        try:
-            version_dir.mkdir(parents=True, exist_ok=False)
-            logger.info(f"Adding new model to repo at: {version_dir}")
-        except FileExistsError:
-            logger.warning(f"Overwriting existing model in repo at: {version_dir}")
-
-        if backend:
-            raise NotImplementedError(
-                "No support for manually specifying backend at this time."
-            )
+        model_dir, version_dir = self.__create_model_repository(name, version, backend)
 
         # Note it's a bit redundant right now, but we check prefix above first
         # to avoid creating model repository files in case that local source
@@ -144,9 +142,9 @@ class ModelRepository:
             ngc_id = source.replace(SOURCE_PREFIX_NGC, "")
             ngc = NGCWrapper()
             ngc.download_model(ngc_id, dest="/tmp/engines")
-            # TODO: Copy TRT LLM template, grab downloaded config files,
+            # TODO: grab downloaded config files,
             #       point to downloaded engines, etc.
-            self.__generate_trtllm_model()
+            self.__generate_trtllm_model(name)
         else:
             logger.info(f"Copying {model_path} to {version_dir}")
             shutil.copy(model_path, version_dir)
@@ -159,12 +157,10 @@ class ModelRepository:
 
     # No support for removing individual versions for now
     def remove(self, name: str):
-        model_dir = self.repo / name
-        if not model_dir.exists():
-            raise FileNotFoundError(f"No model folder exists at {model_dir}")
-        logger.info(f"Removing model {name} at {model_dir}...")
-        shutil.rmtree(model_dir)
-        self.list()
+        for entry in ["postprocessing", "preprocessing", "tensorrt_llm"]:
+            if Path(self.repo / entry).is_dir():
+                self.__remove(entry, verbose=False)
+        self.__remove(name)
 
     def __add_huggingface_model(
         self, model_dir: Path, version_dir: Path, huggingface_id: str
@@ -197,5 +193,40 @@ class ModelRepository:
         model_files = {"model.json": model_contents}
         return model_config, model_files
 
-    def __generate_trtllm_model(self):
-        pass
+    def __generate_trtllm_model(self, name: str):
+        shutil.move(self.repo / "tensorrt_llm_bls", self.repo / name)
+        # TODO: Fill in Triton's config.pbtxt templates from TRT-LLM config.json
+
+    def __create_model_repository(
+        self, name: str, version: int = 1, backend: str = None
+    ):
+        # Create model directory in repo with name, raise error if
+        # repo doesn't exist, or model directory already exists.
+
+        model_dir = self.repo / name
+        version_dir = model_dir / str(version)
+        try:
+            if backend == "tensorrtllm":
+                shutil.copytree(
+                    TRT_TEMPLATES_PATH,
+                    self.repo,
+                    dirs_exist_ok=True,
+                    ignore=shutil.ignore_patterns("__pycache__"),
+                )
+                logger.info(f"Adding TensorRT-LLM models at: {self.repo}")
+            else:
+                version_dir.mkdir(parents=True, exist_ok=False)
+                logger.info(f"Adding new model to repo at: {version_dir}")
+        except FileExistsError:
+            logger.warning(f"Overwriting existing model in repo at: {version_dir}")
+
+        return model_dir, version_dir
+
+    def __remove(self, name: str, verbose: bool = True):
+        model_dir = self.repo / name
+        if not model_dir.exists():
+            raise FileNotFoundError(f"No model folder exists at {model_dir}")
+        logger.info(f"Removing model {name} at {model_dir}...")
+        shutil.rmtree(model_dir)
+        if verbose:
+            self.list()
