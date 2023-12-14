@@ -15,7 +15,7 @@ def parse_and_substitute(triton_model_dir, engine_dir, token_dir, token_type, dr
     config_dict = {}
     config_dict["engine_dir"] = engine_dir
     config_dict["tokenizer_dir"]=token_dir
-    config_dict["tokenizer_type"]=token_dir
+    config_dict["tokenizer_type"]=token_type
     config_dict["triton_max_batch_size"]=config_file["builder_config"]["max_batch_size"]
 
     print(config_dict)
