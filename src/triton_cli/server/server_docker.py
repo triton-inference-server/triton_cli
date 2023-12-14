@@ -18,6 +18,7 @@ import docker
 import logging
 
 from .server import TritonServer
+from .server_utils import TritonServerUtils
 from triton_cli.constants import LOGGER_NAME
 
 logger = logging.getLogger(LOGGER_NAME)
@@ -29,7 +30,7 @@ class TritonServerDocker(TritonServer):
     triton in a docker container.
     """
 
-    def __init__(self, image, config, gpus, mounts, labels, shm_size, args):
+    def __init__(self, image, world_size, config, gpus, mounts, labels, shm_size, args):
         """
         Parameters
         ----------
@@ -60,6 +61,7 @@ class TritonServerDocker(TritonServer):
         self._gpus = gpus
         self._shm_size = shm_size
         self._args = args if args else {}
+        self._world_size = world_size
 
         assert self._server_config[
             "model-repository"
@@ -105,11 +107,19 @@ class TritonServerDocker(TritonServer):
             server_grpc_port: server_grpc_port,
             server_metrics_port: server_metrics_port,
         }
-
         # Construct run command
-        command = " ".join(
-            env_cmds + ["tritonserver", self._server_config.to_cli_string()]
-        )
+        # TRTLLM models require special handling. For now,
+        # we will 'spell-out' the command.
+        if self._world_size >= 1:
+            command = " ".join(
+                TritonServerUtils.mpi_run(
+                    self._world_size, self._server_config["model-repository"]
+                )
+            )
+        else:
+            command = " ".join(
+                env_cmds + ["tritonserver", self._server_config.to_cli_string()]
+            )
         try:
             # Run the docker container and run the command in the container
             self._tritonserver_container = self._docker_client.containers.run(

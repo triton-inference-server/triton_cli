@@ -38,6 +38,7 @@ class TritonServerFactory:
     @staticmethod
     def create_server_docker(
         image,
+        world_size,
         config,
         gpus,
         mounts=None,
@@ -50,6 +51,8 @@ class TritonServerFactory:
         ----------
         image : str
             The tritonserver docker image to pull and run
+        world_size : int
+            Number of devices to deploy a tensorrtllm model.
         config : TritonServerConfig
             the config object containing arguments for this server instance
         gpus : list of str
@@ -71,6 +74,7 @@ class TritonServerFactory:
 
         return TritonServerDocker(
             image=image,
+            world_size=world_size,
             config=config,
             gpus=gpus,
             mounts=mounts,
@@ -148,10 +152,10 @@ class TritonServerFactory:
     def _get_docker_server_handle(config, gpus):
         triton_config = TritonServerConfig()
         triton_config["model-repository"] = os.path.abspath(config.model_repository)
-
         logger.info("Starting a Triton Server using docker")
         server = TritonServerFactory.create_server_docker(
             image=config.image,
+            world_size=config.world_size,
             config=triton_config,
             gpus=gpus,
             mounts=None,
