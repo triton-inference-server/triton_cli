@@ -33,6 +33,8 @@ def parse_and_substitute(triton_model_dir, engine_dir, token_dir, token_type, dr
     postprocessing_filepath = triton_model_dir + "/postprocessing/config.pbtxt"
     substitute(postprocessing_filepath, config_dict, dry_run)
     tensorrt_llm_bls_filepath = triton_model_dir + "/tensorrt_llm_bls/config.pbtxt"
+    # todo: change this? One off change for bls max batch size
+    config_dict["triton_max_batch_size"] = 1
     substitute(tensorrt_llm_bls_filepath, config_dict, dry_run)
 
 
