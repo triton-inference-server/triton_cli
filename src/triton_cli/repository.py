@@ -202,7 +202,7 @@ class ModelRepository:
         ngc_model_name = source.split("/")[-1].replace(":", "_v")
         engines_path = NGC_ENGINES_PATH + "/" + ngc_model_name
         parse_and_substitute(
-            str(self.repo), engines_path, engines_path, "auto", dry_run=False
+            str(self.repo), engines_path, engines_path, "llama", dry_run=False
         )
         shutil.move(self.repo / "tensorrt_llm_bls", self.repo / name)
 
