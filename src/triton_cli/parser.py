@@ -243,9 +243,11 @@ def parse_args_server(subcommands):
         help="Image to use when starting Triton with 'docker' mode",
     )
     server_start.add_argument(
-        "--trtllm",
-        action="store_true",
-        help="Whether the model repo contains a trtllm model.",
+        "--world-size",
+        type=int,
+        required=False,
+        default=-1,
+        help="Number of devices to deploy a tensorrtllm model.",
     )
     add_repo_args([server_start])
 
