@@ -1,6 +1,8 @@
+import os
 import json
 import shutil
 import logging
+import subprocess
 from pathlib import Path
 
 from directory_tree import display_tree
@@ -15,7 +17,60 @@ MODEL_CONFIG_TEMPLATE = """
 backend: "{backend}"
 """
 
+NGC_CONFIG_TEMPLATE = """
+[CURRENT]
+apikey = {api_key}
+format_type = {format_type}
+org = {org}
+team = {team}
+"""
+
 SOURCE_PREFIX_HUGGINGFACE = "hf:"
+SOURCE_PREFIX_NGC = "ngc:"
+
+
+# NOTE: Thin wrapper around NGC CLI is a WAR for now.
+# TODO: Move out to generic files/interface for remote model stores
+class NGCWrapper:
+    def __init__(self):
+        api_key = os.environ.get("NGC_API_KEY", "")
+
+        # Hard-coded for demo purposes
+        self.__generate_config(
+            org="whw3rcpsilnj",
+            team="playground",
+            api_key=api_key,
+            # For interactive output to see download progress
+            format_type="ascii",
+        )
+
+    # To avoid having to interact with NGC CLI interactively,
+    # just generate config file to skip auth step.
+    def __generate_config(self, org="", team="", api_key="", format_type="ascii"):
+        config_file = Path.home() / ".ngc" / "config"
+        if config_file.exists():
+            logger.info("Found existing NGC config, skipping config generation")
+            return
+
+        logger.info("Generating NGC config")
+        config = NGC_CONFIG_TEMPLATE.format(
+            api_key=api_key, format_type=format_type, org=org, team=team
+        )
+        config_file.write_text(config)
+
+    # TODO: Remove default model after demo
+    # Update model with correct string if running on non-A100 GPU
+    def download_model(self, model, dest):
+        logger.info(f"Downloading NGC model: {model} to {dest}...")
+        dest_path = Path(dest)
+        dest_path.mkdir(parents=True, exist_ok=True)
+
+        cmd = f"ngc registry model download-version {model} --dest {dest}"
+        logger.debug(f"Running '{cmd}'")
+        output = subprocess.run(cmd.split(), capture_output=True)
+        if output.returncode:
+            err = output.stderr.decode("utf-8")
+            raise Exception(f"Failed to download {model} from NGC:\n{err}")
 
 
 # Can eventually be an interface and have implementations
@@ -51,6 +106,10 @@ class ModelRepository:
         if source.startswith(SOURCE_PREFIX_HUGGINGFACE):
             logger.info("HuggingFace prefix detected, parsing HuggingFace ID")
             source_type = "huggingface"
+        # NGC models
+        elif source.startswith(SOURCE_PREFIX_NGC):
+            logger.info("NGC prefix detected, parsing NGC ID")
+            source_type = "ngc"
         # Local model path
         else:
             logger.info("No supported prefix detected, assuming local path")
@@ -74,9 +133,20 @@ class ModelRepository:
                 "No support for manually specifying backend at this time."
             )
 
+        # Note it's a bit redundant right now, but we check prefix above first
+        # to avoid creating model repository files in case that local source
+        # path is invalid. This should be cleaned up.
         if source_type == "huggingface":
             hf_id = source.split(":")[1]
             self.__add_huggingface_model(model_dir, version_dir, hf_id)
+        elif source_type == "ngc":
+            # NOTE: NGC models likely to contain colons
+            ngc_id = source.replace(SOURCE_PREFIX_NGC, "")
+            ngc = NGCWrapper()
+            ngc.download_model(ngc_id, dest="/tmp/engines")
+            # TODO: Copy TRT LLM template, grab downloaded config files,
+            #       point to downloaded engines, etc.
+            self.__generate_trtllm_model()
         else:
             logger.info(f"Copying {model_path} to {version_dir}")
             shutil.copy(model_path, version_dir)
@@ -126,3 +196,6 @@ class ModelRepository:
         )
         model_files = {"model.json": model_contents}
         return model_config, model_files
+
+    def __generate_trtllm_model(self):
+        pass
