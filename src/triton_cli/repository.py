@@ -210,7 +210,7 @@ class ModelRepository:
     def __generate_trtllm_model(self, name: str, source: str):
         engines_path = NGC_ENGINES_PATH + "/" + source
         parse_and_substitute(
-            str(self.repo), engines_path, engines_path, "auto", dry_run=False
+            str(self.repo), engines_path, engines_path, "llama", dry_run=False
         )
         bls_model = self.repo / "tensorrt_llm_bls"
         bls_model.rename(self.repo / name)
