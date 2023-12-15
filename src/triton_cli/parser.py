@@ -21,7 +21,7 @@ KNOWN_MODEL_SOURCES = {
     "llama-2-7b": "ngc:whw3rcpsilnj/playground/llama2_7b_trt_a100:0.1",
     "llama-2-13b": "ngc:whw3rcpsilnj/playground/llama2_13b_trt_a100:0.1",
     "gpt2": "hf:gpt2",
-    "opt125m": "hf:facebook/opt125-m",
+    "opt125m": "hf:facebook/opt-125m",
     "mistral-7b": "hf:mistralai/Mistral-7B-v0.1",
 }
 
@@ -336,6 +336,8 @@ def handle_bench(args: argparse.Namespace):
     if args.subcommand == "run":
         ### Add model to repo
         repo = ModelRepository(args.model_repository)
+        # To avoid stale models or too many models across runs
+        repo.clear()
         # Handle common models for convenience
         if not args.source:
             if args.model in KNOWN_MODEL_SOURCES:
