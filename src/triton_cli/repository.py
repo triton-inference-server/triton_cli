@@ -78,7 +78,6 @@ class NGCWrapper:
         cmd = f"ngc registry model download-version {model} --dest {dest}"
         logger.info(f"Running '{cmd}'")
         output = subprocess.run(cmd.split())
-        print(output)
         if output.returncode:
             err = output.stderr.decode("utf-8")
             raise Exception(f"Failed to download {model} from NGC:\n{err}")
