@@ -30,7 +30,10 @@ SOURCE_PREFIX_HUGGINGFACE = "hf:"
 SOURCE_PREFIX_NGC = "ngc:"
 
 TRT_TEMPLATES_PATH = Path(__file__).parent / "templates" / "trtllm"
-NGC_ENGINES_PATH = "/tmp/engines"
+
+# Support changing destination dynamically to point at
+# pre-downloaded checkpoints in various circumstances
+NGC_ENGINES_PATH = os.environ.get("NGC_DEST_DIR", "/tmp/engines")
 
 
 # NOTE: Thin wrapper around NGC CLI is a WAR for now.
@@ -51,10 +54,14 @@ class NGCWrapper:
     # To avoid having to interact with NGC CLI interactively,
     # just generate config file to skip auth step.
     def __generate_config(self, org="", team="", api_key="", format_type="ascii"):
-        config_file = Path.home() / ".ngc" / "config"
+        config_dir = Path.home() / ".ngc"
+        config_file = config_dir / "config"
         if config_file.exists():
             logger.debug("Found existing NGC config, skipping config generation")
             return
+
+        if not config_dir.exists():
+            config_dir.mkdir(exist_ok=True)
 
         logger.debug("Generating NGC config")
         config = NGC_CONFIG_TEMPLATE.format(

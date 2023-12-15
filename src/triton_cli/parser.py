@@ -11,6 +11,7 @@ from triton_cli.client.client import InferenceServerException, TritonClient
 from triton_cli.metrics import MetricsClient
 from triton_cli.repository import ModelRepository
 from triton_cli.server.server_factory import TritonServerFactory
+from triton_cli.profiler import Profiler
 
 logger = logging.getLogger(LOGGER_NAME)
 
@@ -151,6 +152,17 @@ def handle_model(args: argparse.Namespace):
 
     if args.subcommand == "infer":
         client.infer(args.model, args.data, args.prompt)
+    elif args.subcommand == "profile":
+        # TODO: run PA LLM benchmark script
+        print("pull engine()")
+        print("run_server()")
+        print("profile()")
+        Profiler.profile(
+            model=args.model,
+            batch_size=1,
+            url=f"{args.url}:{args.port}",
+            input_length=2048,
+        )
     elif args.subcommand == "config":
         config = client.get_model_config(args.model)
         if config:
@@ -221,11 +233,13 @@ def parse_args_model(subcommands):
         default=None,
         help="Text input to LLM-like models. Required for inference on LLMs, optional otherwise.",
     )
+    profile = model_commands.add_parser("profile", help="Run Perf Analyzer")
+    profile.add_argument("-m", "--model", type=str, required=True, help="Model name")
     config = model_commands.add_parser("config", help="Get config for model")
     config.add_argument("-m", "--model", type=str, required=True, help="Model name")
     metrics = model_commands.add_parser("metrics", help="Get metrics for model")
     metrics.add_argument("-m", "--model", type=str, required=True, help="Model name")
-    add_client_args([infer, config, metrics])
+    add_client_args([infer, profile, config, metrics])
     return model
 
 
