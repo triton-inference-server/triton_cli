@@ -92,8 +92,8 @@ def handle_model(args: argparse.Namespace):
         print("profile()")
         Profiler.profile(
             model=args.model,
-            batch_size=64,
-            url="localhost:8001",
+            batch_size=1,
+            url=f"{args.url}:{args.port}",
             input_length=2048,
         )
     elif args.subcommand == "config":
