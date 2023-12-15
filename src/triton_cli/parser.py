@@ -158,18 +158,12 @@ def handle_model(args: argparse.Namespace):
             args.port = 8001 if args.protocol == "grpc" else 8000
 
         logger.info(f"Running Perf Analyzer profiler on '{args.model}'...")
-        for warmup in [True, False]:
-            if warmup:
-                logger.info("Warming up...")
-            else:
-                logger.info("Benchmarking...")
-            Profiler.profile(
-                model=args.model,
-                batch_size=1,
-                url=f"{args.url}:{args.port}",
-                input_length=2048,
-                warmup=warmup,
-            )
+        Profiler.profile(
+            model=args.model,
+            batch_size=args.batch_size,
+            url=f"{args.url}:{args.port}",
+            input_length=2048,
+        )
     elif args.subcommand == "config":
         config = client.get_model_config(args.model)
         if config:
@@ -242,6 +236,16 @@ def parse_args_model(subcommands):
     )
     profile = model_commands.add_parser("profile", help="Run Perf Analyzer")
     profile.add_argument("-m", "--model", type=str, required=True, help="Model name")
+    # TODO: Remove or consolidate
+    profile.add_argument(
+        "-b",
+        "--batch-size",
+        type=int,
+        default=1,
+        required=False,
+        help="The batch size / concurrency to benchmark",
+    )
+
     config = model_commands.add_parser("config", help="Get config for model")
     config.add_argument("-m", "--model", type=str, required=True, help="Model name")
     metrics = model_commands.add_parser("metrics", help="Get metrics for model")
@@ -365,18 +369,12 @@ def handle_bench(args: argparse.Namespace):
                 args.port = 8001 if args.protocol == "grpc" else 8000
 
             logger.info(f"Running Perf Analyzer profiler on '{args.model}'...")
-            for warmup in [True, False]:
-                if warmup:
-                    logger.info("Warming up...")
-                else:
-                    logger.info("Benchmarking...")
-                Profiler.profile(
-                    model=args.model,
-                    batch_size=1,
-                    url=f"{args.url}:{args.port}",
-                    input_length=2048,
-                    warmup=warmup,
-                )
+            Profiler.profile(
+                model=args.model,
+                batch_size=args.batch_size,
+                url=f"{args.url}:{args.port}",
+                input_length=2048,
+            )
         except KeyboardInterrupt:
             print()
         except Exception as ex:
@@ -413,6 +411,14 @@ def parse_args_bench(subcommands):
         required=False,
         help="Local model path or model identifier. Use prefix 'hf:' to specify a HuggingFace model ID, or 'ngc:' for NGC model ID. "
         "NOTE: HuggingFace models are currently limited to vLLM, and NGC models are currently limited to TRT-LLM",
+    )
+    bench_run.add_argument(
+        "-b",
+        "--batch-size",
+        type=int,
+        default=1,
+        required=False,
+        help="The batch size / concurrency to benchmark",
     )
     bench_run.add_argument(
         "-v",

@@ -35,87 +35,87 @@ import numpy as np
 
 INPUT_FILENAME = "generated_input_data.json"
 METRIC_FIELDS = {
-    "max_first_token_latency": ("Max first token latency", "ms"),
-    "min_first_token_latency": ("Min first token latency", "ms"),
+    # "max_first_token_latency": ("Max first token latency", "ms"),
+    # "min_first_token_latency": ("Min first token latency", "ms"),
     "avg_first_token_latency": ("Avg first token latency", "ms"),
-    "p50_first_token_latency": ("p50 first token latency", "ms"),
-    "p90_first_token_latency": ("p90 first token latency", "ms"),
-    "p95_first_token_latency": ("p95 first token latency", "ms"),
-    "p99_first_token_latency": ("p99 first token latency", "ms"),
-    "max_gen_latency": ("Max generation latency", "ms"),
-    "min_gen_latency": ("Min generation latency", "ms"),
-    "avg_gen_latency": ("Avg generation latency", "ms"),
-    "p50_gen_latency": ("p50 generation latency", "ms"),
-    "p90_gen_latency": ("p90 generation latency", "ms"),
-    "p95_gen_latency": ("p95 generation latency", "ms"),
-    "p99_gen_latency": ("p99 generation latency", "ms"),
-    "avg_output_token_latency": ("Avg output token latency", "ms/output token"),
-    "avg_total_t2t_latency": ("Avg total token-to-token latency", "ms"),
-    "max_e2e_latency": ("Max end-to-end latency", "ms"),
-    "min_e2e_latency": ("Min end-to-end latency", "ms"),
-    "avg_e2e_latency": ("Avg end-to-end latency", "ms"),
-    "p50_e2e_latency": ("p50 end-to-end latency", "ms"),
-    "p90_e2e_latency": ("p90 end-to-end latency", "ms"),
-    "p95_e2e_latency": ("p95 end-to-end latency", "ms"),
-    "p99_e2e_latency": ("p99 end-to-end latency", "ms"),
-    "max_e2e_throughput": ("Max end-to-end throughput", "tokens/s"),
-    "min_e2e_throughput": ("Min end-to-end throughput", "tokens/s"),
-    "avg_e2e_throughput": ("Avg end-to-end throughput", "tokens/s"),
-    "p50_e2e_throughput": ("p50 end-to-end throughput", "tokens/s"),
-    "p90_e2e_throughput": ("p90 end-to-end throughput", "tokens/s"),
-    "p95_e2e_throughput": ("p95 end-to-end throughput", "tokens/s"),
-    "p99_e2e_throughput": ("p99 end-to-end throughput", "tokens/s"),
-    "max_gen_throughput": ("Max generation throughput", "output tokens/s"),
-    "min_gen_throughput": ("Min generation throughput", "output tokens/s"),
+    # "p50_first_token_latency": ("p50 first token latency", "ms"),
+    # "p90_first_token_latency": ("p90 first token latency", "ms"),
+    # "p95_first_token_latency": ("p95 first token latency", "ms"),
+    # "p99_first_token_latency": ("p99 first token latency", "ms"),
+    # "max_gen_latency": ("Max generation latency", "ms"),
+    # "min_gen_latency": ("Min generation latency", "ms"),
+    # "avg_gen_latency": ("Avg generation latency", "ms"),
+    # "p50_gen_latency": ("p50 generation latency", "ms"),
+    # "p90_gen_latency": ("p90 generation latency", "ms"),
+    # "p95_gen_latency": ("p95 generation latency", "ms"),
+    # "p99_gen_latency": ("p99 generation latency", "ms"),
+    # "avg_output_token_latency": ("Avg output token latency", "ms/output token"),
+    # "avg_total_t2t_latency": ("Avg total token-to-token latency", "ms"),
+    # "max_e2e_latency": ("Max end-to-end latency", "ms"),
+    # "min_e2e_latency": ("Min end-to-end latency", "ms"),
+    # "avg_e2e_latency": ("Avg end-to-end latency", "ms"),
+    # "p50_e2e_latency": ("p50 end-to-end latency", "ms"),
+    # "p90_e2e_latency": ("p90 end-to-end latency", "ms"),
+    # "p95_e2e_latency": ("p95 end-to-end latency", "ms"),
+    # "p99_e2e_latency": ("p99 end-to-end latency", "ms"),
+    # "max_e2e_throughput": ("Max end-to-end throughput", "tokens/s"),
+    # "min_e2e_throughput": ("Min end-to-end throughput", "tokens/s"),
+    # "avg_e2e_throughput": ("Avg end-to-end throughput", "tokens/s"),
+    # "p50_e2e_throughput": ("p50 end-to-end throughput", "tokens/s"),
+    # "p90_e2e_throughput": ("p90 end-to-end throughput", "tokens/s"),
+    # "p95_e2e_throughput": ("p95 end-to-end throughput", "tokens/s"),
+    # "p99_e2e_throughput": ("p99 end-to-end throughput", "tokens/s"),
+    # "max_gen_throughput": ("Max generation throughput", "output tokens/s"),
+    # "min_gen_throughput": ("Min generation throughput", "output tokens/s"),
     "avg_gen_throughput": ("Avg generation throughput", "output tokens/s"),
-    "p50_gen_throughput": ("p50 generation throughput", "output tokens/s"),
-    "p90_gen_throughput": ("p90 generation throughput", "output tokens/s"),
-    "p95_gen_throughput": ("p95 generation throughput", "output tokens/s"),
-    "p99_gen_throughput": ("p99 generation throughput", "output tokens/s"),
+    # "p50_gen_throughput": ("p50 generation throughput", "output tokens/s"),
+    # "p90_gen_throughput": ("p90 generation throughput", "output tokens/s"),
+    # "p95_gen_throughput": ("p95 generation throughput", "output tokens/s"),
+    # "p99_gen_throughput": ("p99 generation throughput", "output tokens/s"),
 }
 
 
 @dataclass
 class ProfileResults:
     prompt_size: int
-    max_first_token_latency: Optional[float] = None
-    min_first_token_latency: Optional[float] = None
+    # max_first_token_latency: Optional[float] = None
+    # min_first_token_latency: Optional[float] = None
     avg_first_token_latency: Optional[float] = None
-    p50_first_token_latency: Optional[float] = None
-    p90_first_token_latency: Optional[float] = None
-    p95_first_token_latency: Optional[float] = None
-    p99_first_token_latency: Optional[float] = None
-    max_gen_latency: Optional[float] = None
-    min_gen_latency: Optional[float] = None
-    avg_gen_latency: Optional[float] = None
-    p50_gen_latency: Optional[float] = None
-    p90_gen_latency: Optional[float] = None
-    p95_gen_latency: Optional[float] = None
-    p99_gen_latency: Optional[float] = None
-    avg_output_token_latency: Optional[float] = None
-    avg_total_t2t_latency: Optional[float] = None
-    avg_periodic_t2t_latencies: Optional[list[float]] = None
-    max_e2e_latency: Optional[float] = None
-    min_e2e_latency: Optional[float] = None
-    avg_e2e_latency: Optional[float] = None
-    p50_e2e_latency: Optional[float] = None
-    p90_e2e_latency: Optional[float] = None
-    p95_e2e_latency: Optional[float] = None
-    p99_e2e_latency: Optional[float] = None
-    max_e2e_throughput: Optional[float] = None
-    min_e2e_throughput: Optional[float] = None
-    avg_e2e_throughput: Optional[float] = None
-    p50_e2e_throughput: Optional[float] = None
-    p90_e2e_throughput: Optional[float] = None
-    p95_e2e_throughput: Optional[float] = None
-    p99_e2e_throughput: Optional[float] = None
-    max_gen_throughput: Optional[float] = None
-    min_gen_throughput: Optional[float] = None
+    # p50_first_token_latency: Optional[float] = None
+    # p90_first_token_latency: Optional[float] = None
+    # p95_first_token_latency: Optional[float] = None
+    # p99_first_token_latency: Optional[float] = None
+    # max_gen_latency: Optional[float] = None
+    # min_gen_latency: Optional[float] = None
+    # avg_gen_latency: Optional[float] = None
+    # p50_gen_latency: Optional[float] = None
+    # p90_gen_latency: Optional[float] = None
+    # p95_gen_latency: Optional[float] = None
+    # p99_gen_latency: Optional[float] = None
+    # avg_output_token_latency: Optional[float] = None
+    # avg_total_t2t_latency: Optional[float] = None
+    # avg_periodic_t2t_latencies: Optional[list[float]] = None
+    # max_e2e_latency: Optional[float] = None
+    # min_e2e_latency: Optional[float] = None
+    # avg_e2e_latency: Optional[float] = None
+    # p50_e2e_latency: Optional[float] = None
+    # p90_e2e_latency: Optional[float] = None
+    # p95_e2e_latency: Optional[float] = None
+    # p99_e2e_latency: Optional[float] = None
+    # max_e2e_throughput: Optional[float] = None
+    # min_e2e_throughput: Optional[float] = None
+    # avg_e2e_throughput: Optional[float] = None
+    # p50_e2e_throughput: Optional[float] = None
+    # p90_e2e_throughput: Optional[float] = None
+    # p95_e2e_throughput: Optional[float] = None
+    # p99_e2e_throughput: Optional[float] = None
+    # max_gen_throughput: Optional[float] = None
+    # min_gen_throughput: Optional[float] = None
     avg_gen_throughput: Optional[float] = None
-    p50_gen_throughput: Optional[float] = None
-    p90_gen_throughput: Optional[float] = None
-    p95_gen_throughput: Optional[float] = None
-    p99_gen_throughput: Optional[float] = None
+    # p50_gen_throughput: Optional[float] = None
+    # p90_gen_throughput: Optional[float] = None
+    # p95_gen_throughput: Optional[float] = None
+    # p99_gen_throughput: Optional[float] = None
 
 
 def load_json_data(filename):
@@ -159,10 +159,9 @@ def get_plot_filename(args, prompt_size):
 def print_benchmark_summary(profile_results):
     print("[ BENCHMARK SUMMARY ]")
     for pr in profile_results:
-        print(f"Prompt size: {pr.prompt_size}")
         for metric, (name, unit) in METRIC_FIELDS.items():
             if getattr(pr, metric):
-                print(f"  * {name}: {getattr(pr, metric):.4f} {unit}")
+                print(f" * {name}: {getattr(pr, metric):.4f} {unit}")
         print("")
 
 
@@ -280,6 +279,7 @@ def collect_online_metrics(export_data, output_tokens):
     )
 
 
+# TODO: take concurrency > 1 into account for all metrics
 def calculate_online_metrics(args, profile_result, export_data):
     """Calculate online metrics for more fine-grained performance information."""
     latencies = collect_online_metrics(export_data, args.max_tokens)
@@ -330,7 +330,12 @@ def calculate_online_metrics(args, profile_result, export_data):
 
         profile_result.max_gen_throughput = max(generation_throughputs)
         profile_result.min_gen_throughput = min(generation_throughputs)
-        profile_result.avg_gen_throughput = np.mean(generation_throughputs)
+        # profile_result.avg_gen_throughput = np.mean(generation_throughputs)
+        avg_gen_throughput = (
+            args.concurrency * args.max_tokens / np.mean(generation_latencies)
+        )
+        profile_result.avg_gen_throughput = avg_gen_throughput * 1000  # msec to sec
+
         profile_result.p50_gen_throughput = np.percentile(
             generation_throughputs, 50, method="lower"
         )
@@ -606,18 +611,25 @@ class Args:
 
 class Profiler:
     @staticmethod
-    def profile(model, batch_size, url, input_length, warmup=False):
+    def profile(model, batch_size, url, input_length=2048, output_length=128):
         args = Args()
         args.model = model
         args.concurrency = batch_size  # inflight batch size
         args.url = url
         args.prompt_size_range = [input_length, input_length, 1]
+        args.max_tokens = output_length
 
-        if warmup:
-            main(args, should_summarize=False)  # warm-up
+        start, end, step = args.prompt_size_range
+        assert start == end and step == 1  # no sweeping for now
 
-        else:
-            main(args)
+        print("Warming up...")
+        main(args, should_summarize=False)  # warm-up
 
-        # get only avg first token and avg
-        #
+        print("Warmed up, profiling now...\n")
+        print("[ PROFILE CONFIGURATIONS ]")
+        print(f" * Model: {args.model}")
+        print(f" * Batch size: {args.concurrency}")
+        print(f" * Input tokens: {args.prompt_size_range[0]}")
+        print(f" * Output tokens: {args.max_tokens}")
+        print("")
+        main(args)
