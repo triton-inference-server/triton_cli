@@ -30,7 +30,7 @@ KNOWN_MODEL_SOURCES = {
 # TODO: rich progress bar
 def wait_for_ready(timeout, server, client):
     with Progress(transient=True) as progress:
-        _ = progress.add_task("[green]Waiting for server startup...", total=None)
+        _ = progress.add_task("[green]Loading models...", total=None)
         for _ in range(timeout):
             # Client health will allow early exit of wait if healthy,
             # errors may occur while server starting up, so ignore them.
