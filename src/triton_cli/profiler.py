@@ -331,9 +331,10 @@ def calculate_online_metrics(args, profile_result, export_data):
         profile_result.max_gen_throughput = max(generation_throughputs)
         profile_result.min_gen_throughput = min(generation_throughputs)
         # profile_result.avg_gen_throughput = np.mean(generation_throughputs)
-        profile_result.avg_gen_throughput = (
-            args.concurrency * args.max_tokens / np.mean(generation_latencies) * 1000
+        avg_gen_throughput = (
+            args.concurrency * args.max_tokens / np.mean(generation_latencies)
         )
+        profile_result.avg_gen_throughput = avg_gen_throughput * 1000  # msec to sec
 
         profile_result.p50_gen_throughput = np.percentile(
             generation_throughputs, 50, method="lower"
