@@ -44,7 +44,7 @@ METRIC_FIELDS = {
     # "p99_first_token_latency": ("p99 first token latency", "ms"),
     # "max_gen_latency": ("Max generation latency", "ms"),
     # "min_gen_latency": ("Min generation latency", "ms"),
-    "avg_gen_latency": ("Avg generation latency", "ms"),
+    # "avg_gen_latency": ("Avg generation latency", "ms"),
     # "p50_gen_latency": ("p50 generation latency", "ms"),
     # "p90_gen_latency": ("p90 generation latency", "ms"),
     # "p95_gen_latency": ("p95 generation latency", "ms"),
@@ -87,7 +87,7 @@ class ProfileResults:
     # p99_first_token_latency: Optional[float] = None
     # max_gen_latency: Optional[float] = None
     # min_gen_latency: Optional[float] = None
-    avg_gen_latency: Optional[float] = None
+    # avg_gen_latency: Optional[float] = None
     # p50_gen_latency: Optional[float] = None
     # p90_gen_latency: Optional[float] = None
     # p95_gen_latency: Optional[float] = None
@@ -631,7 +631,6 @@ class Profiler:
         print(f" * Batch size: {args.concurrency}")
         print(f" * Input tokens: {args.prompt_size_range[0]}")
         print(f" * Output tokens: {args.max_tokens}")
-        print(f" * Stream: {not args.offline}")
         print("")
         main(args)
 
