@@ -54,17 +54,6 @@ class TritonClient:
     def is_server_live(self):
         return self.client.is_server_live()
 
-    def wait_for_server(self, timeout):
-        for _ in range(timeout):
-            try:
-                if self.ready_for_inference():
-                    return
-            except InferenceServerException:
-                # Gracefully handle error if checking server health before server is ready to respond
-                pass
-            time.sleep(1)
-        raise Exception("Timed out waiting for server to load model.")
-
     def ready_for_inference(self):
         return self.client.is_server_live() and self.client.is_server_ready()
 
@@ -130,7 +119,7 @@ class TritonClient:
         return _input
 
     def generate_data(self, config: dict, data_mode: str):
-        logger.info("Generating input data...")
+        logger.debug("Generating input data...")
         inputs = [i for i in config["input"]]
 
         infer_inputs = []
@@ -287,7 +276,10 @@ class TritonClient:
         return is_final_response
 
     # Junk function to show a server can be launched and queried in a single terminal.
-    # To be deleted.
+    # TODO: Remove.
     def benchmark_model(self, model: str):
-        for _ in range(10):
-            self.infer(model, "random", "This CLI is ")
+        start = time.time_ns()
+        self.infer(model, "random", "This CLI is ")
+        end = time.time_ns()
+        total_time_ms = (end - start) / (10**6)
+        logger.info(f"Inference time: {total_time_ms} ms")

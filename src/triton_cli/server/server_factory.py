@@ -40,7 +40,7 @@ class TritonServerFactory:
         image,
         world_size,
         config,
-        gpus,
+        gpus=None,
         mounts=None,
         labels=None,
         shm_size=None,
@@ -84,7 +84,7 @@ class TritonServerFactory:
         )
 
     @staticmethod
-    def create_server_local(path, config, gpus):
+    def create_server_local(path, config, gpus=None):
         """
         Parameters
         ----------
@@ -104,7 +104,7 @@ class TritonServerFactory:
         return TritonServerLocal(path=path, config=config, gpus=gpus)
 
     @staticmethod
-    def get_server_handle(config, gpus):
+    def get_server_handle(config, gpus=None):
         """
         Creates and returns a TritonServer
         with specified arguments
@@ -139,7 +139,9 @@ class TritonServerFactory:
 
         triton_config = TritonServerConfig()
         triton_config["model-repository"] = config.model_repository
-        logger.info("Starting a Triton Server locally")
+        logger.info(
+            f"Starting a Triton Server locally with model repository: {config.model_repository}"
+        )
         server = TritonServerFactory.create_server_local(
             path=tritonserver_path,
             config=triton_config,
@@ -152,7 +154,9 @@ class TritonServerFactory:
     def _get_docker_server_handle(config, gpus):
         triton_config = TritonServerConfig()
         triton_config["model-repository"] = os.path.abspath(config.model_repository)
-        logger.info("Starting a Triton Server using docker")
+        logger.info(
+            f"Starting a Triton Server via docker with model repository: {config.model_repository}"
+        )
         server = TritonServerFactory.create_server_docker(
             image=config.image,
             world_size=config.world_size,

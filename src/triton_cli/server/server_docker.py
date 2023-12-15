@@ -137,7 +137,6 @@ class TritonServerDocker(TritonServer):
                 shm_size=self._shm_size,
                 **self._args,
             )
-            logger.info("Triton Server started")
         except docker.errors.APIError as e:
             if e.explanation.find("port is already allocated") != -1:
                 raise Exception(
@@ -167,3 +166,13 @@ class TritonServerDocker(TritonServer):
     def logs(self):
         for chunk in self._tritonserver_container.logs(stream=True):
             print(chunk.decode("utf-8").rstrip())
+
+    def health(self):
+        # Local attrs are cached, need to call reload() to update them
+        self._tritonserver_container.reload()
+        status = self._tritonserver_container.status
+        if status not in ["created", "running"]:
+            logs = self._tritonserver_container.logs(stream=False).decode("utf-8")
+            raise Exception(
+                f"Triton server experienced an error. Status: {status}\nLogs: {logs}"
+            )

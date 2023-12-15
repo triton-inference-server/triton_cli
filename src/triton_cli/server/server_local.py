@@ -93,8 +93,6 @@ class TritonServerLocal(TritonServer):
                     universal_newlines=True,
                     env=triton_env,
                 )
-
-                logger.info("Triton Server started")
             except Exception as e:
                 logger.error(e)
                 raise Exception(e)
@@ -120,3 +118,11 @@ class TritonServerLocal(TritonServer):
     def logs(self):
         for line in self._tritonserver_process.stdout:
             print(line.rstrip())
+
+    def health(self):
+        status = self._tritonserver_process.returncode
+        stderr = self._tritonserver_process.stderr
+        if status:
+            raise Exception(
+                f"Triton server experienced an error. Status: {status}\nStderr: {stderr}"
+            )

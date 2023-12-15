@@ -46,6 +46,12 @@ class TritonServer(ABC):
         Outputs and follows the server's log file in a blocking manner
         """
 
+    @abstractmethod
+    def health(self):
+        """
+        Checks server health. Raises an Exception on error.
+        """
+
     def update_config(self, params):
         """
         Update the server's arguments

@@ -1,16 +1,83 @@
+import time
 import logging
 import argparse
 from pathlib import Path
 
 from rich import print as rich_print
+from rich.progress import Progress
 
-from triton_cli.constants import DEFAULT_MODEL_REPO
-from triton_cli.client.client import TritonClient
+from triton_cli.constants import DEFAULT_MODEL_REPO, LOGGER_NAME
+from triton_cli.client.client import InferenceServerException, TritonClient
 from triton_cli.metrics import MetricsClient
 from triton_cli.repository import ModelRepository
 from triton_cli.server.server_factory import TritonServerFactory
 
-logger = logging.getLogger("triton")
+logger = logging.getLogger(LOGGER_NAME)
+
+# TODO: Move to config file approach
+# TODO: Per-GPU mappings for TRT LLM models
+KNOWN_MODEL_SOURCES = {
+    "llama-2-7b": "ngc:whw3rcpsilnj/playground/llama2_7b_trt_a100:0.1",
+    "llama-2-13b": "ngc:whw3rcpsilnj/playground/llama2_13b_trt_a100:0.1",
+    "gpt2": "hf:gpt2",
+    "opt125m": "hf:facebook/opt125-m",
+    "mistral-7b": "hf:mistralai/Mistral-7B-v0.1",
+}
+
+
+# TODO: Move out of parser
+# TODO: rich progress bar
+def wait_for_ready(timeout, server, client):
+    with Progress(transient=True) as progress:
+        _ = progress.add_task("[green]Waiting for server startup...", total=None)
+        for _ in range(timeout):
+            # Client health will allow early exit of wait if healthy,
+            # errors may occur while server starting up, so ignore them.
+            try:
+                if client.is_server_ready():
+                    return
+            except InferenceServerException:
+                pass
+
+            # Server health will throw exception if error occurs on server side
+            server.health()
+            time.sleep(1)
+        raise Exception("Timed out waiting for server to startup.")
+
+
+def add_server_start_args(subcommands):
+    for subcommand in subcommands:
+        subcommand.add_argument(
+            "--mode",
+            choices=["local", "docker"],
+            type=str,
+            default="local",
+            required=False,
+            help="Mode to start Triton with. (Default: 'local')",
+        )
+        subcommand.add_argument(
+            "--image",
+            type=str,
+            required=False,
+            default="nvcr.io/nvidia/tritonserver:23.11-vllm-python-py3",
+            help="Image to use when starting Triton with 'docker' mode",
+        )
+        # TODO: Delete once world-size can be parsed from a known
+        # config file location.
+        subcommand.add_argument(
+            "--world-size",
+            type=int,
+            required=False,
+            default=-1,
+            help="Number of devices to deploy a tensorrtllm model.",
+        )
+        subcommand.add_argument(
+            "--server-timeout",
+            type=int,
+            required=False,
+            default=100,
+            help="Maximum number of seconds to wait for server startup. (Default: 100)",
+        )
 
 
 def add_client_args(subcommands):
@@ -101,14 +168,8 @@ def handle_model(args: argparse.Namespace):
 
 def handle_server(args: argparse.Namespace):
     if args.subcommand == "start":
-        # TODO: No support for specifying GPUs for now, default to all available.
-        gpus = []
-        server = TritonServerFactory.get_server_handle(args, gpus)
-        logger.debug(server)
+        server = TritonServerFactory.get_server_handle(args)
         try:
-            logger.info(
-                f"Starting server with model repository: [{args.model_repository}]..."
-            )
             server.start()
             logger.info("Reading server output...")
             server.logs()
@@ -227,30 +288,7 @@ def parse_args_server(subcommands):
     server.set_defaults(func=handle_server)
     server_commands = server.add_subparsers(required=True, dest="subcommand")
     server_start = server_commands.add_parser("start", help="Start a Triton server")
-    server_start.add_argument(
-        "--mode",
-        choices=["local", "docker"],
-        type=str,
-        default="docker",
-        required=False,
-        help="Mode to start Triton with. (Default: 'docker')",
-    )
-    server_start.add_argument(
-        "--image",
-        type=str,
-        required=False,
-        default="nvcr.io/nvidia/tritonserver:23.11-vllm-python-py3",
-        help="Image to use when starting Triton with 'docker' mode",
-    )
-    # TODO: Delete once world-size can be parsed from a known
-    # config file location.
-    server_start.add_argument(
-        "--world-size",
-        type=int,
-        required=False,
-        default=-1,
-        help="Number of devices to deploy a tensorrtllm model.",
-    )
+    add_server_start_args([server_start])
     add_repo_args([server_start])
 
     server_metrics = server_commands.add_parser(
@@ -267,21 +305,42 @@ def parse_args_server(subcommands):
 
 
 def handle_bench(args: argparse.Namespace):
+    if args.verbose:
+        logger.setLevel(logging.DEBUG)
+
     if args.subcommand == "run":
-        # TODO: No support for specifying GPUs for now, default to all available.
-        gpus = []
-        server = TritonServerFactory.get_server_handle(args, gpus)
-        logger.debug(server)
+        ### Add model to repo
+        repo = ModelRepository(args.model_repository)
+        # Handle common models for convenience
+        if not args.source:
+            if args.model in KNOWN_MODEL_SOURCES:
+                args.source = KNOWN_MODEL_SOURCES[args.model]
+                logger.info(
+                    f"Known model source found for '{args.model}': '{args.source}'"
+                )
+            else:
+                logger.error(
+                    f"No known source for model: '{args.model}'. Known sources: {list(KNOWN_MODEL_SOURCES.keys())}"
+                )
+                raise Exception("Please use a known model, or provide a --source.")
+
+        repo.add(
+            args.model,
+            version=1,
+            source=args.source,
+            backend=None,
+            verbose=args.verbose,
+        )
+
+        ### Start server
+        server = TritonServerFactory.get_server_handle(args)
         try:
-            logger.info(
-                f"Starting server with model repository: [{args.model_repository}]..."
-            )
             server.start()
             client = TritonClient(url=args.url, port=args.port, protocol=args.protocol)
-            logger.info("Waiting for server to load model...")
-            client.wait_for_server(args.server_timeout)
-            client.benchmark_model(model=args.model)
+            wait_for_ready(args.server_timeout, server, client)
+            ### Profile model
             logger.info("Server is ready for inference. Starting benchmark...")
+            client.benchmark_model(model=args.model)
         except KeyboardInterrupt:
             print()
         except Exception as ex:
@@ -305,43 +364,29 @@ def parse_args_bench(subcommands):
         "run", help="Start a Triton benchmarking session."
     )
     bench_run.add_argument(
-        "--mode",
-        choices=["local", "docker"],
-        type=str,
-        default="docker",
-        required=False,
-        help="Mode to start Triton with. (Default: 'docker')",
-    )
-    bench_run.add_argument(
-        "--image",
-        type=str,
-        required=False,
-        default="nvcr.io/nvidia/tritonserver:23.11-vllm-python-py3",
-        help="Image to use when starting Triton with 'docker' mode",
-    )
-    bench_run.add_argument(
         "-m",
         "--model",
         type=str,
         required=True,
         help="The name of the model to benchmark",
     )
-    # TODO: Delete once world-size can be parsed from a known
-    # config file location.
     bench_run.add_argument(
-        "--world-size",
-        type=int,
+        "-s",
+        "--source",
+        type=str,
         required=False,
-        default=-1,
-        help="Number of devices to deploy a tensorrtllm model.",
+        help="Local model path or model identifier. Use prefix 'hf:' to specify a HuggingFace model ID, or 'ngc:' for NGC model ID. "
+        "NOTE: HuggingFace models are currently limited to vLLM, and NGC models are currently limited to TRT-LLM",
     )
     bench_run.add_argument(
-        "--server-timeout",
-        type=int,
-        required=False,
-        default=100,
-        help="Maximum number of seconds to wait for server startup. (Default: 100)",
+        "-v",
+        "--verbose",
+        action="store_true",
+        default=False,
+        help="Enable verbose logging",
     )
+
+    add_server_start_args([bench_run])
     add_repo_args([bench_run])
     add_client_args([bench_run])
 
