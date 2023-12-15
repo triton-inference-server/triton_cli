@@ -242,6 +242,8 @@ def parse_args_server(subcommands):
         default="nvcr.io/nvidia/tritonserver:23.11-vllm-python-py3",
         help="Image to use when starting Triton with 'docker' mode",
     )
+    # TODO: Delete once world-size can be parsed from a known
+    # config file location.
     server_start.add_argument(
         "--world-size",
         type=int,
@@ -264,6 +266,88 @@ def parse_args_server(subcommands):
     return server
 
 
+def handle_bench(args: argparse.Namespace):
+    if args.subcommand == "run":
+        # TODO: No support for specifying GPUs for now, default to all available.
+        gpus = []
+        server = TritonServerFactory.get_server_handle(args, gpus)
+        logger.debug(server)
+        try:
+            logger.info(
+                f"Starting server with model repository: [{args.model_repository}]..."
+            )
+            server.start()
+            client = TritonClient(url=args.url, port=args.port, protocol=args.protocol)
+            logger.info("Waiting for server to load model...")
+            client.wait_for_server(args.server_timeout)
+            client.benchmark_model(model=args.model)
+            logger.info("Server is ready for inference. Starting benchmark...")
+        except KeyboardInterrupt:
+            print()
+        except Exception as ex:
+            # Catch timeout exception
+            logger.error(ex)
+
+        logger.info("Stopping server...")
+        server.stop()
+    else:
+        raise NotImplementedError(f"bench subcommand {args.subcommand} not supported")
+
+
+def parse_args_bench(subcommands):
+    # Model Repository Management
+    bench = subcommands.add_parser(
+        "bench", help="Run benchmarks on a model loaded into the Triton server."
+    )
+    bench.set_defaults(func=handle_bench)
+    bench_commands = bench.add_subparsers(required=True, dest="subcommand")
+    bench_run = bench_commands.add_parser(
+        "run", help="Start a Triton benchmarking session."
+    )
+    bench_run.add_argument(
+        "--mode",
+        choices=["local", "docker"],
+        type=str,
+        default="docker",
+        required=False,
+        help="Mode to start Triton with. (Default: 'docker')",
+    )
+    bench_run.add_argument(
+        "--image",
+        type=str,
+        required=False,
+        default="nvcr.io/nvidia/tritonserver:23.11-vllm-python-py3",
+        help="Image to use when starting Triton with 'docker' mode",
+    )
+    bench_run.add_argument(
+        "-m",
+        "--model",
+        type=str,
+        required=True,
+        help="The name of the model to benchmark",
+    )
+    # TODO: Delete once world-size can be parsed from a known
+    # config file location.
+    bench_run.add_argument(
+        "--world-size",
+        type=int,
+        required=False,
+        default=-1,
+        help="Number of devices to deploy a tensorrtllm model.",
+    )
+    bench_run.add_argument(
+        "--server-timeout",
+        type=int,
+        required=False,
+        default=100,
+        help="Maximum number of seconds to wait for server startup. (Default: 100)",
+    )
+    add_repo_args([bench_run])
+    add_client_args([bench_run])
+
+    return bench
+
+
 def parse_args():
     parser = argparse.ArgumentParser(
         prog="triton", description="CLI to interact with Triton Inference Server"
@@ -272,5 +356,6 @@ def parse_args():
     _ = parse_args_model(subcommands)
     _ = parse_args_repo(subcommands)
     _ = parse_args_server(subcommands)
+    _ = parse_args_bench(subcommands)
     args = parser.parse_args()
     return args

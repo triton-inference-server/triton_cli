@@ -1,6 +1,7 @@
 import json
 import queue
 import logging
+import time
 import numpy as np
 from functools import partial
 
@@ -52,6 +53,20 @@ class TritonClient:
 
     def is_server_live(self):
         return self.client.is_server_live()
+
+    def wait_for_server(self, timeout):
+        for _ in range(timeout):
+            try:
+                if self.ready_for_inference():
+                    return
+            except InferenceServerException:
+                # Gracefully handle error if checking server health before server is ready to respond
+                pass
+            time.sleep(1)
+        raise Exception("Timed out waiting for server to load model.")
+
+    def ready_for_inference(self):
+        return self.client.is_server_live() and self.client.is_server_ready()
 
     def get_server_health(self):
         live = self.is_server_live()
@@ -270,3 +285,9 @@ class TritonClient:
         # Used for decoupled purposes to determine when requests are finished
         # Only applicable to GRPC streaming at this time
         return is_final_response
+
+    # Junk function to show a server can be launched and queried in a single terminal.
+    # To be deleted.
+    def benchmark_model(self, model: str):
+        for _ in range(10):
+            self.infer(model, "random", "This CLI is ")
