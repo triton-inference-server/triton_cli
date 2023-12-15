@@ -159,10 +159,9 @@ def get_plot_filename(args, prompt_size):
 def print_benchmark_summary(profile_results):
     print("[ BENCHMARK SUMMARY ]")
     for pr in profile_results:
-        print(f"Prompt size: {pr.prompt_size}")
         for metric, (name, unit) in METRIC_FIELDS.items():
             if getattr(pr, metric):
-                print(f"  * {name}: {getattr(pr, metric):.4f} {unit}")
+                print(f" * {name}: {getattr(pr, metric):.4f} {unit}")
         print("")
 
 
@@ -611,17 +610,28 @@ class Args:
 
 class Profiler:
     @staticmethod
-    def profile(model, batch_size, url, input_length):
+    def profile(model, batch_size, url, input_length=2048, output_length=128):
         args = Args()
         args.model = model
         args.concurrency = batch_size  # inflight batch size
         args.url = url
         args.prompt_size_range = [input_length, input_length, 1]
+        args.max_tokens = output_length
+
+        start, end, step = args.prompt_size_range
+        assert start == end and step == 1  # no sweeping for now
 
         print("Warming up...")
         main(args, should_summarize=False)  # warm-up
 
-        print("Warmed up, profiling now...")
+        print("Warmed up, profiling now...\n")
+        print("[ PROFILE CONFIGURATIONS ]")
+        print(f" * Model: {args.model}")
+        print(f" * Batch size: {args.concurrency}")
+        print(f" * Input tokens: {args.prompt_size_range[0]}")
+        print(f" * Output tokens: {args.max_tokens}")
+        print(f" * Stream: {not args.offline}")
+        print("")
         main(args)
 
         # get only avg first token and avg
