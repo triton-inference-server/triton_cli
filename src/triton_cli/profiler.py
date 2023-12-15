@@ -606,18 +606,18 @@ class Args:
 
 class Profiler:
     @staticmethod
-    def profile(model, batch_size, url, input_length):
+    def profile(model, batch_size, url, input_length, warmup=False):
         args = Args()
         args.model = model
         args.concurrency = batch_size  # inflight batch size
         args.url = url
         args.prompt_size_range = [input_length, input_length, 1]
 
-        print("Warming up...")
-        main(args, should_summarize=False)  # warm-up
+        if warmup:
+            main(args, should_summarize=False)  # warm-up
 
-        print("Warmed up, profiling now...")
-        main(args)
+        else:
+            main(args)
 
         # get only avg first token and avg
         #

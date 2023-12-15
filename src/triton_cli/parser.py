@@ -153,16 +153,23 @@ def handle_model(args: argparse.Namespace):
     if args.subcommand == "infer":
         client.infer(args.model, args.data, args.prompt)
     elif args.subcommand == "profile":
-        # TODO: run PA LLM benchmark script
-        print("pull engine()")
-        print("run_server()")
-        print("profile()")
-        Profiler.profile(
-            model=args.model,
-            batch_size=1,
-            url=f"{args.url}:{args.port}",
-            input_length=2048,
-        )
+        # TODO
+        if not args.port:
+            args.port = 8001 if args.protocol == "grpc" else 8000
+
+        logger.info(f"Running Perf Analyzer profiler on '{args.model}'...")
+        for warmup in [True, False]:
+            if warmup:
+                logger.info("Warming up...")
+            else:
+                logger.info("Benchmarking...")
+            Profiler.profile(
+                model=args.model,
+                batch_size=1,
+                url=f"{args.url}:{args.port}",
+                input_length=2048,
+                warmup=warmup,
+            )
     elif args.subcommand == "config":
         config = client.get_model_config(args.model)
         if config:
@@ -353,8 +360,23 @@ def handle_bench(args: argparse.Namespace):
             client = TritonClient(url=args.url, port=args.port, protocol=args.protocol)
             wait_for_ready(args.server_timeout, server, client)
             ### Profile model
-            logger.info("Server is ready for inference. Starting benchmark...")
-            client.benchmark_model(model=args.model)
+            logger.info("Server is ready for inference.")
+            if not args.port:
+                args.port = 8001 if args.protocol == "grpc" else 8000
+
+            logger.info(f"Running Perf Analyzer profiler on '{args.model}'...")
+            for warmup in [True, False]:
+                if warmup:
+                    logger.info("Warming up...")
+                else:
+                    logger.info("Benchmarking...")
+                Profiler.profile(
+                    model=args.model,
+                    batch_size=1,
+                    url=f"{args.url}:{args.port}",
+                    input_length=2048,
+                    warmup=warmup,
+                )
         except KeyboardInterrupt:
             print()
         except Exception as ex:
