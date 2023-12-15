@@ -78,7 +78,7 @@ class NGCWrapper:
         model_dir = dest_path / ngc_model_name
         if model_dir.exists():
             logger.warning(
-                "Found existing directory for {model} at {model_dir}, skipping download."
+                f"Found existing directory for {model} at {model_dir}, skipping download."
             )
             return
 

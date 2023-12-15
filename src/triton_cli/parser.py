@@ -76,8 +76,8 @@ def add_server_start_args(subcommands):
             "--server-timeout",
             type=int,
             required=False,
-            default=100,
-            help="Maximum number of seconds to wait for server startup. (Default: 100)",
+            default=300,
+            help="Maximum number of seconds to wait for server startup. (Default: 300)",
         )
 
 
