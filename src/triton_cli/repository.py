@@ -7,10 +7,10 @@ from pathlib import Path
 
 from directory_tree import display_tree
 
-from triton_cli.constants import DEFAULT_MODEL_REPO
+from triton_cli.constants import DEFAULT_MODEL_REPO, LOGGER_NAME
 from triton_cli.json_parser import parse_and_substitute
 
-logger = logging.getLogger("triton")
+logger = logging.getLogger(LOGGER_NAME)
 
 # For now, generated model configs will be limited to only backends
 # that can be fully autocompleted for a simple deployment.
@@ -57,13 +57,13 @@ class NGCWrapper:
         config_dir = Path.home() / ".ngc"
         config_file = config_dir / "config"
         if config_file.exists():
-            logger.info("Found existing NGC config, skipping config generation")
+            logger.debug("Found existing NGC config, skipping config generation")
             return
 
-        logger.info("Generating NGC config")
         if not config_dir.exists():
             config_dir.mkdir(exist_ok=True)
 
+        logger.debug("Generating NGC config")
         config = NGC_CONFIG_TEMPLATE.format(
             api_key=api_key, format_type=format_type, org=org, team=team
         )
@@ -83,7 +83,7 @@ class NGCWrapper:
             return
 
         cmd = f"ngc registry model download-version {model} --dest {dest}"
-        logger.info(f"Running '{cmd}'")
+        logger.debug(f"Running '{cmd}'")
         output = subprocess.run(cmd.split())
         if output.returncode:
             err = output.stderr.decode("utf-8")
@@ -101,9 +101,9 @@ class ModelRepository:
         # OK if model repo already exists, support adding multiple models
         try:
             self.repo.mkdir(parents=True, exist_ok=False)
-            logger.info(f"Created new model repository: {self.repo}")
+            logger.debug(f"Created new model repository: {self.repo}")
         except FileExistsError:
-            logger.info(f"Using existing model repository: {self.repo}")
+            logger.debug(f"Using existing model repository: {self.repo}")
 
     def list(self):
         logger.info(f"Current repo at {self.repo}:")
@@ -115,6 +115,7 @@ class ModelRepository:
         version: int = 1,
         source: str = None,
         backend: str = None,
+        verbose=True,
     ):
         if not source:
             raise Exception("Non-empty model source must be provided")
@@ -126,16 +127,16 @@ class ModelRepository:
 
         # HuggingFace models
         if source.startswith(SOURCE_PREFIX_HUGGINGFACE):
-            logger.info("HuggingFace prefix detected, parsing HuggingFace ID")
+            logger.debug("HuggingFace prefix detected, parsing HuggingFace ID")
             source_type = "huggingface"
         # NGC models
         elif source.startswith(SOURCE_PREFIX_NGC):
-            logger.info("NGC prefix detected, parsing NGC ID")
+            logger.debug("NGC prefix detected, parsing NGC ID")
             source_type = "ngc"
             backend = "tensorrtllm"
         # Local model path
         else:
-            logger.info("No supported prefix detected, assuming local path")
+            logger.debug("No supported prefix detected, assuming local path")
             source_type = "local"
             model_path = Path(source)
             if not model_path.exists():
@@ -162,10 +163,11 @@ class ModelRepository:
             #       point to downloaded engines, etc.
             self.__generate_trtllm_model(name, ngc_model_name)
         else:
-            logger.info(f"Copying {model_path} to {version_dir}")
+            logger.debug(f"Copying {model_path} to {version_dir}")
             shutil.copy(model_path, version_dir)
 
-        self.list()
+        if verbose:
+            self.list()
 
     def clear(self):
         logger.info(f"Clearing all contents from {self.repo}...")
@@ -174,13 +176,14 @@ class ModelRepository:
     # No support for removing individual versions for now
     # TODO: remove doesn't support removing groups of models like TRT LLM at this time
     # Use "clear" instead to clean up the repo as a WAR.
-    def remove(self, name: str):
+    def remove(self, name: str, verbose=True):
         model_dir = self.repo / name
         if not model_dir.exists():
             raise FileNotFoundError(f"No model folder exists at {model_dir}")
         logger.info(f"Removing model {name} at {model_dir}...")
         shutil.rmtree(model_dir)
-        self.list()
+        if verbose:
+            self.list()
 
     def __add_huggingface_model(
         self, model_dir: Path, version_dir: Path, huggingface_id: str
@@ -243,10 +246,10 @@ class ModelRepository:
                     dirs_exist_ok=True,
                     ignore=shutil.ignore_patterns("__pycache__"),
                 )
-                logger.info(f"Adding TensorRT-LLM models at: {self.repo}")
+                logger.debug(f"Adding TensorRT-LLM models at: {self.repo}")
             else:
                 version_dir.mkdir(parents=True, exist_ok=False)
-                logger.info(f"Adding new model to repo at: {version_dir}")
+                logger.debug(f"Adding new model to repo at: {version_dir}")
         except FileExistsError:
             logger.warning(f"Overwriting existing model in repo at: {version_dir}")
 

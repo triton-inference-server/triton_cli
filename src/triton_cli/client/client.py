@@ -1,6 +1,7 @@
 import json
 import queue
 import logging
+import time
 import numpy as np
 from functools import partial
 
@@ -52,6 +53,9 @@ class TritonClient:
 
     def is_server_live(self):
         return self.client.is_server_live()
+
+    def ready_for_inference(self):
+        return self.client.is_server_live() and self.client.is_server_ready()
 
     def get_server_health(self):
         live = self.is_server_live()
@@ -115,7 +119,7 @@ class TritonClient:
         return _input
 
     def generate_data(self, config: dict, data_mode: str):
-        logger.info("Generating input data...")
+        logger.debug("Generating input data...")
         inputs = [i for i in config["input"]]
 
         infer_inputs = []
@@ -270,3 +274,12 @@ class TritonClient:
         # Used for decoupled purposes to determine when requests are finished
         # Only applicable to GRPC streaming at this time
         return is_final_response
+
+    # Junk function to show a server can be launched and queried in a single terminal.
+    # TODO: Remove.
+    def benchmark_model(self, model: str):
+        start = time.time_ns()
+        self.infer(model, "random", "This CLI is ")
+        end = time.time_ns()
+        total_time_ms = (end - start) / (10**6)
+        logger.info(f"Inference time: {total_time_ms} ms")
