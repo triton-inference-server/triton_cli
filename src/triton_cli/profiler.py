@@ -576,7 +576,7 @@ def main(args, should_summarize=True):
         profile(args, export_file)
 
     if should_summarize:
-        summarize_profile_results(args, prompts)    
+        summarize_profile_results(args, prompts)
 
 
 class Args:
@@ -598,15 +598,15 @@ class Profiler:
     def profile(model, batch_size, url, input_length):
         args = Args()
         args.model = model
-        args.concurrency = batch_size # inflight batch size
+        args.concurrency = batch_size  # inflight batch size
         args.url = url
         args.prompt_size_range = [input_length, input_length, 1]
 
-        print(f"Warming up...")
-        main(args, should_summarize=False) # warm-up
-        
-        print(f"Warmed up, profiling now...")
+        print("Warming up...")
+        main(args, should_summarize=False)  # warm-up
+
+        print("Warmed up, profiling now...")
         main(args)
 
-        # get only avg first token and avg 
-        # 
+        # get only avg first token and avg
+        #
