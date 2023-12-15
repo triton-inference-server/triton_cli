@@ -368,11 +368,17 @@ def handle_bench(args: argparse.Namespace):
             args.port = 8001 if args.protocol == "grpc" else 8000
 
         logger.info(f"Running Perf Analyzer profiler on '{args.model}'...")
+        if args.source.startswith("ngc"):
+            input_length = 2048
+        else:
+            # HuggingFace models like gpt2 and opt125m built for max 1024 tokens
+            input_length = 1024
+
         Profiler.profile(
             model=args.model,
             batch_size=args.batch_size,
             url=f"{args.url}:{args.port}",
-            input_length=2048,
+            input_length=input_length,
         )
     except KeyboardInterrupt:
         print()
