@@ -90,7 +90,7 @@ def add_client_args(subcommands):
             type=str,
             default="grpc",
             choices=["http", "grpc"],
-            help="Protocol to use for communicating with server (default: grpc)",
+            help="Protocol to use for communicating with server (Default: grpc)",
         )
         # TODO: "--ip" instead of "--url"?
         subcommand.add_argument(
@@ -99,7 +99,7 @@ def add_client_args(subcommands):
             type=str,
             required=False,
             default="localhost",
-            help="IP of server (default: localhost)",
+            help="IP of server (Default: localhost)",
         )
         subcommand.add_argument(
             "-p",
@@ -107,7 +107,7 @@ def add_client_args(subcommands):
             type=int,
             required=False,
             default=None,
-            help="Port of server endpoint (default: 8000 for http, 8001 for grpc, 8002 for metrics)",
+            help="Port of server endpoint (Default: 8000 for http, 8001 for grpc, 8002 for metrics)",
         )
 
 
@@ -122,7 +122,7 @@ def add_repo_args(subcommands):
             type=Path,
             required=False,
             default=DEFAULT_MODEL_REPO,
-            help="Path to local model repository to use (default: ~/models)",
+            help="Path to local model repository to use (Default: ~/models)",
         )
 
 
@@ -333,95 +333,67 @@ def handle_bench(args: argparse.Namespace):
     if args.verbose:
         logger.setLevel(logging.DEBUG)
 
-    if args.subcommand == "run":
-        ### Add model to repo
-        repo = ModelRepository(args.model_repository)
-        # To avoid stale models or too many models across runs
-        repo.clear()
-        # Handle common models for convenience
-        if not args.source:
-            if args.model in KNOWN_MODEL_SOURCES:
-                args.source = KNOWN_MODEL_SOURCES[args.model]
-                logger.info(
-                    f"Known model source found for '{args.model}': '{args.source}'"
-                )
-            else:
-                logger.error(
-                    f"No known source for model: '{args.model}'. Known sources: {list(KNOWN_MODEL_SOURCES.keys())}"
-                )
-                raise Exception("Please use a known model, or provide a --source.")
-
-        repo.add(
-            args.model,
-            version=1,
-            source=args.source,
-            backend=None,
-            verbose=args.verbose,
-        )
-
-        ### Start server
-        server = TritonServerFactory.get_server_handle(args)
-        try:
-            server.start()
-            client = TritonClient(url=args.url, port=args.port, protocol=args.protocol)
-            wait_for_ready(args.server_timeout, server, client)
-            ### Profile model
-            logger.info("Server is ready for inference.")
-            if not args.port:
-                args.port = 8001 if args.protocol == "grpc" else 8000
-
-            logger.info(f"Running Perf Analyzer profiler on '{args.model}'...")
-            Profiler.profile(
-                model=args.model,
-                batch_size=args.batch_size,
-                url=f"{args.url}:{args.port}",
-                input_length=2048,
+    ### Add model to repo
+    repo = ModelRepository(args.model_repository)
+    # To avoid stale models or too many models across runs
+    repo.clear()
+    # Handle common models for convenience
+    if not args.source:
+        if args.model in KNOWN_MODEL_SOURCES:
+            args.source = KNOWN_MODEL_SOURCES[args.model]
+            logger.info(f"Known model source found for '{args.model}': '{args.source}'")
+        else:
+            logger.error(
+                f"No known source for model: '{args.model}'. Known sources: {list(KNOWN_MODEL_SOURCES.keys())}"
             )
-        except KeyboardInterrupt:
-            print()
-        except Exception as ex:
-            # Catch timeout exception
-            logger.error(ex)
+            raise Exception("Please use a known model, or provide a --source.")
 
-        logger.info("Stopping server...")
-        server.stop()
-    else:
-        raise NotImplementedError(f"bench subcommand {args.subcommand} not supported")
+    repo.add(
+        args.model,
+        version=1,
+        source=args.source,
+        backend=None,
+        verbose=args.verbose,
+    )
+
+    ### Start server
+    server = TritonServerFactory.get_server_handle(args)
+    try:
+        server.start()
+        client = TritonClient(url=args.url, port=args.port, protocol=args.protocol)
+        wait_for_ready(args.server_timeout, server, client)
+        ### Profile model
+        logger.info("Server is ready for inference.")
+        if not args.port:
+            args.port = 8001 if args.protocol == "grpc" else 8000
+
+        logger.info(f"Running Perf Analyzer profiler on '{args.model}'...")
+        Profiler.profile(
+            model=args.model,
+            batch_size=args.batch_size,
+            url=f"{args.url}:{args.port}",
+            input_length=2048,
+        )
+    except KeyboardInterrupt:
+        print()
+    except Exception as ex:
+        # Catch timeout exception
+        logger.error(ex)
+
+    logger.info("Stopping server...")
+    server.stop()
 
 
 def parse_args_bench(subcommands):
     # Model Repository Management
-    bench = subcommands.add_parser(
+    bench_run = subcommands.add_parser(
         "bench", help="Run benchmarks on a model loaded into the Triton server."
     )
-    bench.set_defaults(func=handle_bench)
-    bench_commands = bench.add_subparsers(required=True, dest="subcommand")
-    bench_run = bench_commands.add_parser(
-        "run", help="Start a Triton benchmarking session."
-    )
-    bench_run.add_argument(
-        "-m",
-        "--model",
-        type=str,
-        required=True,
-        help="The name of the model to benchmark",
-    )
-    bench_run.add_argument(
-        "-s",
-        "--source",
-        type=str,
-        required=False,
-        help="Local model path or model identifier. Use prefix 'hf:' to specify a HuggingFace model ID, or 'ngc:' for NGC model ID. "
-        "NOTE: HuggingFace models are currently limited to vLLM, and NGC models are currently limited to TRT-LLM",
-    )
-    bench_run.add_argument(
-        "-b",
-        "--batch-size",
-        type=int,
-        default=1,
-        required=False,
-        help="The batch size / concurrency to benchmark",
-    )
+    bench_run.set_defaults(func=handle_bench)
+    # bench_commands = bench.add_subparsers(required=True, dest="subcommand")
+    # bench_run = bench_commands.add_parser(
+    #    "run", help="Start a Triton benchmarking session."
+    # )
     bench_run.add_argument(
         "-v",
         "--verbose",
@@ -430,11 +402,41 @@ def parse_args_bench(subcommands):
         help="Enable verbose logging",
     )
 
-    add_server_start_args([bench_run])
-    add_repo_args([bench_run])
-    add_client_args([bench_run])
+    # Conceptually group args for easier visualization
+    model_group = bench_run.add_argument_group("model")
+    known_models = list(KNOWN_MODEL_SOURCES.keys())
+    model_group.add_argument(
+        "-m",
+        "--model",
+        type=str,
+        required=True,
+        help=f"The name of the model to benchmark. Popular models with known sources can be selected directly from this list: {known_models}. Otherwise, provide a --source for unknown models.",
+    )
+    model_group.add_argument(
+        "-s",
+        "--source",
+        type=str,
+        required=False,
+        help="Local model path or model identifier. Use prefix 'hf:' to specify a HuggingFace model ID, or 'ngc:' for NGC model ID. "
+        "NOTE: HuggingFace models are currently limited to vLLM, and NGC models are currently limited to TRT-LLM",
+    )
 
-    return bench
+    model_group.add_argument(
+        "-b",
+        "--batch-size",
+        type=int,
+        default=1,
+        required=False,
+        help="The batch size / concurrency to benchmark (Default: 1)",
+    )
+
+    server_group = bench_run.add_argument_group("server")
+    client_group = bench_run.add_argument_group("client")
+    add_server_start_args([server_group])
+    add_repo_args([server_group])
+    add_client_args([client_group])
+
+    return bench_run
 
 
 def parse_args():
