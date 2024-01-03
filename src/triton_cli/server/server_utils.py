@@ -62,9 +62,6 @@ class TritonServerUtils:
         Returns
         -------
             The path to the TRT LLM engine.
-        Assumptions
-        ----------
-            - Assumes model will be stored at env variable NGC_DEST_DIR
         """
         try:
             config_file = open(config_path)
