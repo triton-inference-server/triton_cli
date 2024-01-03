@@ -50,7 +50,7 @@ class TritonServerUtils:
         return False
 
     @staticmethod
-    def get_model_path(config_path: str) -> str:
+    def get_engine_path(config_path: str) -> str:
         """
         Parameters
         ----------
@@ -97,12 +97,19 @@ class TritonServerUtils:
         triton_config_path = Path(model_repo) / "tensorrt_llm" / "config.pbtxt"
         # Helper to find model path from triton config file instead
         # of having to specify a model name at the cmdline.
-        model_path = TritonServerUtils.get_model_path(triton_config_path)
+        model_path = TritonServerUtils.get_engine_path(triton_config_path)
         model_config_path = Path(model_path) / "config.json"
-        with open(model_config_path) as json_data:
-            data = json.load(json_data)
-            return int(data["builder_config"]["tensor_parallel"])
-        return -1
+        try:
+            with open(model_config_path) as json_data:
+                data = json.load(json_data)
+                try:
+                    return int(data["builder_config"]["tensor_parallel"])
+                except KeyError as e:
+                    raise Exception(
+                        f"Unable to extract world size from {model_config_path}. Key error: {str(e)}"
+                    )
+        except OSError:
+            raise Exception(f"Unable to open {model_config_path}")
 
     @staticmethod
     def mpi_run(world_size: int, model_repo: str) -> str:
