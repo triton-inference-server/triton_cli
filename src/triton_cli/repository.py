@@ -7,7 +7,7 @@ from pathlib import Path
 
 from directory_tree import display_tree
 
-from triton_cli.constants import DEFAULT_MODEL_REPO, LOGGER_NAME, NGC_ENGINES_PATH
+from triton_cli.constants import DEFAULT_MODEL_REPO, LOGGER_NAME
 from triton_cli.json_parser import parse_and_substitute
 
 logger = logging.getLogger(LOGGER_NAME)
@@ -30,6 +30,10 @@ SOURCE_PREFIX_HUGGINGFACE = "hf:"
 SOURCE_PREFIX_NGC = "ngc:"
 
 TRT_TEMPLATES_PATH = Path(__file__).parent / "templates" / "trtllm"
+
+# Support changing destination dynamically to point at
+# pre-downloaded checkpoints in various circumstances
+NGC_ENGINES_PATH = os.environ.get("NGC_DEST_DIR", "/tmp/engines")
 
 
 # NOTE: Thin wrapper around NGC CLI is a WAR for now.

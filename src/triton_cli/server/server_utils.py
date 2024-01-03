@@ -18,8 +18,10 @@ import logging
 import json
 from pathlib import Path
 import os
+import tritonclient.grpc.model_config_pb2 as mc
+from google.protobuf import json_format, text_format
 
-from triton_cli.constants import LOGGER_NAME, NGC_ENGINES_PATH
+from triton_cli.constants import LOGGER_NAME
 
 logger = logging.getLogger(LOGGER_NAME)
 
@@ -70,12 +72,16 @@ class TritonServerUtils:
             raise Exception(
                 f"Failed to open config file for tensorrt_llm. Searched: {config_path}"
             )
-        for line in config_file.readlines():
-            if NGC_ENGINES_PATH in line:
-                return line.split()[-1].strip('"')
-        raise Exception(
-            'Model is not stored at the expected NGC path. Please update the "NGC_DEST_DIR" environment variable to point your NGC engine directory.'
+        config = text_format.Parse(config_file.read(), mc.ModelConfig())
+        json_config = json.loads(
+            json_format.MessageToJson(config, preserving_proto_field_name=True)
         )
+        try:
+            return json_config["parameters"]["gpt_model_path"]["string_value"]
+        except KeyError as e:
+            raise Exception(
+                f"Unable to extract engine path from config file {config_path}. Key error: {str(e)}"
+            )
 
     @staticmethod
     def parse_world_size(model_repo: str) -> int:
