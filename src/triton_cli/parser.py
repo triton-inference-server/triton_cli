@@ -63,15 +63,6 @@ def add_server_start_args(subcommands):
             default="nvcr.io/nvidia/tritonserver:23.11-vllm-python-py3",
             help="Image to use when starting Triton with 'docker' mode",
         )
-        # TODO: Delete once world-size can be parsed from a known
-        # config file location.
-        subcommand.add_argument(
-            "--world-size",
-            type=int,
-            required=False,
-            default=-1,
-            help="Number of devices to deploy a tensorrtllm model.",
-        )
         subcommand.add_argument(
             "--server-timeout",
             type=int,

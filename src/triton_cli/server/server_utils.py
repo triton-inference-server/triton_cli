@@ -14,8 +14,96 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import logging
+import json
+from pathlib import Path
+import os
+
+from triton_cli.constants import LOGGER_NAME, NGC_ENGINES_PATH
+
+logger = logging.getLogger(LOGGER_NAME)
+
 
 class TritonServerUtils:
+    """
+    A utility class for launching a Triton server.
+    """
+
+    @staticmethod
+    def is_trtllm_model(model_repo: str) -> bool:
+        """
+        Parameters
+        ----------
+        model_repo : str
+            The path to the model repository
+        Returns
+        -------
+            Whether the model repository contains a model
+            using the tensorrtllm backend.
+        Assumptions
+        ----------
+            - Assumes a TRT LLM model would have a tensorrt_llm folder.
+        """
+        for _, dirs, _ in os.walk(model_repo, topdown=True):
+            if "tensorrt_llm" in dirs:
+                return True
+        return False
+
+    @staticmethod
+    def get_model_path(config_path: str) -> str:
+        """
+        Parameters
+        ----------
+        config_path : str
+            The path to the tensorrt_llm model's config.pbtxt
+            file.
+        Returns
+        -------
+            The path to the TRT LLM engine.
+        Assumptions
+        ----------
+            - Assumes model will be stored at env variable NGC_DEST_DIR
+        """
+        try:
+            config_file = open(config_path)
+        except OSError:
+            raise Exception(
+                f"Failed to open config file for tensorrt_llm. Searched: {config_path}"
+            )
+        for line in config_file.readlines():
+            if NGC_ENGINES_PATH in line:
+                return line.split()[-1].strip('"')
+        raise Exception(
+            'Model is not stored at the expected NGC path. Please update the "NGC_DEST_DIR" environment variable to point your NGC engine directory.'
+        )
+
+    @staticmethod
+    def parse_world_size(model_repo: str) -> int:
+        """
+        Parameters
+        ----------
+        config_file_path : str
+            The path to the model repository.
+        Returns
+        -------
+            The appropriate world size to use to run the tensorrtllm
+            engine(s) stored in the model repository
+        Assumptions
+        ----------
+            - Assumes a TRT LLM model would have a tensorrt_llm folder.
+            - Assumes only a single TRT LLM model will be launched (could have
+            multiple engines)
+        """
+        triton_config_path = Path(model_repo) / "tensorrt_llm" / "config.pbtxt"
+        # Helper to find model path from triton config file instead
+        # of having to specify a model name at the cmdline.
+        model_path = TritonServerUtils.get_model_path(triton_config_path)
+        model_config_path = Path(model_path) / "config.json"
+        with open(model_config_path) as json_data:
+            data = json.load(json_data)
+            return int(data["builder_config"]["tensor_parallel"])
+        return -1
+
     @staticmethod
     def mpi_run(world_size: int, model_repo: str) -> str:
         """

@@ -30,7 +30,7 @@ class TritonServerDocker(TritonServer):
     triton in a docker container.
     """
 
-    def __init__(self, image, world_size, config, gpus, mounts, labels, shm_size, args):
+    def __init__(self, image, config, gpus, mounts, labels, shm_size, args):
         """
         Parameters
         ----------
@@ -61,11 +61,22 @@ class TritonServerDocker(TritonServer):
         self._gpus = gpus
         self._shm_size = shm_size
         self._args = args if args else {}
-        self._world_size = world_size
 
         assert self._server_config[
             "model-repository"
         ], "Triton Server requires --model-repository argument to be set."
+
+        # Parse TRT LLM-related members
+        self._trtllm_model = TritonServerUtils.is_trtllm_model(
+            self._server_config["model_repository"]
+        )
+        if self._trtllm_model:
+            self._world_size = TritonServerUtils.parse_world_size(
+                self._server_config["model_repository"]
+            )
+            logger.info(f"Launching TRT LLM model using world size {self._world_size}")
+        else:
+            self._world_size = -1
 
         try:
             self._docker_client.images.get(self._tritonserver_image)
@@ -108,8 +119,6 @@ class TritonServerDocker(TritonServer):
             server_metrics_port: server_metrics_port,
         }
         # Construct run command
-        # TRTLLM models require special handling. For now,
-        # we will 'spell-out' the command.
         if self._world_size >= 1:
             command = " ".join(
                 TritonServerUtils.mpi_run(
