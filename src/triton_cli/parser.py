@@ -81,6 +81,32 @@ def add_server_start_args(subcommands):
         )
 
 
+def add_profile_args(subcommands):
+    for subcommand in subcommands:
+        subcommand.add_argument(
+            "-b",
+            "--batch-size",
+            type=int,
+            default=1,
+            required=False,
+            help="The batch size / concurrency to benchmark",
+        )
+        subcommand.add_argument(
+            "--input-length",
+            type=int,
+            default=128,
+            required=False,
+            help="The input length (tokens) to use for benchmarking (LLM specific)",
+        )
+        subcommand.add_argument(
+            "--output-length",
+            type=int,
+            default=128,
+            required=False,
+            help="The output length (tokens) to use for benchmarking (LLM specific)",
+        )
+
+
 def add_client_args(subcommands):
     # Add protocol/url/port to all client-based subcommands
     for subcommand in subcommands:
@@ -162,7 +188,8 @@ def handle_model(args: argparse.Namespace):
             model=args.model,
             batch_size=args.batch_size,
             url=f"{args.url}:{args.port}",
-            input_length=2048,
+            input_length=args.input_length,
+            output_length=args.output_length,
         )
     elif args.subcommand == "config":
         config = client.get_model_config(args.model)
@@ -235,16 +262,7 @@ def parse_args_model(subcommands):
         help="Text input to LLM-like models. Required for inference on LLMs, optional otherwise.",
     )
     profile = model_commands.add_parser("profile", help="Run Perf Analyzer")
-    profile.add_argument("-m", "--model", type=str, required=True, help="Model name")
-    # TODO: Remove or consolidate
-    profile.add_argument(
-        "-b",
-        "--batch-size",
-        type=int,
-        default=1,
-        required=False,
-        help="The batch size / concurrency to benchmark",
-    )
+    add_profile_args([profile])
 
     config = model_commands.add_parser("config", help="Get config for model")
     config.add_argument("-m", "--model", type=str, required=True, help="Model name")
@@ -368,17 +386,12 @@ def handle_bench(args: argparse.Namespace):
             args.port = 8001 if args.protocol == "grpc" else 8000
 
         logger.info(f"Running Perf Analyzer profiler on '{args.model}'...")
-        if args.source.startswith("ngc"):
-            input_length = 2048
-        else:
-            # HuggingFace models like gpt2 and opt125m built for max 1024 tokens
-            input_length = 1024
-
         Profiler.profile(
             model=args.model,
             batch_size=args.batch_size,
             url=f"{args.url}:{args.port}",
-            input_length=input_length,
+            input_length=args.input_length,
+            output_length=args.output_length,
         )
     except KeyboardInterrupt:
         print()
@@ -427,20 +440,13 @@ def parse_args_bench(subcommands):
         "NOTE: HuggingFace models are currently limited to vLLM, and NGC models are currently limited to TRT-LLM",
     )
 
-    model_group.add_argument(
-        "-b",
-        "--batch-size",
-        type=int,
-        default=1,
-        required=False,
-        help="The batch size / concurrency to benchmark (Default: 1)",
-    )
-
     server_group = bench_run.add_argument_group("server")
     client_group = bench_run.add_argument_group("client")
+    profile_group = bench_run.add_argument_group("profile")
     add_server_start_args([server_group])
     add_repo_args([server_group])
     add_client_args([client_group])
+    add_profile_args([profile_group])
 
     return bench_run
 

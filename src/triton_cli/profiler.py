@@ -611,7 +611,7 @@ class Args:
 
 class Profiler:
     @staticmethod
-    def profile(model, batch_size, url, input_length=2048, output_length=128):
+    def profile(model, batch_size, url, input_length=128, output_length=128):
         args = Args()
         args.model = model
         args.concurrency = batch_size  # inflight batch size
