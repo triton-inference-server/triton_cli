@@ -15,19 +15,22 @@ from triton_cli.profiler import Profiler
 
 logger = logging.getLogger(LOGGER_NAME)
 
-# TODO: Move to config file approach
+# TODO: Move to config file approach?
 # TODO: Per-GPU mappings for TRT LLM models
+# TODO: Ordered list of supported backends for models with multi-backend support
 KNOWN_MODEL_SOURCES = {
-    "llama-2-7b": "ngc:whw3rcpsilnj/playground/llama2_7b_trt_a100:0.1",
-    "llama-2-13b": "ngc:whw3rcpsilnj/playground/llama2_13b_trt_a100:0.1",
+    # Require authentication
+    "llama-2-7b": "hf:meta-llama/Llama-2-7b-hf",
+    # Public
     "gpt2": "hf:gpt2",
     "opt125m": "hf:facebook/opt-125m",
     "mistral-7b": "hf:mistralai/Mistral-7B-v0.1",
+    "falcon-7b": "hf:tiiuae/falcon-7b",
 }
 
 
 # TODO: Move out of parser
-# TODO: rich progress bar
+# TODO: Show server log/progress until ready
 def wait_for_ready(timeout, server, client):
     with Progress(transient=True) as progress:
         _ = progress.add_task("[green]Loading models...", total=None)
@@ -43,7 +46,9 @@ def wait_for_ready(timeout, server, client):
             # Server health will throw exception if error occurs on server side
             server.health()
             time.sleep(1)
-        raise Exception("Timed out waiting for server to startup.")
+        raise Exception(
+            f"Timed out waiting {timeout} seconds for server to startup. Try increasing --server-timeout."
+        )
 
 
 def add_server_start_args(subcommands):
@@ -56,12 +61,13 @@ def add_server_start_args(subcommands):
             required=False,
             help="Mode to start Triton with. (Default: 'local')",
         )
+        default_image = "nvcr.io/nvidia/tritonserver:23.12-vllm-python-py3"
         subcommand.add_argument(
             "--image",
             type=str,
             required=False,
-            default="nvcr.io/nvidia/tritonserver:23.11-vllm-python-py3",
-            help="Image to use when starting Triton with 'docker' mode",
+            default=default_image,
+            help=f"Image to use when starting Triton with 'docker' mode. Default: {default_image}",
         )
         # TODO: Delete once world-size can be parsed from a known
         # config file location.
@@ -76,7 +82,7 @@ def add_server_start_args(subcommands):
             "--server-timeout",
             type=int,
             required=False,
-            default=300,
+            default=600,
             help="Maximum number of seconds to wait for server startup. (Default: 300)",
         )
 

@@ -14,14 +14,40 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import docker
 import logging
+import docker
+from rich.progress import Progress
 
 from .server import TritonServer
 from .server_utils import TritonServerUtils
-from triton_cli.constants import LOGGER_NAME
+from triton_cli.constants import LOGGER_NAME, HF_CACHE
 
 logger = logging.getLogger(LOGGER_NAME)
+
+
+# Rich visualization of docker pull through API
+# TODO: Revisit
+def show_progress(line, progress, tasks):
+    if line["status"] == "Downloading":
+        id = f'[red][Downloading {line["id"]}]'
+    elif line["status"] == "Extracting":
+        id = f'[green][Extracting  {line["id"]}]'
+    else:
+        # skip other statuses
+        return
+
+    if id not in tasks.keys():
+        tasks[id] = progress.add_task(f"{id}", total=line["progressDetail"]["total"])
+    else:
+        progress.update(tasks[id], completed=line["progressDetail"]["current"])
+
+
+def image_pull(client, image):
+    with Progress() as progress:
+        status = client.api.pull(image, stream=True, decode=True)
+        tasks = {}
+        for line in status:
+            show_progress(line, progress, tasks)
 
 
 class TritonServerDocker(TritonServer):
@@ -71,7 +97,7 @@ class TritonServerDocker(TritonServer):
             self._docker_client.images.get(self._tritonserver_image)
         except Exception:
             logger.info(f"Pulling docker image {self._tritonserver_image}")
-            self._docker_client.images.pull(self._tritonserver_image)
+            image_pull(self._docker_client, self._tritonserver_image)
 
     def start(self, env=None):
         """
@@ -94,6 +120,12 @@ class TritonServerDocker(TritonServer):
         volumes[self._server_config["model-repository"]] = {
             "bind": self._server_config["model-repository"],
             "mode": "ro",
+        }
+        # Mount huggingface model cache to save time across runs
+        # Use default cache in container for now.
+        volumes[HF_CACHE] = {
+            "bind": "/root/.cache/huggingface",
+            "mode": "rw",
         }
 
         # Map ports, use config values but set to server defaults if not
