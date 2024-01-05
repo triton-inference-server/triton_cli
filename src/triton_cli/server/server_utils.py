@@ -14,10 +14,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import subprocess
 import logging
 import json
 from pathlib import Path
-import os
 import tritonclient.grpc.model_config_pb2 as mc
 from google.protobuf import json_format, text_format
 
@@ -31,110 +31,121 @@ class TritonServerUtils:
     A utility class for launching a Triton server.
     """
 
-    @staticmethod
-    def is_trtllm_model(model_repo: str) -> bool:
+    def __init__(self, model_path: str):
+        self._model_repo_path = model_path
+        self._trtllm_model_config_path = self._find_trtllm_model_config_path()
+        self._is_trtllm_model = self._trtllm_model_config_path is not None
+
+        if self._is_trtllm_model:
+            self._world_size = self._parse_world_size()
+
+    def _find_trtllm_model_config_path(self) -> Path:
         """
-        Parameters
-        ----------
-        model_repo : str
-            The path to the model repository
         Returns
         -------
-            Whether the model repository contains a model
-            using the tensorrtllm backend.
+            A pathlib.Path object containing the path to the TRT LLM model config folder.
         Assumptions
         ----------
-            - Assumes a TRT LLM model would have a tensorrt_llm folder.
+            - Assumes only a single model uses the TRT LLM backend (could have
+            multiple engines)
         """
-        for _, dirs, _ in os.walk(model_repo, topdown=True):
-            if "tensorrt_llm" in dirs:
-                return True
-        return False
+        try:
+            match = subprocess.check_output(
+                [
+                    "grep",
+                    "-r",
+                    "--include",
+                    "*.pbtxt",
+                    'backend: "tensorrtllm"',
+                    self._model_repo_path,
+                ]
+            )
+            # Example match: b'{PATH}/config.pbtxt:backend: "tensorrtllm"\n'
+            return Path(match.decode().split(":")[0])
+        except subprocess.CalledProcessError:
+            # The 'grep' command will return a non-zero exit code
+            # if no matches are found.
+            return None
 
-    @staticmethod
-    def get_engine_path(config_path: str) -> str:
+    def _get_engine_path(self, config_path: Path) -> str:
         """
         Parameters
         ----------
-        config_path : str
-            The path to the tensorrt_llm model's config.pbtxt
-            file.
+        config_path : Path
+            A pathlib.Path object containing the path to the TRT LLM model config folder.
         Returns
         -------
-            The path to the TRT LLM engine.
+            A pathlib.Path object containing the path to the TRT LLM engines.
         """
         try:
-            config_file = open(config_path)
-        except OSError:
-            raise Exception(
-                f"Failed to open config file for tensorrt_llm. Searched: {config_path}"
-            )
-        config = text_format.Parse(config_file.read(), mc.ModelConfig())
-        json_config = json.loads(
-            json_format.MessageToJson(config, preserving_proto_field_name=True)
-        )
-        try:
-            return json_config["parameters"]["gpt_model_path"]["string_value"]
+            with open(config_path) as config_file:
+                config = text_format.Parse(config_file.read(), mc.ModelConfig())
+                json_config = json.loads(
+                    json_format.MessageToJson(config, preserving_proto_field_name=True)
+                )
+                return Path(json_config["parameters"]["gpt_model_path"]["string_value"])
         except KeyError as e:
             raise Exception(
                 f"Unable to extract engine path from config file {config_path}. Key error: {str(e)}"
             )
+        except OSError:
+            raise Exception(
+                f"Failed to open config file for tensorrt_llm. Searched: {config_path}"
+            )
 
-    @staticmethod
-    def parse_world_size(model_repo: str) -> int:
+    def _parse_world_size(self) -> int:
         """
-        Parameters
-        ----------
-        config_file_path : str
-            The path to the model repository.
         Returns
         -------
             The appropriate world size to use to run the tensorrtllm
-            engine(s) stored in the model repository
-        Assumptions
-        ----------
-            - Assumes a TRT LLM model would have a tensorrt_llm folder.
-            - Assumes only a single TRT LLM model will be launched (could have
-            multiple engines)
+            engine(s).
         """
-        triton_config_path = Path(model_repo) / "tensorrt_llm" / "config.pbtxt"
-        # Helper to find model path from triton config file instead
-        # of having to specify a model name at the cmdline.
-        model_path = TritonServerUtils.get_engine_path(triton_config_path)
-        model_config_path = Path(model_path) / "config.json"
+        assert self._is_trtllm_model, "World size cannot be parsed from a model repository that does not contain a TRT LLM model."
         try:
-            with open(model_config_path) as json_data:
+            engine_path = self._get_engine_path(self._trtllm_model_config_path)
+            engine_config_path = engine_path / "config.json"
+            with open(engine_config_path) as json_data:
                 data = json.load(json_data)
-                try:
-                    return int(data["builder_config"]["tensor_parallel"])
-                except KeyError as e:
-                    raise Exception(
-                        f"Unable to extract world size from {model_config_path}. Key error: {str(e)}"
-                    )
+                return int(data["builder_config"]["tensor_parallel"])
+        except KeyError as e:
+            raise Exception(
+                f"Unable to extract world size from {engine_config_path}. Key error: {str(e)}"
+            )
         except OSError:
-            raise Exception(f"Unable to open {model_config_path}")
+            raise Exception(f"Unable to open {engine_config_path}")
 
-    @staticmethod
-    def mpi_run(world_size: int, model_repo: str) -> str:
+    def mpi_run(self) -> str:
         """
-        Parameters
-        ----------
-        world_size : int
-            The path to the model repository
-        model_repo : str
-            The path to the model repository
         Returns
         -------
-        The appropriate world size to use to run the tensorrtllm
-        engine(s) stored in the model repository
+            TRT LLM models must be run using MPI. This function constructs
+            the appropriate mpi command to run a TRT LLM engine given a
+            previously parsed world size.
         """
         cmd = ["mpirun", "--allow-run-as-root"]
-        for i in range(world_size):
+        for i in range(self._world_size):
             cmd += ["-n", "1", "/opt/tritonserver/bin/tritonserver"]
             cmd += [
-                f"--model-repository={model_repo}",
+                f"--model-repository={self._model_repo_path}",
                 "--disable-auto-complete-config",
                 f"--backend-config=python,shm-region-prefix-name=prefix{i}_",
                 ":",
             ]
         return cmd
+
+    def prepare_command(self, env_cmds: list, server_args: str) -> str:
+        """
+        Parameters
+        ----------
+        env_cmds : str
+            A list of environment commands to run with the tritonserver (non-trtllm models)
+        server_args : str
+            Command-line arguments to run tritonserver (non-trtllm models)
+        Returns
+        -------
+            The appropriate command for launching a tritonserver.
+        """
+        if self._is_trtllm_model:
+            return " ".join(self.mpi_run())
+        else:
+            return " ".join(env_cmds + ["tritonserver", server_args])

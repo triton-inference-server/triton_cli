@@ -66,17 +66,7 @@ class TritonServerDocker(TritonServer):
             "model-repository"
         ], "Triton Server requires --model-repository argument to be set."
 
-        # Parse TRT LLM-related members
-        self._trtllm_model = TritonServerUtils.is_trtllm_model(
-            self._server_config["model_repository"]
-        )
-        if self._trtllm_model:
-            self._world_size = TritonServerUtils.parse_world_size(
-                self._server_config["model_repository"]
-            )
-            logger.info(f"Launching TRT LLM model using world size {self._world_size}")
-        else:
-            self._world_size = -1
+        self._server_utils = TritonServerUtils(self._server_config["model-repository"])
 
         try:
             self._docker_client.images.get(self._tritonserver_image)
@@ -119,16 +109,9 @@ class TritonServerDocker(TritonServer):
             server_metrics_port: server_metrics_port,
         }
         # Construct run command
-        if self._world_size >= 1:
-            command = " ".join(
-                TritonServerUtils.mpi_run(
-                    self._world_size, self._server_config["model-repository"]
-                )
-            )
-        else:
-            command = " ".join(
-                env_cmds + ["tritonserver", self._server_config.to_cli_string()]
-            )
+        command = self._server_utils.prepare_command(
+            env_cmds, self._server_config.to_cli_string()
+        )
         try:
             # Run the docker container and run the command in the container
             self._tritonserver_container = self._docker_client.containers.run(
