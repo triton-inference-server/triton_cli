@@ -412,10 +412,6 @@ def parse_args_bench(subcommands):
         "bench", help="Run benchmarks on a model loaded into the Triton server."
     )
     bench_run.set_defaults(func=handle_bench)
-    # bench_commands = bench.add_subparsers(required=True, dest="subcommand")
-    # bench_run = bench_commands.add_parser(
-    #    "run", help="Start a Triton benchmarking session."
-    # )
     bench_run.add_argument(
         "-v",
         "--verbose",

@@ -210,7 +210,7 @@ class ModelRepository:
             {
                 "model": huggingface_id,
                 "disable_log_requests": True,
-                "gpu_memory_utilization": 0.9,
+                "gpu_memory_utilization": 0.85,
             }
         )
         model_files = {"model.json": model_contents}
