@@ -42,10 +42,10 @@ class NGCWrapper:
     def __init__(self):
         api_key = os.environ.get("NGC_API_KEY", "")
 
-        # Hard-coded for demo purposes
+        # TODO: revisit default org/team
         self.__generate_config(
-            org="whw3rcpsilnj",
-            team="playground",
+            org="nvidia",
+            team="",
             api_key=api_key,
             # For interactive output to see download progress
             format_type="ascii",
