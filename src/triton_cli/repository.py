@@ -130,6 +130,7 @@ class ModelRepository:
             logger.debug("HuggingFace prefix detected, parsing HuggingFace ID")
             source_type = "huggingface"
         # NGC models
+        # TODO: Improve backend detection/assumption for NGC models in future
         elif source.startswith(SOURCE_PREFIX_NGC):
             logger.debug("NGC prefix detected, parsing NGC ID")
             source_type = "ngc"
@@ -229,7 +230,6 @@ class ModelRepository:
     ):
         # Create model directory in repo with name, raise error if
         # repo doesn't exist, or model directory already exists.
-
         model_dir = self.repo / name
         version_dir = model_dir / str(version)
         try:
