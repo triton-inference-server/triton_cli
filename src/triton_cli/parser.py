@@ -29,6 +29,19 @@ KNOWN_MODEL_SOURCES = {
 }
 
 
+def check_known_sources(model: str):
+    if model in KNOWN_MODEL_SOURCES:
+        source = KNOWN_MODEL_SOURCES[model]
+        logger.info(f"Known model source found for '{model}': '{source}'")
+    else:
+        logger.error(
+            f"No known source for model: '{model}'. Known sources: {list(KNOWN_MODEL_SOURCES.keys())}"
+        )
+        raise Exception("Please use a known model, or provide a --source.")
+
+    return source
+
+
 # TODO: Move out of parser
 # TODO: Show server log/progress until ready
 def wait_for_ready(timeout, server, client):
@@ -161,6 +174,10 @@ def add_repo_args(subcommands):
 def handle_repo(args: argparse.Namespace):
     repo = ModelRepository(args.model_repository)
     if args.subcommand == "add":
+        # Handle common models for convenience
+        if not args.source:
+            args.source = check_known_sources(args.model)
+
         repo.add(
             args.model,
             version=1,
@@ -294,7 +311,7 @@ def parse_args_repo(subcommands):
         "-s",
         "--source",
         type=str,
-        required=True,
+        required=False,
         help="Local model path or model identifier. Use prefix 'hf:' to specify a HuggingFace model ID. "
         "NOTE: HuggingFace model support is currently limited to Transformer models through the vLLM backend.",
     )
@@ -360,14 +377,7 @@ def handle_bench(args: argparse.Namespace):
     repo.clear()
     # Handle common models for convenience
     if not args.source:
-        if args.model in KNOWN_MODEL_SOURCES:
-            args.source = KNOWN_MODEL_SOURCES[args.model]
-            logger.info(f"Known model source found for '{args.model}': '{args.source}'")
-        else:
-            logger.error(
-                f"No known source for model: '{args.model}'. Known sources: {list(KNOWN_MODEL_SOURCES.keys())}"
-            )
-            raise Exception("Please use a known model, or provide a --source.")
+        args.source = check_known_sources(args.model)
 
     repo.add(
         args.model,
