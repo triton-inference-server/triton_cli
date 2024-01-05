@@ -83,7 +83,7 @@ def add_server_start_args(subcommands):
             type=int,
             required=False,
             default=600,
-            help="Maximum number of seconds to wait for server startup. (Default: 300)",
+            help="Maximum number of seconds to wait for server startup. (Default: 600)",
         )
 
 
@@ -174,9 +174,7 @@ def handle_repo(args: argparse.Namespace):
     elif args.subcommand == "clear":
         repo.clear()
     else:
-        raise NotImplementedError(
-            f"Repo subcommand {args.subcommand} not implemented yet"
-        )
+        raise Exception(f"Invalid subcommand: {args.subcommand}")
 
 
 def handle_model(args: argparse.Namespace):
@@ -203,7 +201,6 @@ def handle_model(args: argparse.Namespace):
             logger.info(f"{args.subcommand}:")
             # TODO: Table
             rich_print(config)
-    # TODO: Consider top-level metrics command/handler instead
     elif args.subcommand == "metrics":
         client = MetricsClient(args.url, args.port)
         # For model subcommand, limit metrics to only specified model metrics
