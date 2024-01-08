@@ -611,7 +611,7 @@ class Args:
 
 class Profiler:
     @staticmethod
-    def profile(model, batch_size, url, input_length=2048, output_length=128):
+    def profile(model, batch_size, url, input_length=128, output_length=128):
         args = Args()
         args.model = model
         args.concurrency = batch_size  # inflight batch size
@@ -633,6 +633,3 @@ class Profiler:
         print(f" * Output tokens: {args.max_tokens}")
         print("")
         main(args)
-
-        # get only avg first token and avg
-        #

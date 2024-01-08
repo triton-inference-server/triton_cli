@@ -42,10 +42,10 @@ class NGCWrapper:
     def __init__(self):
         api_key = os.environ.get("NGC_API_KEY", "")
 
-        # Hard-coded for demo purposes
+        # TODO: revisit default org/team
         self.__generate_config(
-            org="whw3rcpsilnj",
-            team="playground",
+            org="nvidia",
+            team="",
             api_key=api_key,
             # For interactive output to see download progress
             format_type="ascii",
@@ -78,7 +78,7 @@ class NGCWrapper:
         model_dir = dest_path / ngc_model_name
         if model_dir.exists():
             logger.warning(
-                "Found existing directory for {model} at {model_dir}, skipping download."
+                f"Found existing directory for {model} at {model_dir}, skipping download."
             )
             return
 
@@ -130,6 +130,7 @@ class ModelRepository:
             logger.debug("HuggingFace prefix detected, parsing HuggingFace ID")
             source_type = "huggingface"
         # NGC models
+        # TODO: Improve backend detection/assumption for NGC models in future
         elif source.startswith(SOURCE_PREFIX_NGC):
             logger.debug("NGC prefix detected, parsing NGC ID")
             source_type = "ngc"
@@ -210,7 +211,7 @@ class ModelRepository:
             {
                 "model": huggingface_id,
                 "disable_log_requests": True,
-                "gpu_memory_utilization": 0.5,
+                "gpu_memory_utilization": 0.85,
             }
         )
         model_files = {"model.json": model_contents}
@@ -229,7 +230,6 @@ class ModelRepository:
     ):
         # Create model directory in repo with name, raise error if
         # repo doesn't exist, or model directory already exists.
-
         model_dir = self.repo / name
         version_dir = model_dir / str(version)
         try:
