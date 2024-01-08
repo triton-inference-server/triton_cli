@@ -17,6 +17,7 @@
 import os
 import logging
 from subprocess import STDOUT, PIPE, Popen, TimeoutExpired
+from .server_utils import TritonServerUtils
 
 from .server import TritonServer
 from triton_cli.constants import LOGGER_NAME
@@ -53,15 +54,20 @@ class TritonServerLocal(TritonServer):
             "model-repository"
         ], "Triton Server requires --model-repository argument to be set."
 
+        self._server_utils = TritonServerUtils(self._server_config["model-repository"])
+
     def start(self, env=None):
         """
         Starts the tritonserver container locally
         """
 
         if self._server_path:
-            # Create command list and run subprocess
-            cmd = [self._server_path]
-            cmd += self._server_config.to_args_list()
+            # Get the appropriate server launch command
+            cmd = self._server_utils.get_launch_command(
+                tritonserver_path=self._server_path,
+                server_config=self._server_config,
+                cmd_as_list=True,
+            )
 
             # Set environment, update with user config env
             triton_env = os.environ.copy()

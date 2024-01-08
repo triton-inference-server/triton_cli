@@ -141,8 +141,11 @@ class TritonServerDocker(TritonServer):
             server_metrics_port: server_metrics_port,
         }
         # Construct run command
-        command = self._server_utils.prepare_command(
-            env_cmds, self._server_config.to_cli_string()
+        command = self._server_utils.get_launch_command(
+            tritonserver_path="tritonserver",
+            server_config=self._server_config,
+            cmd_as_list=False,
+            env_cmds=env_cmds,
         )
         try:
             # Run the docker container and run the command in the container

@@ -172,6 +172,21 @@ class TritonServerConfig:
 
         return self._server_args
 
+    def trtllm_safe(self):
+        """
+        Returns
+        -------
+        bool
+            Whether the provided arguments are supported for
+            TRT LLM models`
+        """
+        for key, val in self._server_args.items():
+            if val and key != "model-repository":
+                raise Exception(
+                    "TRT LLM models currently only support the '--model-repository' parameter"
+                )
+        return True
+
     def __getitem__(self, key):
         """
         Gets an arguments value in config

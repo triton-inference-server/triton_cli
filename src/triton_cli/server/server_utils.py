@@ -21,6 +21,7 @@ from pathlib import Path
 import tritonclient.grpc.model_config_pb2 as mc
 from google.protobuf import json_format, text_format
 
+from .server_config import TritonServerConfig
 from triton_cli.constants import LOGGER_NAME
 
 logger = logging.getLogger(LOGGER_NAME)
@@ -114,7 +115,7 @@ class TritonServerUtils:
         except OSError:
             raise Exception(f"Unable to open {engine_config_path}")
 
-    def mpi_run(self) -> str:
+    def _mpi_run(self) -> str:
         """
         Returns
         -------
@@ -133,19 +134,38 @@ class TritonServerUtils:
             ]
         return cmd
 
-    def prepare_command(self, env_cmds: list, server_args: str) -> str:
+    def get_launch_command(
+        self,
+        tritonserver_path: str,
+        server_config: TritonServerConfig,
+        cmd_as_list: bool,
+        env_cmds=[],
+    ) -> str | list:
         """
         Parameters
         ----------
-        env_cmds : str
+        tritonserver_path : str
+            Path to the tritonserver executable
+        server_config : TritonServerConfig
+            A TritonServerConfig object containing command-line arguments to run tritonserver
+        cmd_as_list : bool
+            Whether the command string needs to be returned as a list of string (local requires list,
+            docker requires str)
+        env_cmds : list (optional)
             A list of environment commands to run with the tritonserver (non-trtllm models)
-        server_args : str
-            Command-line arguments to run tritonserver (non-trtllm models)
         Returns
         -------
             The appropriate command for launching a tritonserver.
         """
-        if self._is_trtllm_model:
-            return " ".join(self.mpi_run())
+        # TODO: Investigate what parameters are supported with TRT LLM's launching style.
+        # For example, explicit launch mode is not. For now, only accept '--model-repository'
+        if self._is_trtllm_model and server_config.trtllm_safe():
+            logger.info(f"Launching server with world size: {self._world_size}")
+            cmd = self._mpi_run()
         else:
-            return " ".join(env_cmds + ["tritonserver", server_args])
+            cmd = env_cmds + [tritonserver_path] + server_config.to_args_list()
+
+        if cmd_as_list:
+            return cmd
+        else:
+            return " ".join(cmd)
