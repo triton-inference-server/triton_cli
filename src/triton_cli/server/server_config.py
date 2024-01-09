@@ -172,6 +172,8 @@ class TritonServerConfig:
 
         return self._server_args
 
+    # TODO: Investigate what parameters are supported with TRT LLM's launching style.
+    # For example, explicit launch mode is not. For now, only accept '--model-repository'
     def trtllm_safe(self):
         """
         Returns

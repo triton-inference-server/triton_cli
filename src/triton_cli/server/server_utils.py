@@ -34,11 +34,95 @@ class TritonServerUtils:
 
     def __init__(self, model_path: str):
         self._model_repo_path = model_path
+        self._trtllm_utils = TRTLLMUtils(self._model_repo_path)
+
+    def get_launch_command(
+        self,
+        tritonserver_path: str,
+        server_config: TritonServerConfig,
+        cmd_as_list: bool,
+        env_cmds=[],
+    ) -> str | list:
+        """
+        Parameters
+        ----------
+        tritonserver_path : str
+            Path to the tritonserver executable
+        server_config : TritonServerConfig
+            A TritonServerConfig object containing command-line arguments to run tritonserver
+        cmd_as_list : bool
+            Whether the command string needs to be returned as a list of string (local requires list,
+            docker requires str)
+        env_cmds : list (optional)
+            A list of environment commands to run with the tritonserver (non-trtllm models)
+        Returns
+        -------
+            The appropriate command for launching a tritonserver.
+        """
+
+        if self._trtllm_utils.is_trtllm_model() and server_config.trtllm_safe():
+            logger.info(
+                f"Launching server with world size: {self._trtllm_utils.get_world_size()}"
+            )
+            cmd = self._trtllm_utils.mpi_run()
+        else:
+            cmd = env_cmds + [tritonserver_path] + server_config.to_args_list()
+
+        if cmd_as_list:
+            return cmd
+        else:
+            return " ".join(cmd)
+
+
+class TRTLLMUtils:
+    """
+    A utility class for handling TRT LLM-specific models.
+    """
+
+    def __init__(self, model_path: str):
+        self._model_repo_path = model_path
         self._trtllm_model_config_path = self._find_trtllm_model_config_path()
         self._is_trtllm_model = self._trtllm_model_config_path is not None
 
         if self._is_trtllm_model:
             self._world_size = self._parse_world_size()
+        else:
+            self._world_size = -1
+
+    def is_trtllm_model(self) -> bool:
+        """
+        Returns
+        -------
+            A boolean indicating whether a TRT LLM model exists in the model repo
+        """
+        return self._is_trtllm_model
+
+    def get_world_size(self) -> int:
+        """
+        Returns
+        -------
+            An int corresponding to the appropriate world size to use to run the TRT LLM engine(s).
+        """
+        return self._world_size
+
+    def mpi_run(self) -> str:
+        """
+        Returns
+        -------
+            TRT LLM models must be run using MPI. This function constructs
+            the appropriate mpi command to run a TRT LLM engine given a
+            previously parsed world size.
+        """
+        cmd = ["mpirun", "--allow-run-as-root"]
+        for i in range(self._world_size):
+            cmd += ["-n", "1", "/opt/tritonserver/bin/tritonserver"]
+            cmd += [
+                f"--model-repository={self._model_repo_path}",
+                "--disable-auto-complete-config",
+                f"--backend-config=python,shm-region-prefix-name=prefix{i}_",
+                ":",
+            ]
+        return cmd
 
     def _find_trtllm_model_config_path(self) -> Path:
         """
@@ -107,65 +191,17 @@ class TritonServerUtils:
             engine_config_path = engine_path / "config.json"
             with open(engine_config_path) as json_data:
                 data = json.load(json_data)
-                return int(data["builder_config"]["tensor_parallel"])
+                tp = int(data["builder_config"]["tensor_parallel"])
+                try:
+                    pp = int(data["builder_config"]["pipeline_parallel"])
+                    return tp * pp
+                except KeyError:
+                    # NOTE: Some models do not have a pipeline parallelism parameter.
+                    # In this case, simply return the tensor parallelism parameter.
+                    return tp
         except KeyError as e:
             raise Exception(
                 f"Unable to extract world size from {engine_config_path}. Key error: {str(e)}"
             )
         except OSError:
             raise Exception(f"Unable to open {engine_config_path}")
-
-    def _mpi_run(self) -> str:
-        """
-        Returns
-        -------
-            TRT LLM models must be run using MPI. This function constructs
-            the appropriate mpi command to run a TRT LLM engine given a
-            previously parsed world size.
-        """
-        cmd = ["mpirun", "--allow-run-as-root"]
-        for i in range(self._world_size):
-            cmd += ["-n", "1", "/opt/tritonserver/bin/tritonserver"]
-            cmd += [
-                f"--model-repository={self._model_repo_path}",
-                "--disable-auto-complete-config",
-                f"--backend-config=python,shm-region-prefix-name=prefix{i}_",
-                ":",
-            ]
-        return cmd
-
-    def get_launch_command(
-        self,
-        tritonserver_path: str,
-        server_config: TritonServerConfig,
-        cmd_as_list: bool,
-        env_cmds=[],
-    ) -> str | list:
-        """
-        Parameters
-        ----------
-        tritonserver_path : str
-            Path to the tritonserver executable
-        server_config : TritonServerConfig
-            A TritonServerConfig object containing command-line arguments to run tritonserver
-        cmd_as_list : bool
-            Whether the command string needs to be returned as a list of string (local requires list,
-            docker requires str)
-        env_cmds : list (optional)
-            A list of environment commands to run with the tritonserver (non-trtllm models)
-        Returns
-        -------
-            The appropriate command for launching a tritonserver.
-        """
-        # TODO: Investigate what parameters are supported with TRT LLM's launching style.
-        # For example, explicit launch mode is not. For now, only accept '--model-repository'
-        if self._is_trtllm_model and server_config.trtllm_safe():
-            logger.info(f"Launching server with world size: {self._world_size}")
-            cmd = self._mpi_run()
-        else:
-            cmd = env_cmds + [tritonserver_path] + server_config.to_args_list()
-
-        if cmd_as_list:
-            return cmd
-        else:
-            return " ".join(cmd)
