@@ -70,6 +70,10 @@ class TritonClient:
             config = self.client.get_model_config(model_name=model, **self.kwargs)
         return config
 
+    def get_model_backend(self, model: str):
+        config = self.get_model_config(model)
+        return config.get("backend")
+
     def get_server_metadata(self):
         return self.client.get_server_metadata(**self.kwargs)
 

@@ -126,9 +126,7 @@ class TritonServerFactory:
         elif config.mode == "docker":
             server = TritonServerFactory._get_docker_server_handle(config, gpus)
         else:
-            raise Exception(
-                f"Unsupported triton-launch-mode : {config.triton_launch_mode}"
-            )
+            raise Exception(f"Unsupported triton-launch-mode : {config.mode}")
 
         return server
 

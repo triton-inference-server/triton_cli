@@ -96,9 +96,9 @@ def add_server_start_args(subcommands):
             "--mode",
             choices=["local", "docker"],
             type=str,
-            default="local",
+            default=None,
             required=False,
-            help="Mode to start Triton with. (Default: 'local')",
+            help="Mode to start Triton with. Default is to try 'local' first, then fallback to 'docker' on failure to find the tritonserver binary.",
         )
         default_image = "nvcr.io/nvidia/tritonserver:23.12-vllm-python-py3"
         subcommand.add_argument(
@@ -126,6 +126,13 @@ def add_server_start_args(subcommands):
         )
 
 
+def add_model_args(subcommands):
+    for subcommand in subcommands:
+        subcommand.add_argument(
+            "-m", "--model", type=str, required=True, help="Model name"
+        )
+
+
 def add_profile_args(subcommands):
     for subcommand in subcommands:
         subcommand.add_argument(
@@ -134,21 +141,21 @@ def add_profile_args(subcommands):
             type=int,
             default=1,
             required=False,
-            help="The batch size / concurrency to benchmark",
+            help="The batch size / concurrency to benchmark. (Default: 1)",
         )
         subcommand.add_argument(
             "--input-length",
             type=int,
             default=128,
             required=False,
-            help="The input length (tokens) to use for benchmarking (LLM specific)",
+            help="The input length (tokens) to use for benchmarking LLMs. (Default: 128)",
         )
         subcommand.add_argument(
             "--output-length",
             type=int,
             default=128,
             required=False,
-            help="The output length (tokens) to use for benchmarking (LLM specific)",
+            help="The output length (tokens) to use for benchmarking LLMs. (Default: 128)",
         )
 
 
@@ -226,18 +233,7 @@ def handle_model(args: argparse.Namespace):
     if args.subcommand == "infer":
         client.infer(args.model, args.data, args.prompt)
     elif args.subcommand == "profile":
-        # TODO
-        if not args.port:
-            args.port = 8001 if args.protocol == "grpc" else 8000
-
-        logger.info(f"Running Perf Analyzer profiler on '{args.model}'...")
-        Profiler.profile(
-            model=args.model,
-            batch_size=args.batch_size,
-            url=f"{args.url}:{args.port}",
-            input_length=args.input_length,
-            output_length=args.output_length,
-        )
+        profile_model(args, client)
     elif args.subcommand == "config":
         config = client.get_model_config(args.model)
         if config:
@@ -252,11 +248,13 @@ def handle_model(args: argparse.Namespace):
         raise Exception(f"model subcommand {args.subcommand} not supported")
 
 
-def handle_server(args: argparse.Namespace):
-    if args.subcommand == "start":
-        server = TritonServerFactory.get_server_handle(args)
+def start_server(args: argparse.Namespace, blocking=True):
+    assert args.mode is not None
+    server = TritonServerFactory.get_server_handle(args)
+    server.start()
+
+    if blocking:
         try:
-            server.start()
             logger.info("Reading server output...")
             server.logs()
         except KeyboardInterrupt:
@@ -264,6 +262,34 @@ def handle_server(args: argparse.Namespace):
 
         logger.info("Stopping server...")
         server.stop()
+
+    return server
+
+
+def start_server_with_fallback(args: argparse.Namespace, blocking=True):
+    modes = [args.mode]
+    if not args.mode:
+        modes = ["local", "docker"]
+        logger.debug(f"No --mode specified, trying the following modes: {modes}")
+
+    server = None
+    for mode in modes:
+        try:
+            args.mode = mode
+            server = start_server(args, blocking=blocking)
+        except Exception as e:
+            logger.debug(f"Failed to start server in '{mode}' mode. Error: {e}")
+            continue
+
+    if not server:
+        raise Exception("Failed to start server.")
+
+    return server
+
+
+def handle_server(args: argparse.Namespace):
+    if args.subcommand == "start":
+        start_server_with_fallback(args, blocking=True)
     # TODO: Consider top-level metrics command/handler
     elif args.subcommand == "metrics":
         client = MetricsClient(args.url, args.port)
@@ -293,7 +319,13 @@ def parse_args_model(subcommands):
 
     model_commands = model.add_subparsers(required=True, dest="subcommand")
     infer = model_commands.add_parser("infer", help="Send inference requests to models")
-    infer.add_argument("-m", "--model", type=str, required=True, help="Model name")
+    profile = model_commands.add_parser(
+        "profile", help="Profile LLM models using Perf Analyzer"
+    )
+    config = model_commands.add_parser("config", help="Get config for model")
+    metrics = model_commands.add_parser("metrics", help="Get metrics for model")
+    add_model_args([infer, profile, config, metrics])
+
     infer.add_argument(
         "--data",
         type=str,
@@ -307,13 +339,8 @@ def parse_args_model(subcommands):
         default=None,
         help="Text input to LLM-like models. Required for inference on LLMs, optional otherwise.",
     )
-    profile = model_commands.add_parser("profile", help="Run Perf Analyzer")
-    add_profile_args([profile])
 
-    config = model_commands.add_parser("config", help="Get config for model")
-    config.add_argument("-m", "--model", type=str, required=True, help="Model name")
-    metrics = model_commands.add_parser("metrics", help="Get metrics for model")
-    metrics.add_argument("-m", "--model", type=str, required=True, help="Model name")
+    add_profile_args([profile])
     add_client_args([infer, profile, config, metrics])
     return model
 
@@ -393,6 +420,27 @@ def parse_args_server(subcommands):
     return server
 
 
+def profile_model(args: argparse.Namespace, client: TritonClient):
+    if args.protocol != "grpc":
+        raise Exception("Profiler only supports 'grpc' protocol at this time.")
+
+    if not args.port:
+        args.port = 8001 if args.protocol == "grpc" else 8000
+
+    # Profiler needs to know TRT-LLM vs vLLM to form correct payload
+    backend = client.get_model_backend(args.model)
+
+    logger.info(f"Running Perf Analyzer profiler on '{args.model}'...")
+    Profiler.profile(
+        model=args.model,
+        backend=backend,
+        batch_size=args.batch_size,
+        url=f"{args.url}:{args.port}",
+        input_length=args.input_length,
+        output_length=args.output_length,
+    )
+
+
 def handle_bench(args: argparse.Namespace):
     if args.verbose:
         logger.setLevel(logging.DEBUG)
@@ -413,25 +461,15 @@ def handle_bench(args: argparse.Namespace):
         verbose=args.verbose,
     )
 
-    ### Start server
-    server = TritonServerFactory.get_server_handle(args)
     try:
-        server.start()
+        ### Start server
+        server = start_server_with_fallback(args, blocking=False)
         client = TritonClient(url=args.url, port=args.port, protocol=args.protocol)
         wait_for_ready(args.server_timeout, server, client)
+
         ### Profile model
         logger.info("Server is ready for inference.")
-        if not args.port:
-            args.port = 8001 if args.protocol == "grpc" else 8000
-
-        logger.info(f"Running Perf Analyzer profiler on '{args.model}'...")
-        Profiler.profile(
-            model=args.model,
-            batch_size=args.batch_size,
-            url=f"{args.url}:{args.port}",
-            input_length=args.input_length,
-            output_length=args.output_length,
-        )
+        profile_model(args, client)
     except KeyboardInterrupt:
         print()
     except Exception as ex:

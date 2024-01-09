@@ -596,7 +596,7 @@ def main(args, should_summarize=True):
 
 
 class Args:
-    backend = "trtllm"
+    backend = "vllm"
     model = ""
     periodic_concurrency_range = []
     request_period = None
@@ -611,9 +611,10 @@ class Args:
 
 class Profiler:
     @staticmethod
-    def profile(model, batch_size, url, input_length=128, output_length=128):
+    def profile(model, backend, batch_size, url, input_length=128, output_length=128):
         args = Args()
         args.model = model
+        args.backend = backend
         args.concurrency = batch_size  # inflight batch size
         args.url = url
         args.prompt_size_range = [input_length, input_length, 1]
@@ -628,6 +629,7 @@ class Profiler:
         print("Warmed up, profiling now...\n")
         print("[ PROFILE CONFIGURATIONS ]")
         print(f" * Model: {args.model}")
+        print(f" * Backend: {args.backend}")
         print(f" * Batch size: {args.concurrency}")
         print(f" * Input tokens: {args.prompt_size_range[0]}")
         print(f" * Output tokens: {args.max_tokens}")
