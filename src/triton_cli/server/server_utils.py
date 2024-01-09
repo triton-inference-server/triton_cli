@@ -60,11 +60,11 @@ class TritonServerUtils:
             The appropriate command for launching a tritonserver.
         """
 
-        if self._trtllm_utils.is_trtllm_model() and server_config.trtllm_safe():
+        if self._trtllm_utils.has_trtllm_model():
             logger.info(
                 f"Launching server with world size: {self._trtllm_utils.get_world_size()}"
             )
-            cmd = self._trtllm_utils.mpi_run()
+            cmd = self._trtllm_utils.mpi_run(server_config)
         else:
             cmd = env_cmds + [tritonserver_path] + server_config.to_args_list()
 
@@ -83,13 +83,14 @@ class TRTLLMUtils:
         self._model_repo_path = model_path
         self._trtllm_model_config_path = self._find_trtllm_model_config_path()
         self._is_trtllm_model = self._trtllm_model_config_path is not None
+        self._supported_args = ["model-repository"]
 
         if self._is_trtllm_model:
             self._world_size = self._parse_world_size()
         else:
             self._world_size = -1
 
-    def is_trtllm_model(self) -> bool:
+    def has_trtllm_model(self) -> bool:
         """
         Returns
         -------
@@ -105,14 +106,24 @@ class TRTLLMUtils:
         """
         return self._world_size
 
-    def mpi_run(self) -> str:
+    def mpi_run(self, server_config: TritonServerConfig) -> str:
         """
+        Parameters
+        ----------
+        server_config : TritonServerConfig
+            A TritonServerConfig object containing command-line arguments to run tritonserver
         Returns
         -------
             TRT LLM models must be run using MPI. This function constructs
             the appropriate mpi command to run a TRT LLM engine given a
             previously parsed world size.
         """
+        unsupported_args = server_config.get_unsupported_args(self._supported_args)
+        if unsupported_args:
+            raise Exception(
+                f"The following args are not currently supported by this model: {unsupported_args}"
+            )
+
         cmd = ["mpirun", "--allow-run-as-root"]
         for i in range(self._world_size):
             cmd += ["-n", "1", "/opt/tritonserver/bin/tritonserver"]
