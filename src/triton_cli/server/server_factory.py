@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright 2020-2023, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# Copyright 2020-2024, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -155,7 +155,7 @@ class TritonServerFactory:
         triton_config = TritonServerConfig()
         triton_config["model-repository"] = os.path.abspath(config.model_repository)
         logger.info(
-            f"Starting a Triton Server via docker with model repository: {config.model_repository}"
+            f"Starting a Triton Server via docker image '{config.image}' with model repository: {config.model_repository}"
         )
         server = TritonServerFactory.create_server_docker(
             image=config.image,
