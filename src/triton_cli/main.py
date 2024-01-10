@@ -35,16 +35,20 @@ logging.basicConfig(level=logging.INFO, format="%(name)s - %(levelname)s - %(mes
 logger = logging.getLogger("triton")
 
 
-# Add optional argv for testing. Will default to sys.argv if None.
-def main(argv=None):
+# Separate function that can raise exceptions used for testing
+# to assert correct errors and messages.
+# Optional argv used for testing - will default to sys.argv if None.
+def run(argv=None):
     args = parser.parse_args(argv)
+    args.func(args)
+
+
+def main():
+    # Interactive use will catch exceptions and log formatted errors rather than tracebacks.
     try:
-        args.func(args)
+        run()
     except Exception as e:
         logger.error(f"{e}")
-        # TODO: Find a way to raise well-typed errors for testing purposes,
-        # without always dumping traceback to user-facing output.
-        raise e
 
 
 if __name__ == "__main__":

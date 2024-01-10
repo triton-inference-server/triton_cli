@@ -25,9 +25,8 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import os
-import uuid
 import pytest
-from triton_cli.main import main as entrypoint
+from triton_cli.main import run
 from triton_cli.parser import KNOWN_MODEL_SOURCES
 
 KNOWN_MODELS = KNOWN_MODEL_SOURCES.keys()
@@ -47,13 +46,13 @@ class TestRepo:
         args = ["repo", "list"]
         if repo:
             args += ["--repo", repo]
-        entrypoint(args)
+        run(args)
 
     def repo_clear(self, repo=None):
         args = ["repo", "clear"]
         if repo:
             args += ["--repo", repo]
-        entrypoint(args)
+        run(args)
 
     def repo_add(self, model, source=None, repo=None):
         args = ["repo", "add", "-m", model]
@@ -61,13 +60,13 @@ class TestRepo:
             args += ["--source", source]
         if repo:
             args += ["--repo", repo]
-        entrypoint(args)
+        run(args)
 
     def repo_remove(self, model, repo=None):
         args = ["repo", "remove", "-m", model]
         if repo:
             args += ["--repo", repo]
-        entrypoint(args)
+        run(args)
 
     @pytest.mark.parametrize("repo", TEST_REPOS)
     def test_repo_clear(self, repo):
@@ -85,9 +84,7 @@ class TestRepo:
     @pytest.mark.parametrize("repo", TEST_REPOS)
     def test_repo_add_known_source(self, source, repo):
         self.repo_clear(repo)
-        # Random model name, since we don't care about it here
-        model = str(uuid.uuid4())
-        self.repo_add(model, source=source, repo=repo)
+        self.repo_add("known_source", source=source, repo=repo)
         self.repo_clear(repo)
 
     @pytest.mark.parametrize("model,source", CUSTOM_VLLM_MODEL_SOURCES)
