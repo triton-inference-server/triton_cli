@@ -98,7 +98,7 @@ def add_server_start_args(subcommands):
             type=str,
             default=None,
             required=False,
-            help="Mode to start Triton with. Default is to try 'local' first, then fallback to 'docker' on failure to find the tritonserver binary.",
+            help="Mode to start Triton with. If a mode is explicitly specified, only that mode will be tried. If no mode is specified (default), 'local' mode is tried first first, then falls back to 'docker' mode on failure.",
         )
         default_image = "nvcr.io/nvidia/tritonserver:23.12-vllm-python-py3"
         subcommand.add_argument(
