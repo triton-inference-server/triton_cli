@@ -34,8 +34,9 @@ logging.basicConfig(level=logging.INFO, format="%(name)s - %(levelname)s - %(mes
 logger = logging.getLogger("triton")
 
 
-def main():
-    args = parser.parse_args()
+# Add optional argv for testing. Will default to sys.argv if None.
+def main(argv=None):
+    args = parser.parse_args(argv)
     try:
         args.func(args)
     except Exception as e:

@@ -24,8 +24,9 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-# Placeholder to add real tests in the future
-def test_import():
-    import triton_cli
+import triton_cli
 
+
+# Placeholder to add real tests in the future
+def test_version():
     print(triton_cli.__version__)

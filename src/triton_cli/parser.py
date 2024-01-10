@@ -524,7 +524,8 @@ def parse_args_bench(subcommands):
     return bench_run
 
 
-def parse_args():
+# Add optional argv for testing. Will default to sys.argv if None.
+def parse_args(argv=None):
     parser = argparse.ArgumentParser(
         prog="triton", description="CLI to interact with Triton Inference Server"
     )
@@ -533,5 +534,5 @@ def parse_args():
     _ = parse_args_repo(subcommands)
     _ = parse_args_server(subcommands)
     _ = parse_args_bench(subcommands)
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
     return args
