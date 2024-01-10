@@ -28,6 +28,7 @@
 
 from triton_cli import parser
 
+import sys
 import logging
 
 logging.basicConfig(level=logging.INFO, format="%(name)s - %(levelname)s - %(message)s")
@@ -41,7 +42,10 @@ def main(argv=None):
         args.func(args)
     except Exception as e:
         logger.error(f"{e}")
+        # TODO: Find a way to raise well-typed errors for testing purposes,
+        # without always dumping traceback to user-facing output.
+        raise e
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

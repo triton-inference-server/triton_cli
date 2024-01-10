@@ -144,7 +144,7 @@ class ModelRepository:
         verbose=True,
     ):
         if not source:
-            raise Exception("Non-empty model source must be provided")
+            raise ValueError("Non-empty model source must be provided")
 
         if backend:
             raise NotImplementedError(
@@ -216,9 +216,9 @@ class ModelRepository:
         self, model_dir: Path, version_dir: Path, huggingface_id: str
     ):
         if not model_dir or not model_dir.exists():
-            raise Exception("Model directory must be provided and exist")
+            raise ValueError("Model directory must be provided and exist")
         if not huggingface_id:
-            raise Exception("HuggingFace ID must be non-empty")
+            raise ValueError("HuggingFace ID must be non-empty")
 
         # TODO: Add generic support for HuggingFace models with HF API.
         # For now, use vLLM as a means of deploying HuggingFace Transformers
@@ -262,7 +262,7 @@ class ModelRepository:
             if backend == "tensorrtllm":
                 # Don't allow existing files for TRT-LLM for now in case we delete large engine files
                 if model_dir.exists():
-                    raise Exception(
+                    raise ValueError(
                         f"Found existing model at {version_dir}, skipping repo add."
                     )
 

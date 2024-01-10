@@ -78,7 +78,7 @@ class TestRepo:
     @pytest.mark.parametrize("repo", TEST_REPOS)
     def test_repo_add_known_model(self, model, repo):
         self.repo_clear(repo)
-        self.repo_add(model, repo)
+        self.repo_add(model, repo=repo)
         self.repo_clear(repo)
 
     @pytest.mark.parametrize("source", KNOWN_SOURCES)
@@ -87,13 +87,13 @@ class TestRepo:
         self.repo_clear(repo)
         # Random model name, since we don't care about it here
         model = str(uuid.uuid4())
-        self.repo_add(model, source, repo)
+        self.repo_add(model, source=source, repo=repo)
         self.repo_clear(repo)
 
     @pytest.mark.parametrize("model,source", CUSTOM_VLLM_MODEL_SOURCES)
     def test_repo_add_vllm(self, model, source):
         self.repo_clear()
-        self.repo_add(model, source)
+        self.repo_add(model, source=source)
         # TODO: Parse repo to find model, with vllm backend in config
         self.repo_clear()
 
@@ -107,12 +107,22 @@ class TestRepo:
         # TODO: Parse repo to find TRT-LLM models and backend in config
         pass
 
+    def test_repo_add_no_source(self):
+        # TODO: Investigate idiomatic way to assert failures for CLIs
+        with pytest.raises(
+            Exception, match="Please use a known model, or provide a --source"
+        ):
+            self.repo_add("no_source", source=None)
+
     def test_repo_remove(self):
-        self.repo_add("gpt2")
+        self.repo_add("gpt2", source="hf:gpt2")
         self.repo_remove("gpt2")
 
+    # TODO: Find a way to raise well-typed errors for testing purposes, without
+    # always dumping traceback to user-facing output.
     def test_repo_remove_nonexistent(self):
-        self.repo_remove("does-not-exist")
+        with pytest.raises(FileNotFoundError, match="No model folder exists"):
+            self.repo_remove("does-not-exist")
 
     @pytest.mark.parametrize("repo", TEST_REPOS)
     def test_repo_list(self, repo):
