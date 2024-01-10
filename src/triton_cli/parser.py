@@ -85,7 +85,7 @@ def wait_for_ready(timeout, server, client):
             # Server health will throw exception if error occurs on server side
             server.health()
             time.sleep(1)
-        raise Exception(
+        raise TimeoutError(
             f"Timed out waiting {timeout} seconds for server to startup. Try increasing --server-timeout."
         )
 
@@ -273,16 +273,25 @@ def start_server_with_fallback(args: argparse.Namespace, blocking=True):
         logger.debug(f"No --mode specified, trying the following modes: {modes}")
 
     server = None
+    errors = []
     for mode in modes:
         try:
             args.mode = mode
             server = start_server(args, blocking=blocking)
         except Exception as e:
-            logger.debug(f"Failed to start server in '{mode}' mode. Error: {e}")
+            msg = f"Failed to start server in '{mode}' mode. {e}"
+            logger.debug(msg)
+            errors.append(msg)
             continue
 
     if not server:
-        raise Exception("Failed to start server.")
+        # Give nicely formatted errors for each case.
+        if len(errors) > 1:
+            raise Exception(f"Failed to start server. Errors: {errors}")
+        elif len(errors) == 1:
+            raise Exception(f"{errors[0]}")
+        else:
+            raise Exception("Failed to start server, unknown error.")
 
     return server
 
@@ -461,6 +470,7 @@ def handle_bench(args: argparse.Namespace):
         verbose=args.verbose,
     )
 
+    server = None
     try:
         ### Start server
         server = start_server_with_fallback(args, blocking=False)
@@ -472,12 +482,14 @@ def handle_bench(args: argparse.Namespace):
         profile_model(args, client)
     except KeyboardInterrupt:
         print()
-    except Exception as ex:
-        # Catch timeout exception
-        logger.error(ex)
+    except TimeoutError as e:
+        logger.error(e)
+    except Exception as e:
+        logger.error(f"Unexpected error: {e}")
 
-    logger.info("Stopping server...")
-    server.stop()
+    if server:
+        logger.info("Stopping server...")
+        server.stop()
 
 
 def parse_args_bench(subcommands):
