@@ -202,17 +202,13 @@ class TRTLLMUtils:
             engine_config_path = engine_path / "config.json"
             with open(engine_config_path) as json_data:
                 data = json.load(json_data)
-                tp = int(data["builder_config"]["tensor_parallel"])
-                try:
-                    pp = int(data["builder_config"]["pipeline_parallel"])
-                    return tp * pp
-                except KeyError:
-                    # NOTE: Some models do not have a pipeline parallelism parameter.
-                    # In this case, simply return the tensor parallelism parameter.
-                    return tp
-        except KeyError as e:
-            raise Exception(
-                f"Unable to extract world size from {engine_config_path}. Key error: {str(e)}"
-            )
+                config = data.get("builder_config")
+                if not config:
+                    raise Exception(
+                        f"Unable to parse 'builder_config' from {engine_config_path}"
+                    )
+                tp = int(config.get("tensor_parallel", 1))
+                pp = int(config.get("pipeline_parallel", 1))
+                return tp * pp
         except OSError:
             raise Exception(f"Unable to open {engine_config_path}")
