@@ -174,10 +174,7 @@ class TritonServerDocker(TritonServer):
                 raise Exception(
                     "One of the following port(s) are already allocated: "
                     f"{server_http_port}, {server_grpc_port}, "
-                    f"{server_metrics_port}.\n"
-                    "Change the Triton server ports using"
-                    " --triton-http-endpoint, --triton-grpc-endpoint,"
-                    " and --triton-metrics-endpoint flags."
+                    f"{server_metrics_port}."
                 )
             else:
                 raise Exception(e)
