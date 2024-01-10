@@ -17,6 +17,7 @@
 import subprocess
 import logging
 import json
+from typing import Union
 from pathlib import Path
 import tritonclient.grpc.model_config_pb2 as mc
 from google.protobuf import json_format, text_format
@@ -42,7 +43,7 @@ class TritonServerUtils:
         server_config: TritonServerConfig,
         cmd_as_list: bool,
         env_cmds=[],
-    ) -> str | list:
+    ) -> Union[str, list]:
         """
         Parameters
         ----------

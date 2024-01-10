@@ -28,19 +28,28 @@
 
 from triton_cli import parser
 
+import sys
 import logging
 
 logging.basicConfig(level=logging.INFO, format="%(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger("triton")
 
 
+# Separate function that can raise exceptions used for testing
+# to assert correct errors and messages.
+# Optional argv used for testing - will default to sys.argv if None.
+def run(argv=None):
+    args = parser.parse_args(argv)
+    args.func(args)
+
+
 def main():
-    args = parser.parse_args()
+    # Interactive use will catch exceptions and log formatted errors rather than tracebacks.
     try:
-        args.func(args)
+        run()
     except Exception as e:
         logger.error(f"{e}")
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
