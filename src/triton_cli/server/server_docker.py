@@ -20,7 +20,7 @@ from rich.progress import Progress
 
 from .server import TritonServer
 from .server_utils import TritonServerUtils
-from triton_cli.constants import LOGGER_NAME, HF_CACHE
+from triton_cli.constants import LOGGER_NAME, HF_CACHE, DEFAULT_TRITONSERVER_PATH
 
 logger = logging.getLogger(LOGGER_NAME)
 
@@ -56,7 +56,7 @@ class TritonServerDocker(TritonServer):
     triton in a docker container.
     """
 
-    def __init__(self, image, world_size, config, gpus, mounts, labels, shm_size, args):
+    def __init__(self, image, config, gpus, mounts, labels, shm_size, args):
         """
         Parameters
         ----------
@@ -87,11 +87,12 @@ class TritonServerDocker(TritonServer):
         self._gpus = gpus
         self._shm_size = shm_size
         self._args = args if args else {}
-        self._world_size = world_size
 
         assert self._server_config[
             "model-repository"
         ], "Triton Server requires --model-repository argument to be set."
+
+        self._server_utils = TritonServerUtils(self._server_config["model-repository"])
 
         try:
             self._docker_client.images.get(self._tritonserver_image)
@@ -140,18 +141,12 @@ class TritonServerDocker(TritonServer):
             server_metrics_port: server_metrics_port,
         }
         # Construct run command
-        # TRTLLM models require special handling. For now,
-        # we will 'spell-out' the command.
-        if self._world_size >= 1:
-            command = " ".join(
-                TritonServerUtils.mpi_run(
-                    self._world_size, self._server_config["model-repository"]
-                )
-            )
-        else:
-            command = " ".join(
-                env_cmds + ["tritonserver", self._server_config.to_cli_string()]
-            )
+        command = self._server_utils.get_launch_command(
+            tritonserver_path=DEFAULT_TRITONSERVER_PATH,
+            server_config=self._server_config,
+            cmd_as_list=False,
+            env_cmds=env_cmds,
+        )
         try:
             # Run the docker container and run the command in the container
             self._tritonserver_container = self._docker_client.containers.run(

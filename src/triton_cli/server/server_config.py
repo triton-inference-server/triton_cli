@@ -172,6 +172,25 @@ class TritonServerConfig:
 
         return self._server_args
 
+    # TODO: Investigate what parameters are supported with TRT LLM's launching style.
+    # For example, explicit launch mode is not. See the TRTLLMUtils class for a list of
+    # supported args.
+    def get_unsupported_args(self, supported_args: list) -> list:
+        """
+        Parameters
+        -------
+        supported_args : list
+            A list of supported config arguments
+        Returns
+        -------
+            A list of specified args that are unsupported
+        """
+        unsupported_args = []
+        for key, val in self._server_args.items():
+            if val and key not in supported_args:
+                unsupported_args.append(key)
+        return unsupported_args
+
     def __getitem__(self, key):
         """
         Gets an arguments value in config

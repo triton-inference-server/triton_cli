@@ -108,15 +108,6 @@ def add_server_start_args(subcommands):
             default=default_image,
             help=f"Image to use when starting Triton with 'docker' mode. Default: {default_image}",
         )
-        # TODO: Delete once world-size can be parsed from a known
-        # config file location.
-        subcommand.add_argument(
-            "--world-size",
-            type=int,
-            required=False,
-            default=-1,
-            help="Number of devices to deploy a tensorrtllm model.",
-        )
         subcommand.add_argument(
             "--server-timeout",
             type=int,
