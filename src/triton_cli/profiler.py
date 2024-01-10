@@ -27,7 +27,7 @@
 import json
 import subprocess
 from dataclasses import dataclass
-from itertools import pairwise
+from itertools import tee
 from pathlib import Path
 from typing import Optional
 
@@ -73,6 +73,14 @@ METRIC_FIELDS = {
     # "p95_gen_throughput": ("p95 generation throughput", "output tokens/s"),
     # "p99_gen_throughput": ("p99 generation throughput", "output tokens/s"),
 }
+
+
+# Built-in to itertools in Python 3.10+
+def pairwise(iterable):
+    # n=2 for pairs
+    a, b = tee(iterable, 2)
+    next(b, None)
+    return zip(a, b)
 
 
 @dataclass
