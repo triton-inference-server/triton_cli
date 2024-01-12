@@ -406,11 +406,18 @@ def calculate_metrics(args, profile_result, export_data):
     if args.ignore_eos:
         requests = export_data["experiments"][0]["requests"]
         for request in requests:
-            if len(request["response_timestamps"]) != args.max_tokens:
+            if len(request["response_timestamps"]) == args.max_tokens:
+                pass
+            elif len(request["response_timestamps"]) == args.max_tokens + 1:
+                logger.warning(
+                    "Received an extra response from the backend. This may be "
+                    "due to the backend sending an 'empty final response'."
+                )
+            else:
                 raise ValueError(
                     f"Expecting {args.max_tokens} tokens but received "
                     f"{len(request['response_timestamps'])} tokens. "
-                    f"This could be due to a long prompt size. "
+                    f"This could be due to an unsupported sequence length. "
                     f"Please double check the input and output length."
                 )
 
