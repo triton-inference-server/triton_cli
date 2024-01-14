@@ -25,6 +25,7 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import json
+import logging
 import subprocess
 from dataclasses import dataclass
 from itertools import tee
@@ -32,6 +33,11 @@ from pathlib import Path
 from typing import Optional
 
 import numpy as np
+
+from triton_cli.constants import LOGGER_NAME
+
+logger = logging.getLogger(LOGGER_NAME)
+
 
 INPUT_FILENAME = "generated_input_data.json"
 METRIC_FIELDS = {
@@ -396,6 +402,28 @@ def calculate_offline_metrics(args, profile_result, export_data):
 
 
 def calculate_metrics(args, profile_result, export_data):
+    # Sanity check the number of responses received from backend
+    if args.ignore_eos:
+        requests = export_data["experiments"][0]["requests"]
+        for request in requests:
+            if len(request["response_timestamps"]) == args.max_tokens:
+                # Assume FINAL flag is returned with final token response
+                pass
+            elif len(request["response_timestamps"]) == args.max_tokens + 1:
+                # Assume FINAL flag was returned with an empty response after
+                # the final token
+                logger.warning(
+                    "Received an extra response from the backend. This may be "
+                    "due to the backend sending an 'empty final response'."
+                )
+            else:
+                raise ValueError(
+                    f"Expecting {args.max_tokens} tokens but received "
+                    f"{len(request['response_timestamps'])} tokens. "
+                    f"This could be due to an unsupported sequence length. "
+                    f"Please double check the input and output length."
+                )
+
     calculate_offline_metrics(args, profile_result, export_data)
     if not args.offline:
         calculate_online_metrics(args, profile_result, export_data)
@@ -455,7 +483,15 @@ def profile(args, export_file):
             f"--concurrency-range={args.concurrency}"
         )
 
-    subprocess.run(args=[command], shell=True, stdout=subprocess.DEVNULL)
+    proc = subprocess.run(args=[command], shell=True, capture_output=True)
+
+    if args.verbose:
+        logger.info(f"Perf Analyzer output:\n{proc.stdout.decode('utf-8')}")
+    if proc.returncode:
+        raise RuntimeError(
+            "Encountered the following error while running Perf Analyzer:\n"
+            f"{proc.stderr.decode('utf-8').rstrip()}"
+        )
 
 
 def prepare_export_file(args, prompt):
@@ -615,11 +651,20 @@ class Args:
     offline = False
     url = "localhost:8001"
     concurrency = 1
+    verbose = False
 
 
 class Profiler:
     @staticmethod
-    def profile(model, backend, batch_size, url, input_length=128, output_length=128):
+    def profile(
+        model,
+        backend,
+        batch_size,
+        url,
+        input_length=128,
+        output_length=128,
+        verbose=False,
+    ):
         args = Args()
         args.model = model
         args.backend = backend
@@ -627,19 +672,22 @@ class Profiler:
         args.url = url
         args.prompt_size_range = [input_length, input_length, 1]
         args.max_tokens = output_length
+        args.verbose = verbose
 
         start, end, step = args.prompt_size_range
         assert start == end and step == 1  # no sweeping for now
 
-        print("Warming up...")
+        logger.info("Warming up...")
         main(args, should_summarize=False)  # warm-up
 
-        print("Warmed up, profiling now...\n")
-        print("[ PROFILE CONFIGURATIONS ]")
-        print(f" * Model: {args.model}")
-        print(f" * Backend: {args.backend}")
-        print(f" * Batch size: {args.concurrency}")
-        print(f" * Input tokens: {args.prompt_size_range[0]}")
-        print(f" * Output tokens: {args.max_tokens}")
-        print("")
+        logger.info(
+            "Warmed up, profiling now...\n"
+            "[ PROFILE CONFIGURATIONS ]\n"
+            f" * Model: {args.model}\n"
+            f" * Backend: {args.backend}\n"
+            f" * Batch size: {args.concurrency}\n"
+            f" * Input tokens: {args.prompt_size_range[0]}\n"
+            f" * Output tokens: {args.max_tokens}\n"
+            ""
+        )
         main(args)
