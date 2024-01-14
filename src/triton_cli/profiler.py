@@ -407,8 +407,11 @@ def calculate_metrics(args, profile_result, export_data):
         requests = export_data["experiments"][0]["requests"]
         for request in requests:
             if len(request["response_timestamps"]) == args.max_tokens:
+                # Assume FINAL flag is returned with final token response
                 pass
             elif len(request["response_timestamps"]) == args.max_tokens + 1:
+                # Assume FINAL flag was returned with an empty response after
+                # the final token
                 logger.warning(
                     "Received an extra response from the backend. This may be "
                     "due to the backend sending an 'empty final response'."
