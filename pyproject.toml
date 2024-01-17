@@ -57,6 +57,7 @@ dependencies = [
     "rich == 13.5.2",
     # TODO: Test on cpu-only machine if [cuda] dependency is an issue
     "tritonclient[all] >= 2.38",
+    "huggingface-hub == 0.19.4",
 ]
 
 # CLI Entrypoint
