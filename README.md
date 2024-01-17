@@ -8,7 +8,7 @@ git clone git@github.com:triton-inference-server/triton_cli.git
 cd triton_cli
 
 # Should be pointing at directory containing pyproject.toml
-pip install -e .
+pip install .
 
 # Try it out
 triton -h

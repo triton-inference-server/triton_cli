@@ -34,7 +34,7 @@ from pathlib import Path
 from directory_tree import display_tree
 
 from triton_cli.constants import DEFAULT_MODEL_REPO, LOGGER_NAME
-from triton_cli.trt_llm.json_parser import parse_and_substitute
+from triton_cli.trt_llm.engine_config_parser import parse_and_substitute
 
 logger = logging.getLogger(LOGGER_NAME)
 
@@ -55,7 +55,7 @@ team = {team}
 SOURCE_PREFIX_HUGGINGFACE = "hf:"
 SOURCE_PREFIX_NGC = "ngc:"
 
-TRT_TEMPLATES_PATH = Path(__file__).parent / "templates" / "trtllm"
+TRT_TEMPLATES_PATH = Path(__file__).parent / "templates" / "trt_llm"
 
 # Support changing destination dynamically to point at
 # pre-downloaded checkpoints in various circumstances
