@@ -438,6 +438,7 @@ def profile_model(args: argparse.Namespace, client: TritonClient):
         url=f"{args.url}:{args.port}",
         input_length=args.input_length,
         output_length=args.output_length,
+        verbose=args.verbose,
     )
 
 

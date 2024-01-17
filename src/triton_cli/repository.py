@@ -64,7 +64,7 @@ team = {team}
 SOURCE_PREFIX_HUGGINGFACE = "hf:"
 SOURCE_PREFIX_NGC = "ngc:"
 
-TRT_TEMPLATES_PATH = Path(__file__).parent / "templates" / "trtllm"
+TRT_TEMPLATES_PATH = Path(__file__).parent / "templates" / "trt_llm"
 
 # Support changing destination dynamically to point at
 # pre-downloaded checkpoints in various circumstances
