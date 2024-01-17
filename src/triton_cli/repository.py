@@ -34,18 +34,10 @@ from pathlib import Path
 from directory_tree import display_tree
 
 from triton_cli.constants import DEFAULT_MODEL_REPO, LOGGER_NAME, SUPPORTED_BACKENDS
-from triton_cli.trt_llm.json_parser import parse_and_substitute
+from triton_cli.trt_llm.engine_config_parser import parse_and_substitute
 from huggingface_hub import snapshot_download
 
 logger = logging.getLogger(LOGGER_NAME)
-
-try:
-    from triton_cli.trt_llm.gpt2_builder import GPTBuilder
-except Exception as e:
-    # TODO: Seems to just print the line. Investigate why it doesn't inherit logger formatting.
-    logger.warning(
-        f"TRT LLM model deployment unavailable due to the following import error: {e}"
-    )
 
 # For now, generated model configs will be limited to only backends
 # that can be fully autocompleted for a simple deployment.
@@ -235,6 +227,8 @@ class ModelRepository:
             raise ValueError("HuggingFace ID must be non-empty")
 
         if backend == "tensorrtllm":
+            from triton_cli.trt_llm.gpt2_builder import GPTBuilder
+
             engines_path = ENGINE_DEST_PATH + "/" + name
             tokenizer_path = ENGINE_DEST_PATH + "/" + name + "/tokenizer"
             builder = GPTBuilder(engine_output_path=Path(engines_path))
@@ -244,7 +238,10 @@ class ModelRepository:
                 logger.error(f"Failed to build TRT LLM engine with error: {e}")
 
             snapshot_download(
-                huggingface_id, allow_patterns=["*.json"], local_dir=tokenizer_path
+                huggingface_id,
+                allow_patterns=["*.json"],
+                ignore_patterns=["onnx*"],
+                local_dir=tokenizer_path,
             )
             parse_and_substitute(
                 str(self.repo),
