@@ -35,10 +35,17 @@ from directory_tree import display_tree
 
 from triton_cli.constants import DEFAULT_MODEL_REPO, LOGGER_NAME, SUPPORTED_BACKENDS
 from triton_cli.trt_llm.json_parser import parse_and_substitute
-from triton_cli.engine_builders.gpt2_builder import GPTBuilder
 from huggingface_hub import snapshot_download
 
 logger = logging.getLogger(LOGGER_NAME)
+
+try:
+    from triton_cli.trt_llm.gpt2_builder import GPTBuilder
+except Exception as e:
+    # TODO: Seems to just print the line. Investigate why it doesn't inherit logger formatting.
+    logger.warning(
+        f"TRT LLM model deployment unavailable due to the following import error: {e}"
+    )
 
 # For now, generated model configs will be limited to only backends
 # that can be fully autocompleted for a simple deployment.
@@ -222,9 +229,8 @@ class ModelRepository:
         name: str,
         backend: str,
     ):
-        # import pdb; pdb.set_trace()
-        # if not model_dir or not model_dir.exists():
-        # raise ValueError("Model directory must be provided and exist")
+        if not model_dir or not model_dir.exists():
+            raise ValueError("Model directory must be provided and exist")
         if not huggingface_id:
             raise ValueError("HuggingFace ID must be non-empty")
 
@@ -232,17 +238,22 @@ class ModelRepository:
             engines_path = ENGINE_DEST_PATH + "/" + name
             tokenizer_path = ENGINE_DEST_PATH + "/" + name + "/tokenizer"
             builder = GPTBuilder(engine_output_path=Path(engines_path))
-            builder.build()
+            try:
+                builder.build()
+            except Exception as e:
+                logger.error(f"Failed to build TRT LLM engine with error: {e}")
+
             snapshot_download(
                 huggingface_id, allow_patterns=["*.json"], local_dir=tokenizer_path
             )
             parse_and_substitute(
-                str(self.repo), engines_path, tokenizer_path, "auto", dry_run=False
+                str(self.repo),
+                name,
+                engines_path,
+                tokenizer_path,
+                "auto",
+                dry_run=False,
             )
-            bls_model = self.repo / "tensorrt_llm_bls"
-            bls_model.rename(self.repo / name)
-            return
-
         else:
             # TODO: Add generic support for HuggingFace models with HF API.
             # For now, use vLLM as a means of deploying HuggingFace Transformers
@@ -270,10 +281,8 @@ class ModelRepository:
     def __generate_ngc_model(self, name: str, source: str):
         engines_path = ENGINE_DEST_PATH + "/" + source
         parse_and_substitute(
-            str(self.repo), engines_path, engines_path, "auto", dry_run=False
+            str(self.repo), name, engines_path, engines_path, "auto", dry_run=False
         )
-        bls_model = self.repo / "tensorrt_llm_bls"
-        bls_model.rename(self.repo / name)
 
     def __create_model_repository(
         self, name: str, version: int = 1, backend: str = None
@@ -296,6 +305,8 @@ class ModelRepository:
                     dirs_exist_ok=True,
                     ignore=shutil.ignore_patterns("__pycache__"),
                 )
+                bls_model = self.repo / "tensorrt_llm_bls"
+                bls_model.rename(self.repo / name)
                 logger.debug(f"Adding TensorRT-LLM models at: {self.repo}")
             else:
                 version_dir.mkdir(parents=True, exist_ok=False)
