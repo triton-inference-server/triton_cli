@@ -35,7 +35,7 @@ from directory_tree import display_tree
 
 from triton_cli.constants import DEFAULT_MODEL_REPO, LOGGER_NAME, SUPPORTED_BACKENDS
 from triton_cli.trt_llm.json_parser import parse_and_substitute
-from triton_cli.engine_builders.gpt2_builder import GPTBuilder
+
 from huggingface_hub import snapshot_download
 
 logger = logging.getLogger(LOGGER_NAME)
@@ -231,10 +231,16 @@ class ModelRepository:
         if backend == "tensorrtllm":
             engines_path = ENGINE_DEST_PATH + "/" + name
             tokenizer_path = ENGINE_DEST_PATH + "/" + name + "/tokenizer"
+
+            from triton_cli.engine_builders.gpt2_builder import GPTBuilder
+
             builder = GPTBuilder(engine_output_path=Path(engines_path))
             builder.build()
             snapshot_download(
-                huggingface_id, allow_patterns=["*.json"], local_dir=tokenizer_path
+                huggingface_id,
+                allow_patterns=["*.json"],
+                ignore_patterns=["onnx*"],
+                local_dir=tokenizer_path,
             )
             parse_and_substitute(
                 str(self.repo), engines_path, tokenizer_path, "auto", dry_run=False
