@@ -232,10 +232,7 @@ class ModelRepository:
             engines_path = ENGINE_DEST_PATH + "/" + name
             tokenizer_path = ENGINE_DEST_PATH + "/" + name + "/tokenizer"
             builder = GPTBuilder(engine_output_path=Path(engines_path))
-            try:
-                builder.build()
-            except Exception as e:
-                raise (e)
+            builder.build()
 
             snapshot_download(
                 huggingface_id,
