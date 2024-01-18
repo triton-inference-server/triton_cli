@@ -235,7 +235,7 @@ class ModelRepository:
             try:
                 builder.build()
             except Exception as e:
-                logger.error(f"Failed to build TRT LLM engine with error: {e}")
+                raise (e)
 
             snapshot_download(
                 huggingface_id,
