@@ -396,7 +396,7 @@ class GPTBuilder:
                 not args["paged_kv_cache"] and args["quant_mode"].has_int8_kv_cache()
             )
             num_kv_heads = 1 if args["multi_query_mode"] else args["n_head"]
-            # FIXME: Currently, IFB engines built with tensorrt_llm v0.7.0 build and launch successfully but crash
+            # FIXME DLIS-6056: Currently, IFB engines built with tensorrt_llm v0.7.0 build and launch successfully but crash
             # when queried for inference. This is not the case for v1 engines which build, launch, and infer correctly.
             # As a WAR for now, build v1 engines only. This is accomplished by setting the following parameters from
             # 'args' above, to the following values:
