@@ -33,8 +33,9 @@ from pathlib import Path
 
 from directory_tree import display_tree
 
-from triton_cli.constants import DEFAULT_MODEL_REPO, LOGGER_NAME
+from triton_cli.constants import DEFAULT_MODEL_REPO, LOGGER_NAME, SUPPORTED_BACKENDS
 from triton_cli.trt_llm.engine_config_parser import parse_and_substitute
+from huggingface_hub import snapshot_download
 
 logger = logging.getLogger(LOGGER_NAME)
 
@@ -59,7 +60,7 @@ TRT_TEMPLATES_PATH = Path(__file__).parent / "templates" / "trt_llm"
 
 # Support changing destination dynamically to point at
 # pre-downloaded checkpoints in various circumstances
-NGC_ENGINES_PATH = os.environ.get("NGC_DEST_DIR", "/tmp/engines")
+ENGINE_DEST_PATH = os.environ.get("ENGINE_DEST_PATH", "/tmp/engines")
 
 
 # NOTE: Thin wrapper around NGC CLI is a WAR for now.
@@ -146,9 +147,9 @@ class ModelRepository:
         if not source:
             raise ValueError("Non-empty model source must be provided")
 
-        if backend:
+        if backend and backend not in SUPPORTED_BACKENDS:
             raise NotImplementedError(
-                "No support for manually specifying backend at this time."
+                f"The specified backend is not currently supported. Please choose from the following backends {SUPPORTED_BACKENDS}"
             )
 
         # HuggingFace models
@@ -176,7 +177,7 @@ class ModelRepository:
         # path is invalid. This should be cleaned up.
         if source_type == "huggingface":
             hf_id = source.split(":")[1]
-            self.__add_huggingface_model(model_dir, version_dir, hf_id)
+            self.__add_huggingface_model(model_dir, version_dir, hf_id, name, backend)
         elif source_type == "ngc":
             # NOTE: NGC models likely to contain colons
             ngc_id = source.replace(SOURCE_PREFIX_NGC, "")
@@ -185,10 +186,10 @@ class ModelRepository:
             #       transforms into llama2_13b_trt_a100_v0.1 folder when
             #       downloaded from NGC CLI.
             ngc_model_name = source.split("/")[-1].replace(":", "_v")
-            ngc.download_model(ngc_id, ngc_model_name, dest=NGC_ENGINES_PATH)
+            ngc.download_model(ngc_id, ngc_model_name, dest=ENGINE_DEST_PATH)
             # TODO: grab downloaded config files,
             #       point to downloaded engines, etc.
-            self.__generate_trtllm_model(name, ngc_model_name)
+            self.__generate_ngc_model(name, ngc_model_name)
         else:
             logger.debug(f"Copying {model_path} to {version_dir}")
             shutil.copy(model_path, version_dir)
@@ -213,22 +214,50 @@ class ModelRepository:
             self.list()
 
     def __add_huggingface_model(
-        self, model_dir: Path, version_dir: Path, huggingface_id: str
+        self,
+        model_dir: Path,
+        version_dir: Path,
+        huggingface_id: str,
+        name: str,
+        backend: str,
     ):
         if not model_dir or not model_dir.exists():
             raise ValueError("Model directory must be provided and exist")
         if not huggingface_id:
             raise ValueError("HuggingFace ID must be non-empty")
 
-        # TODO: Add generic support for HuggingFace models with HF API.
-        # For now, use vLLM as a means of deploying HuggingFace Transformers
-        # NOTE: Only transformer models are supported at this time.
-        config, files = self.__generate_vllm_model(huggingface_id)
-        config_file = model_dir / "config.pbtxt"
-        config_file.write_text(config)
-        for file, contents in files.items():
-            model_file = version_dir / file
-            model_file.write_text(contents)
+        if backend == "tensorrtllm":
+            from triton_cli.trt_llm.gpt2_builder import GPTBuilder
+
+            engines_path = ENGINE_DEST_PATH + "/" + name
+            tokenizer_path = ENGINE_DEST_PATH + "/" + name + "/tokenizer"
+            builder = GPTBuilder(engine_output_path=Path(engines_path))
+            builder.build()
+
+            snapshot_download(
+                huggingface_id,
+                allow_patterns=["*.json"],
+                ignore_patterns=["onnx*"],
+                local_dir=tokenizer_path,
+            )
+            parse_and_substitute(
+                str(self.repo),
+                name,
+                engines_path,
+                tokenizer_path,
+                "auto",
+                dry_run=False,
+            )
+        else:
+            # TODO: Add generic support for HuggingFace models with HF API.
+            # For now, use vLLM as a means of deploying HuggingFace Transformers
+            # NOTE: Only transformer models are supported at this time.
+            config, files = self.__generate_vllm_model(huggingface_id)
+            config_file = model_dir / "config.pbtxt"
+            config_file.write_text(config)
+            for file, contents in files.items():
+                model_file = version_dir / file
+                model_file.write_text(contents)
 
     def __generate_vllm_model(self, huggingface_id: str):
         backend = "vllm"
@@ -243,13 +272,11 @@ class ModelRepository:
         model_files = {"model.json": model_contents}
         return model_config, model_files
 
-    def __generate_trtllm_model(self, name: str, source: str):
-        engines_path = NGC_ENGINES_PATH + "/" + source
+    def __generate_ngc_model(self, name: str, source: str):
+        engines_path = ENGINE_DEST_PATH + "/" + source
         parse_and_substitute(
-            str(self.repo), engines_path, engines_path, "llama", dry_run=False
+            str(self.repo), name, engines_path, engines_path, "auto", dry_run=False
         )
-        bls_model = self.repo / "tensorrt_llm_bls"
-        bls_model.rename(self.repo / name)
 
     def __create_model_repository(
         self, name: str, version: int = 1, backend: str = None
@@ -272,6 +299,8 @@ class ModelRepository:
                     dirs_exist_ok=True,
                     ignore=shutil.ignore_patterns("__pycache__"),
                 )
+                bls_model = self.repo / "tensorrt_llm_bls"
+                bls_model.rename(self.repo / name)
                 logger.debug(f"Adding TensorRT-LLM models at: {self.repo}")
             else:
                 version_dir.mkdir(parents=True, exist_ok=False)

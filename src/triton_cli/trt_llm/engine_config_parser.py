@@ -31,7 +31,9 @@ import json
 FLAGS = None
 
 
-def parse_and_substitute(triton_model_dir, engine_dir, token_dir, token_type, dry_run):
+def parse_and_substitute(
+    triton_model_dir, bls_model_name, engine_dir, token_dir, token_type, dry_run
+):
     json_path = engine_dir + "/config.json"
     with open(json_path) as j:
         config_file = json.load(j)
@@ -58,7 +60,7 @@ def parse_and_substitute(triton_model_dir, engine_dir, token_dir, token_type, dr
     substitute(preprocessing_filepath, config_dict, dry_run)
     postprocessing_filepath = triton_model_dir + "/postprocessing/config.pbtxt"
     substitute(postprocessing_filepath, config_dict, dry_run)
-    bls_filepath = triton_model_dir + "/tensorrt_llm_bls/config.pbtxt"
+    bls_filepath = triton_model_dir + "/" + bls_model_name + "/config.pbtxt"
     substitute(bls_filepath, config_dict, dry_run)
 
 

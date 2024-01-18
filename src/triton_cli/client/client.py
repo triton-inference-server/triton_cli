@@ -128,10 +128,10 @@ class TritonClient:
                 raise Exception(
                     f"LLM input '{name}' detected, but no prompt provided. Please pass '--prompt' to specify this input."
                 )
-            data = np.array([self.prompt], dtype=np_dtype)
+            data = np.full(shape, self.prompt, dtype=np_dtype)
         elif name.lower() == "sampling_parameters":
             parameters = {}
-            data = np.array([json.dumps(parameters)], dtype=np_dtype)
+            data = np.full(shape, json.dumps(parameters), dtype=np_dtype)
         elif name.lower() == "stream":
             data = np.zeros(shape, dtype=np_dtype)  # False
         else:
