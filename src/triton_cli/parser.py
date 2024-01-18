@@ -90,6 +90,16 @@ def wait_for_ready(timeout, server, client):
         )
 
 
+def add_backend_args(subcommands):
+    for subcommand in subcommands:
+        subcommand.add_argument(
+            "--backend",
+            type=str,
+            required=False,
+            help="Backend type of model. Will be inferred by default.",
+        )
+
+
 def add_server_start_args(subcommands):
     for subcommand in subcommands:
         subcommand.add_argument(
@@ -368,13 +378,6 @@ def parse_args_repo(subcommands):
         help="Local model path or model identifier. Use prefix 'hf:' to specify a HuggingFace model ID. "
         "NOTE: HuggingFace model support is currently limited to Transformer models through the vLLM backend.",
     )
-    repo_add.add_argument(
-        "-b",
-        "--backend",
-        type=str,
-        required=False,
-        help="Backend type of model. Will be inferred by default.",
-    )
 
     repo_remove = repo_commands.add_parser(
         "remove", help="Remove model from model repository"
@@ -394,6 +397,7 @@ def parse_args_repo(subcommands):
         "clear", help="Delete all contents in model repository"
     )
 
+    add_backend_args([repo_add])
     add_repo_args([repo_add, repo_remove, repo_list, repo_clear])
     return repo
 
@@ -458,7 +462,7 @@ def handle_bench(args: argparse.Namespace):
         args.model,
         version=1,
         source=args.source,
-        backend=None,
+        backend=args.backend,
         verbose=args.verbose,
     )
 
@@ -524,6 +528,7 @@ def parse_args_bench(subcommands):
     add_repo_args([server_group])
     add_client_args([client_group])
     add_profile_args([profile_group])
+    add_backend_args([model_group])
 
     return bench_run
 
