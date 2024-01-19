@@ -61,6 +61,10 @@ class TritonServerLocal(TritonServer):
         Starts the tritonserver container locally
         """
 
+        logger.info(
+            f"Starting a Triton Server locally with model repository: {self._server_config['model-repository']}"
+        )
+
         if self._server_path:
             # Get the appropriate server launch command
             cmd = self._server_utils.get_launch_command(

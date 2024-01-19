@@ -32,6 +32,8 @@ from itertools import tee
 from pathlib import Path
 from typing import Optional
 
+from rich.progress import Progress
+
 import numpy as np
 
 from triton_cli.constants import LOGGER_NAME
@@ -462,7 +464,7 @@ def profile(args, export_file):
         f"--input-data={INPUT_FILENAME} "
         f"--profile-export-file={export_file} "
     )
-    if args.backend == "trtllm":
+    if args.backend == "tensorrtllm":
         command += (
             "--shape=text_input:1 "
             "--shape=max_tokens:1 "
@@ -616,13 +618,13 @@ def construct_trtllm_input_data(args):
 
 
 def main(args, should_summarize=True):
-    if args.backend == "trtllm":
+    if args.backend == "tensorrtllm":
         input_data = construct_trtllm_input_data(args)
     elif args.backend == "vllm":
         input_data = construct_vllm_input_data(args)
     else:
         raise ValueError(
-            "Unknown backend specified. Supported backend types are: 'trtllm' "
+            f"Unknown backend specified: '{args.backend}'. Supported backend types are: 'tensorrtllm' "
             "and 'vllm'."
         )
 
@@ -677,11 +679,12 @@ class Profiler:
         start, end, step = args.prompt_size_range
         assert start == end and step == 1  # no sweeping for now
 
-        logger.info("Warming up...")
-        main(args, should_summarize=False)  # warm-up
+        with Progress(transient=True) as progress:
+            _ = progress.add_task("[green]Warming up...", total=None)
+            main(args, should_summarize=False)  # warm-up
 
         logger.info(
-            "Warmed up, profiling now...\n"
+            "Warmed up, profiling with the following config:\n"
             "[ PROFILE CONFIGURATIONS ]\n"
             f" * Model: {args.model}\n"
             f" * Backend: {args.backend}\n"
@@ -690,4 +693,7 @@ class Profiler:
             f" * Output tokens: {args.max_tokens}\n"
             ""
         )
-        main(args)
+
+        with Progress(transient=True) as progress:
+            _ = progress.add_task("[green]Profiling...", total=None)
+            main(args)

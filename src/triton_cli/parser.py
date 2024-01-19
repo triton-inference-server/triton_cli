@@ -32,7 +32,11 @@ from pathlib import Path
 from rich import print as rich_print
 from rich.progress import Progress
 
-from triton_cli.constants import DEFAULT_MODEL_REPO, LOGGER_NAME
+from triton_cli.constants import (
+    DEFAULT_MODEL_REPO,
+    DEFAULT_TRITONSERVER_IMAGE,
+    LOGGER_NAME,
+)
 from triton_cli.client.client import InferenceServerException, TritonClient
 from triton_cli.metrics import MetricsClient
 from triton_cli.repository import ModelRepository
@@ -110,13 +114,12 @@ def add_server_start_args(subcommands):
             required=False,
             help="Mode to start Triton with. If a mode is explicitly specified, only that mode will be tried. If no mode is specified (default), 'local' mode is tried first, then falls back to 'docker' mode on failure.",
         )
-        default_image = "nvcr.io/nvidia/tritonserver:23.12-vllm-python-py3"
         subcommand.add_argument(
             "--image",
             type=str,
             required=False,
-            default=default_image,
-            help=f"Image to use when starting Triton with 'docker' mode. Default: {default_image}",
+            default=None,
+            help=f"Image to use when starting Triton with 'docker' mode. Default is a custom image tagged '{DEFAULT_TRITONSERVER_IMAGE}'.",
         )
         subcommand.add_argument(
             "--server-timeout",
@@ -431,8 +434,13 @@ def profile_model(args: argparse.Namespace, client: TritonClient):
     if not args.port:
         args.port = 8001 if args.protocol == "grpc" else 8000
 
-    # Profiler needs to know TRT-LLM vs vLLM to form correct payload
-    backend = client.get_model_backend(args.model)
+    # TODO: Consider python(BLS)/ensemble case for the model
+    # receiving requests in the case of TRT-LLM. For now, TRT-LLM
+    # should be manually specified.
+    backend = args.backend
+    if not args.backend:
+        # Profiler needs to know TRT-LLM vs vLLM to form correct payload
+        backend = client.get_model_backend(args.model)
 
     logger.info(f"Running Perf Analyzer profiler on '{args.model}'...")
     Profiler.profile(
