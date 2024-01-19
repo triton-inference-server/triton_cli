@@ -94,6 +94,17 @@ def wait_for_ready(timeout, server, client):
         )
 
 
+def add_verbose_args(subcommands):
+    for subcommand in subcommands:
+        subcommand.add_argument(
+            "-v",
+            "--verbose",
+            action="store_true",
+            default=False,
+            help="Enable verbose logging",
+        )
+
+
 def add_backend_args(subcommands):
     for subcommand in subcommands:
         subcommand.add_argument(
@@ -354,6 +365,7 @@ def parse_args_model(subcommands):
     )
 
     add_profile_args([profile])
+    add_backend_args([profile])
     add_client_args([infer, profile, config, metrics])
     return model
 
@@ -502,14 +514,6 @@ def parse_args_bench(subcommands):
         "bench", help="Run benchmarks on a model loaded into the Triton server."
     )
     bench_run.set_defaults(func=handle_bench)
-    bench_run.add_argument(
-        "-v",
-        "--verbose",
-        action="store_true",
-        default=False,
-        help="Enable verbose logging",
-    )
-
     # Conceptually group args for easier visualization
     model_group = bench_run.add_argument_group("model")
     known_models = list(KNOWN_MODEL_SOURCES.keys())
@@ -551,5 +555,6 @@ def parse_args(argv=None):
     _ = parse_args_repo(subcommands)
     _ = parse_args_server(subcommands)
     _ = parse_args_bench(subcommands)
+    add_verbose_args([parser])
     args = parser.parse_args(argv)
     return args
