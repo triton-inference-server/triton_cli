@@ -1,6 +1,4 @@
 import os
-from .scripts import hf_gpt_convert
-from .scripts import build
 
 import logging
 from triton_cli.constants import LOGGER_NAME
@@ -24,6 +22,10 @@ class GPTBuilder:
     # TODO: User should be able to specify a what parameters they want to use to build a
     # TRT LLM engine. A input JSON should be suitable for this goal.
     def build(self):
+        # NOTE: Moving imports internally to allow top-level modules to freely import builders
+        from .scripts import hf_gpt_convert
+        from .scripts import build
+
         # NOTE: Due to multiprocess logic in the conversion script, 'hf_gpt_convert.py' must
         # be called as if called from the command line.
         weight_conversion_script = hf_gpt_convert.__file__

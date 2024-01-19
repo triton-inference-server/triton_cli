@@ -37,11 +37,13 @@ from triton_cli.constants import (
     DEFAULT_MODEL_REPO,
     LOGGER_NAME,
     SUPPORTED_BACKENDS,
-    SUPPORTED_TRT_LLM_BUILDERS,
 )
 from triton_cli.trt_llm.engine_config_parser import parse_and_substitute
 from huggingface_hub import snapshot_download
 from huggingface_hub import utils as hf_utils
+
+from triton_cli.trt_llm.builders.llama2.builder import LlamaBuilder
+from triton_cli.trt_llm.builders.gpt2.builder import GPTBuilder
 
 logger = logging.getLogger(LOGGER_NAME)
 
@@ -69,6 +71,11 @@ TRT_TEMPLATES_PATH = Path(__file__).parent / "templates" / "trt_llm"
 ENGINE_DEST_PATH = os.environ.get("ENGINE_DEST_PATH", "/tmp/engines")
 
 HF_TOKEN_PATH = Path.home() / ".cache" / "huggingface" / "token"
+
+SUPPORTED_TRT_LLM_BUILDERS = {
+    "gpt2": GPTBuilder,
+    "meta-llama/Llama-2-7b-hf": LlamaBuilder,
+}
 
 
 # NOTE: Thin wrapper around NGC CLI is a WAR for now.
@@ -235,30 +242,20 @@ class ModelRepository:
             raise ValueError("HuggingFace ID must be non-empty")
 
         if backend == "tensorrtllm":
-            if huggingface_id not in SUPPORTED_TRT_LLM_BUILDERS:
+            Builder = SUPPORTED_TRT_LLM_BUILDERS.get(huggingface_id)
+            if not Builder:
                 raise NotImplementedError(
                     f"Building a TRT LLM engine for {huggingface_id} is not currently supported."
                 )
-
             engines_path = ENGINE_DEST_PATH + "/" + name
             tokenizer_path = ENGINE_DEST_PATH + "/" + name + "/tokenizer"
 
             self.__download_hf_model(huggingface_id, tokenizer_path)
 
-            if huggingface_id == "meta-llama/Llama-2-7b-hf":
-                from triton_cli.trt_llm.builders.llama2.builder import LlamaBuilder
-
-                builder = LlamaBuilder(
-                    tokenizer_path=tokenizer_path,
-                    engine_output_path=engines_path,
-                )
-            elif huggingface_id == "gpt2":
-                from triton_cli.trt_llm.builders.gpt2.builder import GPTBuilder
-
-                builder = GPTBuilder(
-                    tokenizer_path=tokenizer_path,
-                    engine_output_path=engines_path,
-                )
+            builder = Builder(
+                tokenizer_path=tokenizer_path,
+                engine_output_path=engines_path,
+            )
             builder.build()
 
             parse_and_substitute(
@@ -283,6 +280,8 @@ class ModelRepository:
     def __download_hf_model(self, huggingface_id: str, tokenizer_path: str):
         # Shouldn't require the user to authenticate with HF unless
         # necessary (i.e., the model exists in a gated repo)
+
+        # TODO: Determine minimal set of files needed across all engine builders
         try:
             snapshot_download(
                 huggingface_id,

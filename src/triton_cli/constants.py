@@ -41,4 +41,3 @@ DEFAULT_MODEL_REPO: Path = Path.home() / "models"
 DEFAULT_HF_CACHE: Path = Path.home() / ".cache" / "huggingface"
 HF_CACHE: Path = Path(os.environ.get("TRANSFORMERS_CACHE", DEFAULT_HF_CACHE))
 SUPPORTED_BACKENDS: set = {"tensorrtllm"}
-SUPPORTED_TRT_LLM_BUILDERS: set = {"gpt2", "meta-llama/Llama-2-7b-hf"}
