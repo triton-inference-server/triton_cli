@@ -693,11 +693,13 @@ class Profiler:
             _ = progress.add_task("[green]Warming up...", total=None)
             main(args, should_summarize=False)  # warm-up
 
+        mode = "offline" if offline else "online"
         logger.info(
             "Warmed up, profiling with the following config:\n"
             "[ PROFILE CONFIGURATIONS ]\n"
             f" * Model: {args.model}\n"
             f" * Backend: {args.backend}\n"
+            f" * Profiling Mode: {mode}\n"
             f" * Batch size: {args.concurrency}\n"
             f" * Input tokens: {args.prompt_size_range[0]}\n"
             f" * Output tokens: {args.max_tokens}\n"

@@ -174,7 +174,7 @@ def add_profile_args(subcommands):
         )
         # TODO: Revisit terminology here. Online/offline vs streaming, etc.
         subcommand.add_argument(
-            "--mode",
+            "--profile-mode",
             type=str,
             choices=["online", "offline"],
             # FIXME: "online" should be the default once IFB issues are fixed in TRT LLM
@@ -474,7 +474,7 @@ def profile_model(args: argparse.Namespace, client: TritonClient):
         output_length=args.output_length,
         # WAR: FIXME after IFB is fixed for TRT-LLM
         # Should be "online" for IFB / streaming
-        offline=True if args.mode == "offline" else False,
+        offline=(args.profile_mode == "offline"),
         verbose=args.verbose,
     )
 
