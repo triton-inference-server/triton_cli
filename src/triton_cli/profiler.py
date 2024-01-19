@@ -61,14 +61,14 @@ METRIC_FIELDS = {
     # "avg_total_t2t_latency": ("Avg total token-to-token latency", "ms"),
     # "max_e2e_latency": ("Max end-to-end latency", "ms"),
     # "min_e2e_latency": ("Min end-to-end latency", "ms"),
-    # "avg_e2e_latency": ("Avg end-to-end latency", "ms"),
+    "avg_e2e_latency": ("Avg end-to-end latency", "ms"),
     # "p50_e2e_latency": ("p50 end-to-end latency", "ms"),
     # "p90_e2e_latency": ("p90 end-to-end latency", "ms"),
     # "p95_e2e_latency": ("p95 end-to-end latency", "ms"),
     # "p99_e2e_latency": ("p99 end-to-end latency", "ms"),
     # "max_e2e_throughput": ("Max end-to-end throughput", "tokens/s"),
     # "min_e2e_throughput": ("Min end-to-end throughput", "tokens/s"),
-    # "avg_e2e_throughput": ("Avg end-to-end throughput", "tokens/s"),
+    "avg_e2e_throughput": ("Avg end-to-end throughput", "tokens/s"),
     # "p50_e2e_throughput": ("p50 end-to-end throughput", "tokens/s"),
     # "p90_e2e_throughput": ("p90 end-to-end throughput", "tokens/s"),
     # "p95_e2e_throughput": ("p95 end-to-end throughput", "tokens/s"),
@@ -113,14 +113,14 @@ class ProfileResults:
     # avg_periodic_t2t_latencies: Optional[list[float]] = None
     # max_e2e_latency: Optional[float] = None
     # min_e2e_latency: Optional[float] = None
-    # avg_e2e_latency: Optional[float] = None
+    avg_e2e_latency: Optional[float] = None
     # p50_e2e_latency: Optional[float] = None
     # p90_e2e_latency: Optional[float] = None
     # p95_e2e_latency: Optional[float] = None
     # p99_e2e_latency: Optional[float] = None
     # max_e2e_throughput: Optional[float] = None
     # min_e2e_throughput: Optional[float] = None
-    # avg_e2e_throughput: Optional[float] = None
+    avg_e2e_throughput: Optional[float] = None
     # p50_e2e_throughput: Optional[float] = None
     # p90_e2e_throughput: Optional[float] = None
     # p95_e2e_throughput: Optional[float] = None
@@ -386,21 +386,21 @@ def calculate_offline_metrics(args, profile_result, export_data):
         export_data, sequence_len=profile_result.prompt_size + args.max_tokens
     )
 
-    profile_result.max_e2e_latency = max(latencies)
-    profile_result.min_e2e_latency = min(latencies)
+    # profile_result.max_e2e_latency = max(latencies)
+    # profile_result.min_e2e_latency = min(latencies)
     profile_result.avg_e2e_latency = np.mean(latencies)
-    profile_result.p50_e2e_latency = np.percentile(latencies, 50, method="lower")
-    profile_result.p90_e2e_latency = np.percentile(latencies, 90, method="lower")
-    profile_result.p95_e2e_latency = np.percentile(latencies, 95, method="lower")
-    profile_result.p99_e2e_latency = np.percentile(latencies, 99, method="lower")
+    # profile_result.p50_e2e_latency = np.percentile(latencies, 50, method="lower")
+    # profile_result.p90_e2e_latency = np.percentile(latencies, 90, method="lower")
+    # profile_result.p95_e2e_latency = np.percentile(latencies, 95, method="lower")
+    # profile_result.p99_e2e_latency = np.percentile(latencies, 99, method="lower")
 
-    profile_result.max_e2e_throughput = max(throughputs)
-    profile_result.min_e2e_throughput = min(throughputs)
+    # profile_result.max_e2e_throughput = max(throughputs)
+    # profile_result.min_e2e_throughput = min(throughputs)
     profile_result.avg_e2e_throughput = np.mean(throughputs)
-    profile_result.p50_e2e_throughput = np.percentile(throughputs, 50, method="lower")
-    profile_result.p90_e2e_throughput = np.percentile(throughputs, 90, method="lower")
-    profile_result.p95_e2e_throughput = np.percentile(throughputs, 95, method="lower")
-    profile_result.p99_e2e_throughput = np.percentile(throughputs, 99, method="lower")
+    # profile_result.p50_e2e_throughput = np.percentile(throughputs, 50, method="lower")
+    # profile_result.p90_e2e_throughput = np.percentile(throughputs, 90, method="lower")
+    # profile_result.p95_e2e_throughput = np.percentile(throughputs, 95, method="lower")
+    # profile_result.p99_e2e_throughput = np.percentile(throughputs, 99, method="lower")
 
 
 def calculate_metrics(args, profile_result, export_data):
@@ -408,23 +408,26 @@ def calculate_metrics(args, profile_result, export_data):
     if args.ignore_eos:
         requests = export_data["experiments"][0]["requests"]
         for request in requests:
-            if len(request["response_timestamps"]) == args.max_tokens:
-                # Assume FINAL flag is returned with final token response
-                pass
-            elif len(request["response_timestamps"]) == args.max_tokens + 1:
-                # Assume FINAL flag was returned with an empty response after
-                # the final token
-                logger.warning(
-                    "Received an extra response from the backend. This may be "
-                    "due to the backend sending an 'empty final response'."
-                )
-            else:
-                raise ValueError(
-                    f"Expecting {args.max_tokens} tokens but received "
-                    f"{len(request['response_timestamps'])} tokens. "
-                    f"This could be due to an unsupported sequence length. "
-                    f"Please double check the input and output length."
-                )
+            # Expect number of responses to match tokens only in online mode
+            # Offline mode will just receive 1-2 responses (full response + empty final).
+            if not args.offline:
+                if len(request["response_timestamps"]) == args.max_tokens:
+                    # Assume FINAL flag is returned with final token response
+                    pass
+                elif len(request["response_timestamps"]) == args.max_tokens + 1:
+                    # Assume FINAL flag was returned with an empty response after
+                    # the final token
+                    logger.warning(
+                        "Received an extra response from the backend. This may be "
+                        "due to the backend sending an 'empty final response'."
+                    )
+                else:
+                    raise ValueError(
+                        f"Expecting {args.max_tokens} tokens but received "
+                        f"{len(request['response_timestamps'])} tokens. "
+                        f"This could be due to an unsupported sequence length. "
+                        f"Please double check the input and output length."
+                    )
 
     calculate_offline_metrics(args, profile_result, export_data)
     if not args.offline:
@@ -485,6 +488,8 @@ def profile(args, export_file):
             f"--concurrency-range={args.concurrency}"
         )
 
+    if args.verbose:
+        logger.info(f"Running the following command: {command}")
     proc = subprocess.run(args=[command], shell=True, capture_output=True)
 
     if args.verbose:
@@ -634,6 +639,9 @@ def main(args, should_summarize=True):
         prepare_input_data(input_data, prompt)
         export_file = prepare_export_file(args, prompt)
 
+        if args.verbose:
+            logger.info(f"Input Data:\n{input_data}")
+
         # Run Perf Analyzer
         profile(args, export_file)
 
@@ -665,6 +673,7 @@ class Profiler:
         url,
         input_length=128,
         output_length=128,
+        offline=False,
         verbose=False,
     ):
         args = Args()
@@ -674,6 +683,7 @@ class Profiler:
         args.url = url
         args.prompt_size_range = [input_length, input_length, 1]
         args.max_tokens = output_length
+        args.offline = offline
         args.verbose = verbose
 
         start, end, step = args.prompt_size_range

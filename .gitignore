@@ -163,3 +163,4 @@ cython_debug/
 # Profiling
 generated_input_data.json
 profile_*.json
+model.cache
