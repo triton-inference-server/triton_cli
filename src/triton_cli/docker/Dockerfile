@@ -11,3 +11,5 @@ RUN pip install --extra-index-url https://pypi.nvidia.com/ "tensorrt-llm==0.7.0"
 
 # Mistral support
 RUN pip install "transformers>=4.34.1"
+
+# TODO: Install Triton CLI in this image
