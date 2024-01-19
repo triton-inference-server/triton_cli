@@ -24,7 +24,11 @@ import torch
 import torch.multiprocessing as multiprocessing
 from convert import split_and_save_weight, str_to_np_dtype
 from datasets import load_dataset
-from smoothquant import capture_activation_range, smooth_gemm, smooth_gemm_fc1_gate
+from triton_cli.trt_llm.builders.gpt2.scripts.smoothquant import (
+    capture_activation_range,
+    smooth_gemm,
+    smooth_gemm_fc1_gate,
+)
 from tqdm import tqdm
 from transformers import LlamaForCausalLM, LlamaTokenizer
 from transformers.models.llama.modeling_llama import LlamaDecoderLayer

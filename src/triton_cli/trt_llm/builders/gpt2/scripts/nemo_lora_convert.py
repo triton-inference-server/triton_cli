@@ -21,8 +21,8 @@ from pathlib import Path
 
 import torch
 import yaml
-from utils.convert import cpu_map_location
-from utils.nemo import unpack_nemo_ckpt
+from triton_cli.trt_llm.builders.gpt2.scripts.utils.convert import cpu_map_location
+from triton_cli.trt_llm.builders.gpt2.scripts.utils.nemo import unpack_nemo_ckpt
 
 from tensorrt_llm._utils import to_json_file, torch_to_numpy
 

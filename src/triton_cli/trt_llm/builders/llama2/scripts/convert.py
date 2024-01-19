@@ -117,7 +117,9 @@ def generate_int8(weights, act_range, is_qkv=False, multi_query_mode=False):
             ]
         )
 
-    to_i8 = lambda x: x.round().clip(-127, 127).astype(np.int8)
+    # [CLI Change] Variable name changed to satisfy pre-commit hooks
+    def to_i8(x):
+        x.round().clip(-127, 127).astype(np.int8)
 
     if is_qkv and multi_query_mode:
         scale_w_quant_orig_t_expand = np.ones([weights.shape[-1]])

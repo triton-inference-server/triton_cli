@@ -25,8 +25,12 @@ from pathlib import Path
 import numpy as np
 import torch
 from tqdm import tqdm
-from utils.convert import cpu_map_location, gpu_map_location, split_and_save_weight
-from utils.nemo import (
+from triton_cli.trt_llm.builders.gpt2.scripts.utils.convert import (
+    cpu_map_location,
+    gpu_map_location,
+    split_and_save_weight,
+)
+from triton_cli.trt_llm.builders.gpt2.scripts.utils.nemo import (
     UnpackedNemoCheckpointDir,
     copy_tokenizer_files,
     extract_layers_with_prefix,

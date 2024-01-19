@@ -18,7 +18,9 @@ import math
 import os
 import time
 from pathlib import Path
-import sys
+
+import onnx
+from onnx import TensorProto, helper
 
 # isort: off
 import torch
@@ -56,16 +58,12 @@ from tensorrt_llm.plugin.plugin import ContextFMHAType
 from tensorrt_llm.quantization import QuantMode
 from tensorrt_llm.runtime.lora_manager import LoraConfig
 
-from .weight import parse_ft_config  # isort:skip
+from triton_cli.trt_llm.builders.gpt2.scripts.weight import parse_ft_config  # isort:skip
 
 MODEL_NAME = "llama"
 
 # 2 routines: get_engine_name, serialize_engine
 # are direct copy from gpt example, TODO: put in utils?
-
-import onnx
-import tensorrt as trt
-from onnx import TensorProto, helper
 
 
 def trt_dtype_to_onnx(dtype):
@@ -431,7 +429,7 @@ def parse_arguments(args):
     if not args.remove_input_padding:
         if args.use_gpt_attention_plugin:
             logger.warning(
-                f"It is recommended to specify --remove_input_padding when using GPT attention plugin"
+                "It is recommended to specify --remove_input_padding when using GPT attention plugin"
             )
 
     if args.use_inflight_batching:

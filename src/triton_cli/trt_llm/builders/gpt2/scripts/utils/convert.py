@@ -79,7 +79,7 @@ def generate_int8(weights, act_range, is_qkv=False, multi_query_mode=False):
         )
         scale_w_orig_quant_c = 127.0 / act_range["w"].reshape(3, -1).cpu().numpy()
     elif is_qkv and multi_query_mode:
-        raise ValueError(f"Multi-query w/ int8 quant has not been supported yet")
+        raise ValueError("Multi-query w/ int8 quant has not been supported yet")
     else:
         scale_w_orig_quant_t = 127.0 / act_range["w"].max().cpu().numpy()
         scale_w_orig_quant_c = 127.0 / act_range["w"].cpu().numpy()
@@ -104,7 +104,10 @@ def generate_int8(weights, act_range, is_qkv=False, multi_query_mode=False):
             scale_w_quant_orig_t, scale_w_orig_quant_c.shape
         )
 
-    to_i8 = lambda x: x.round().clip(-127, 127).astype(np.int8)
+    # [CLI Change] Variable name changed to satisfy pre-commit hooks
+    def to_i8(x):
+        x.round().clip(-127, 127).astype(np.int8)
+
     return {
         "weight.int8": to_i8(weights * scale_w_orig_quant_t),
         "weight.int8.col": to_i8(weights * scale_w_orig_quant_c),

@@ -24,7 +24,10 @@ from typing import Any, Dict, Optional, Tuple, Union
 import torch
 import yaml
 from transformers import GPT2Config, GPT2Tokenizer, T5Tokenizer
-from utils.convert import cpu_map_location, gpu_map_location
+from triton_cli.trt_llm.builders.gpt2.scripts.utils.convert import (
+    cpu_map_location,
+    gpu_map_location,
+)
 
 LOGGER = logging.getLogger(__name__)
 
