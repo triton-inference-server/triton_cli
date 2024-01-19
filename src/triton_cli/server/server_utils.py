@@ -61,7 +61,12 @@ class TritonServerUtils:
             The appropriate command for launching a tritonserver.
         """
 
-        if self._trtllm_utils.has_trtllm_model():
+        # Don't use mpirun in the world_size==1 case because it obscures
+        # errors at runtime, making debugging more difficult.
+        if (
+            self._trtllm_utils.has_trtllm_model()
+            and self._trtllm_utils.get_world_size() > 1
+        ):
             logger.info(
                 f"Launching server with world size: {self._trtllm_utils.get_world_size()}"
             )
@@ -86,10 +91,9 @@ class TRTLLMUtils:
         self._is_trtllm_model = self._trtllm_model_config_path is not None
         self._supported_args = ["model-repository"]
 
+        self._world_size = -1
         if self._is_trtllm_model:
             self._world_size = self._parse_world_size()
-        else:
-            self._world_size = -1
 
     def has_trtllm_model(self) -> bool:
         """

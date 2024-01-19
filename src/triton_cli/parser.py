@@ -32,7 +32,11 @@ from pathlib import Path
 from rich import print as rich_print
 from rich.progress import Progress
 
-from triton_cli.constants import DEFAULT_MODEL_REPO, LOGGER_NAME
+from triton_cli.constants import (
+    DEFAULT_MODEL_REPO,
+    DEFAULT_TRITONSERVER_IMAGE,
+    LOGGER_NAME,
+)
 from triton_cli.client.client import InferenceServerException, TritonClient
 from triton_cli.metrics import MetricsClient
 from triton_cli.repository import ModelRepository
@@ -90,6 +94,16 @@ def wait_for_ready(timeout, server, client):
         )
 
 
+def add_backend_args(subcommands):
+    for subcommand in subcommands:
+        subcommand.add_argument(
+            "--backend",
+            type=str,
+            required=False,
+            help="Backend type of model. Will be inferred by default.",
+        )
+
+
 def add_server_start_args(subcommands):
     for subcommand in subcommands:
         subcommand.add_argument(
@@ -100,13 +114,12 @@ def add_server_start_args(subcommands):
             required=False,
             help="Mode to start Triton with. If a mode is explicitly specified, only that mode will be tried. If no mode is specified (default), 'local' mode is tried first, then falls back to 'docker' mode on failure.",
         )
-        default_image = "nvcr.io/nvidia/tritonserver:23.12-vllm-python-py3"
         subcommand.add_argument(
             "--image",
             type=str,
             required=False,
-            default=default_image,
-            help=f"Image to use when starting Triton with 'docker' mode. Default: {default_image}",
+            default=None,
+            help=f"Image to use when starting Triton with 'docker' mode. Default is a custom image tagged '{DEFAULT_TRITONSERVER_IMAGE}'.",
         )
         subcommand.add_argument(
             "--server-timeout",
@@ -368,13 +381,6 @@ def parse_args_repo(subcommands):
         help="Local model path or model identifier. Use prefix 'hf:' to specify a HuggingFace model ID. "
         "NOTE: HuggingFace model support is currently limited to Transformer models through the vLLM backend.",
     )
-    repo_add.add_argument(
-        "-b",
-        "--backend",
-        type=str,
-        required=False,
-        help="Backend type of model. Will be inferred by default.",
-    )
 
     repo_remove = repo_commands.add_parser(
         "remove", help="Remove model from model repository"
@@ -394,6 +400,7 @@ def parse_args_repo(subcommands):
         "clear", help="Delete all contents in model repository"
     )
 
+    add_backend_args([repo_add])
     add_repo_args([repo_add, repo_remove, repo_list, repo_clear])
     return repo
 
@@ -427,8 +434,13 @@ def profile_model(args: argparse.Namespace, client: TritonClient):
     if not args.port:
         args.port = 8001 if args.protocol == "grpc" else 8000
 
-    # Profiler needs to know TRT-LLM vs vLLM to form correct payload
-    backend = client.get_model_backend(args.model)
+    # TODO: Consider python(BLS)/ensemble case for the model
+    # receiving requests in the case of TRT-LLM. For now, TRT-LLM
+    # should be manually specified.
+    backend = args.backend
+    if not args.backend:
+        # Profiler needs to know TRT-LLM vs vLLM to form correct payload
+        backend = client.get_model_backend(args.model)
 
     logger.info(f"Running Perf Analyzer profiler on '{args.model}'...")
     Profiler.profile(
@@ -458,7 +470,7 @@ def handle_bench(args: argparse.Namespace):
         args.model,
         version=1,
         source=args.source,
-        backend=None,
+        backend=args.backend,
         verbose=args.verbose,
     )
 
@@ -524,6 +536,7 @@ def parse_args_bench(subcommands):
     add_repo_args([server_group])
     add_client_args([client_group])
     add_profile_args([profile_group])
+    add_backend_args([model_group])
 
     return bench_run
 

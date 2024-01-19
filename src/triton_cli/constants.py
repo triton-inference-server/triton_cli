@@ -35,9 +35,12 @@ LOGGER_NAME: str = "triton"
 DEFAULT_TRITONSERVER_PATH: str = "tritonserver"
 ## Server Docker
 DEFAULT_SHM_SIZE: str = "1G"
+# A custom image containing both vLLM and TRT-LLM dependencies,
+# defined in triton_cli/docker/Dockerfile.
+DEFAULT_TRITONSERVER_IMAGE: str = "triton_llm"
 
 # Model Repository
 DEFAULT_MODEL_REPO: Path = Path.home() / "models"
 DEFAULT_HF_CACHE: Path = Path.home() / ".cache" / "huggingface"
 HF_CACHE: Path = Path(os.environ.get("TRANSFORMERS_CACHE", DEFAULT_HF_CACHE))
-SUPPORTED_BACKENDS: set = {"tensorrtllm"}
+SUPPORTED_BACKENDS: set = {"vllm", "tensorrtllm"}

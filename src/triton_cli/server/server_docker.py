@@ -14,40 +14,41 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import os
+import subprocess
 import logging
 import docker
-from rich.progress import Progress
 
 from .server import TritonServer
 from .server_utils import TritonServerUtils
-from triton_cli.constants import LOGGER_NAME, HF_CACHE, DEFAULT_TRITONSERVER_PATH
+from triton_cli.constants import (
+    LOGGER_NAME,
+    HF_CACHE,
+    DEFAULT_TRITONSERVER_PATH,
+    DEFAULT_TRITONSERVER_IMAGE,
+)
 
 logger = logging.getLogger(LOGGER_NAME)
 
 
-# Rich visualization of docker pull through API
-# TODO: Revisit
-def show_progress(line, progress, tasks):
-    if line["status"] == "Downloading":
-        id = f'[red][Downloading {line["id"]}]'
-    elif line["status"] == "Extracting":
-        id = f'[green][Extracting  {line["id"]}]'
-    else:
-        # skip other statuses
-        return
-
-    if id not in tasks.keys():
-        tasks[id] = progress.add_task(f"{id}", total=line["progressDetail"]["total"])
-    else:
-        progress.update(tasks[id], completed=line["progressDetail"]["current"])
+def docker_pull(image):
+    logger.info(f"Pulling docker image: {image}")
+    cmd = f"docker pull {image}"
+    output = subprocess.run(cmd.split())
+    if output.returncode:
+        err = output.stderr.decode("utf-8")
+        raise Exception(f"Failed to pull docker image: {image}:\n{err}")
 
 
-def image_pull(client, image):
-    with Progress() as progress:
-        status = client.api.pull(image, stream=True, decode=True)
-        tasks = {}
-        for line in status:
-            show_progress(line, progress, tasks)
+# TODO: See if there is a way to remove or hide the build output after it
+# successfully completes, similar to 'transient' in rich progress bars.
+def docker_build(path, image):
+    cmd = f"docker build -t {image} {path}"
+    logger.debug(f"Running '{cmd}'")
+    output = subprocess.run(cmd.split())
+    if output.returncode:
+        err = output.stderr.decode("utf-8")
+        raise Exception(f"Failed to build docker image at: {path}:\n{err}")
 
 
 class TritonServerDocker(TritonServer):
@@ -94,16 +95,30 @@ class TritonServerDocker(TritonServer):
 
         self._server_utils = TritonServerUtils(self._server_config["model-repository"])
 
+        # TODO: Always build for now as it's unclear how to detect changes.
+        # Iterative runs should be cached and quick after first build.
+        if not self._tritonserver_image:
+            self._tritonserver_image = DEFAULT_TRITONSERVER_IMAGE
+            logger.debug(
+                f"No image specified, using custom image: {self._tritonserver_image}"
+            )
+            dir_path = os.path.dirname(os.path.realpath(__file__))
+            docker_path = os.path.join(dir_path, "..", "docker")
+            docker_build(docker_path, self._tritonserver_image)
+
         try:
             self._docker_client.images.get(self._tritonserver_image)
         except Exception:
-            logger.info(f"Pulling docker image {self._tritonserver_image}")
-            image_pull(self._docker_client, self._tritonserver_image)
+            docker_pull(self._tritonserver_image)
 
     def start(self, env=None):
         """
         Starts the tritonserver docker container using docker-py
         """
+
+        logger.info(
+            f"Starting a Triton Server via docker image '{self._tritonserver_image}' with model repository: {self._server_config['model-repository']}"
+        )
 
         # Use "all" gpus by default. Can be more configurable in the future.
         devices = [
@@ -126,6 +141,12 @@ class TritonServerDocker(TritonServer):
         # Use default cache in container for now.
         volumes[HF_CACHE] = {
             "bind": "/root/.cache/huggingface",
+            "mode": "rw",
+        }
+        # Mount /tmp for convenience. For example, TRT-LLM or NGC assets
+        # may default to living in /tmp.
+        volumes["/tmp"] = {
+            "bind": "/tmp",
             "mode": "rw",
         }
 
