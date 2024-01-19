@@ -117,7 +117,10 @@ class TritonClient:
         elif np_dtype in [np.uint8, np.uint16, np.uint32, np.uint64]:
             data = np.random.randint(0, 255, size=shape, dtype=np_dtype)
         elif np_dtype in [np.int8, np.int16, np.int32, np.int64]:
-            data = np.random.randint(-127, 128, size=shape, dtype=np_dtype)
+            # WAR: TRT-LLM uses some signed integers for inputs that don't
+            # support negative values, so clamp it to non-negative values.
+            # Can be set back to (-127, 128) if types are updated to UINT.
+            data = np.random.randint(0, 128, size=shape, dtype=np_dtype)
         else:  # bool or object
             data = np.random.randint(0, 2, size=shape, dtype=np_dtype)
         return data
@@ -129,11 +132,18 @@ class TritonClient:
                     f"LLM input '{name}' detected, but no prompt provided. Please pass '--prompt' to specify this input."
                 )
             data = np.full(shape, self.prompt, dtype=np_dtype)
+        # vLLM fields
         elif name.lower() == "sampling_parameters":
             parameters = {}
             data = np.full(shape, json.dumps(parameters), dtype=np_dtype)
         elif name.lower() == "stream":
             data = np.zeros(shape, dtype=np_dtype)  # False
+        # TRT-LLM fields
+        elif name.lower() == "max_tokens":
+            default_max_tokens = 128
+            data = np.full(shape, default_max_tokens, dtype=np_dtype)
+        elif name.lower() in ["bad_words", "stop_words"]:
+            data = np.full(shape, "", dtype=np_dtype)
         else:
             data = None
 
