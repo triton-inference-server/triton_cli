@@ -77,6 +77,12 @@ SUPPORTED_TRT_LLM_BUILDERS = {
     "meta-llama/Llama-2-7b-hf": LlamaBuilder,
 }
 
+# TODO: Determine minimal set of files needed for each engine builder
+TRT_LLM_BUILDER_IGNORE_PATTERNS = {
+    "gpt2": ["onnx*", "*.bin"],
+    "meta-llama/Llama-2-7b-hf": ["*.bin"],
+}
+
 
 # NOTE: Thin wrapper around NGC CLI is a WAR for now.
 # TODO: Move out to generic files/interface for remote model stores
@@ -250,14 +256,27 @@ class ModelRepository:
             engines_path = ENGINE_DEST_PATH + "/" + name
             tokenizer_path = ENGINE_DEST_PATH + "/" + name + "/tokenizer"
 
-            self.__download_hf_model(huggingface_id, tokenizer_path)
+            engines = [engine for engine in Path(engines_path).glob("*.engine")]
+            if engines:
+                logger.warning(
+                    f"Found existing engine(s) at {engines_path}, skipping build."
+                )
+            else:
+                ignore_patterns = TRT_LLM_BUILDER_IGNORE_PATTERNS[huggingface_id]
+                self.__download_hf_model(
+                    huggingface_id, tokenizer_path, ignore_patterns
+                )
 
-            builder = Builder(
-                tokenizer_path=tokenizer_path,
-                engine_output_path=engines_path,
-            )
-            builder.build()
+                builder = Builder(
+                    tokenizer_path=tokenizer_path,
+                    engine_output_path=engines_path,
+                )
+                builder.build()
 
+            # NOTE: In every case, the TRT LLM template should be filled in with values.
+            # If the model exists, the CLI will raise an exception when creating the model repo.
+            # If a user clears the model repo, they won't need to re-build the engines,
+            # but they will still need to modify the TRT LLM template.
             parse_and_substitute(
                 str(self.repo),
                 name,
@@ -277,15 +296,15 @@ class ModelRepository:
                 model_file = version_dir / file
                 model_file.write_text(contents)
 
-    def __download_hf_model(self, huggingface_id: str, tokenizer_path: str):
+    def __download_hf_model(
+        self, huggingface_id: str, tokenizer_path: str, ignore_patterns: list = []
+    ):
         # Shouldn't require the user to authenticate with HF unless
         # necessary (i.e., the model exists in a gated repo)
-
-        # TODO: Determine minimal set of files needed across all engine builders
         try:
             snapshot_download(
                 huggingface_id,
-                ignore_patterns=["onnx*"],
+                ignore_patterns=ignore_patterns,
                 local_dir=tokenizer_path,
             )
         except hf_utils.GatedRepoError:
@@ -295,7 +314,7 @@ class ModelRepository:
                 )
             snapshot_download(
                 huggingface_id,
-                ignore_patterns=["onnx*"],
+                ignore_patterns=ignore_patterns,
                 local_dir=tokenizer_path,
                 use_auth_token=True,  # for gated repos like llama
             )
