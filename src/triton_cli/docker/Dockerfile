@@ -6,7 +6,7 @@ RUN mkdir -p /opt/tritonserver/backends/vllm && \
 
 # TRT-LLM engine build dependencies
 RUN pip install \
-  --extra-index-url https://pypi.nvidia.com/ "tensorrt-llm==0.7.0"
+  --extra-index-url https://pypi.nvidia.com/ "tensorrt-llm==0.7.1"
 
 # vLLM runtime dependencies
 RUN pip install \
