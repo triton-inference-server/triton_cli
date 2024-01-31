@@ -1,6 +1,6 @@
-# triton_cli
+# Triton CLI
 
-## Quickstart
+## Installation
 
 ### Install from Pip
 
