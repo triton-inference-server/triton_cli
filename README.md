@@ -14,80 +14,49 @@ pip install .
 triton -h
 ```
 
-## Example
+## Examples
+
+### Serving a vLLM Model
 
 ```
-# Default install location from pip install
-rmccormick@ced35d0-lcedt:~/triton/cli/triton_cli$ which triton
-/home/rmccormick/.local/bin/triton
+# Generate a Triton model repository containing a vLLM model config
+triton repo clear
+triton repo add -m gpt2 --backend vllm
 
-rmccormick@ced35d0-lcedt:~/triton/cli/triton_cli$ triton -h
-usage: triton [-h] {model,repo,server} ...
+# Start Triton pointing at the default model repository
+triton server start
 
-CLI to interact with Triton Inference Server
+# Interact with model
+triton model infer -m gpt2 --prompt "machine learning is"
 
-positional arguments:
-  {model,repo,server}
-    model              Interact with running server using model APIs
-    repo               Interact with a Triton model repository.
-    server             Interact with a Triton server.
+# Profile model with Perf Analyzer
+triton model profile -m gpt2
+```
 
-options:
-  -h, --help           show this help message and exit
+### Serving a TRT-LLM Model
 
-rmccormick@ced35d0-lcedt:~/triton/cli/triton_cli$ triton repo -h
-usage: triton repo [-h] {add,remove,list,clear} ...
+**NOTE**: By default, TRT-LLM engines are generated in `/tmp/engines/{model_name}`,
+such as `/tmp/engines/gpt2`. They are intentionally kept outside of the model
+repository to improve re-usability across examples and repositories.
 
-positional arguments:
-  {add,remove,list,clear}
-    add                 Add model to model repository
-    remove              Remove model from model repository
-    list                List the models in the model repository
-    clear               Delete all contents in model repository
+```
+# Install TRT LLM building dependencies
+pip install \
+  "psutil" \
+  "pynvml>=11.5.0" \
+  "torch==2.1.2" \
+  "tensorrt_llm==0.7.1" --extra-index-url https://pypi.nvidia.com/
 
-options:
-  -h, --help            show this help message and existing
+# Build TRT LLM engine and generate a Triton model repository pointing at it
+triton repo clear
+triton repo add -m gpt2 --backend tensorrtllm
 
-# Just to get a fresh start. Not necessary.
-# Can specify --repo to any repo command for custom paths.
-rmccormick@ced35d0-lcedt:~/triton/cli/triton_cli$ triton repo clear
-triton - INFO - Using existing model repository: /home/rmccormick/models
-triton - INFO - Clearing all contents from /home/rmccormick/models...
+# Start Triton pointing at the default model repository
+triton server start
 
-rmccormick@ced35d0-lcedt:~/triton/cli/triton_cli$ triton repo list
-triton - INFO - Created new model repository: /home/rmccormick/models
-triton - INFO - Current repo at /home/rmccormick/models:
-models/
+# Interact with model
+triton model infer -m gpt2 --prompt "machine learning is"
 
-# Will be fleshed out for TRT LLM support soon
-rmccormick@ced35d0-lcedt:~/triton/cli/triton_cli$ triton repo add -m opt125 --source hf:facebook/opt-125m
-triton - INFO - Using existing model repository: /home/rmccormick/models
-triton - INFO - HuggingFace prefix detected, parsing HuggingFace ID
-triton - INFO - Adding new model to repo at: /home/rmccormick/models/opt125/1
-triton - INFO - Current repo at /home/rmccormick/models:
-models/
-└── opt125/
-    ├── 1/
-    │   └── model.json
-    └── config.pbtxt
-
-
-rmccormick@ced35d0-lcedt:~/triton/cli/triton_cli$ triton server start -h
-usage: triton server start [-h] [--mode {local,docker}] [--image IMAGE] [--repo MODEL_REPOSITORY]
-
-options:
-  -h, --help            show this help message and exit
-  --mode {local,docker}
-                        Mode to start Triton with. (Default: 'docker')
-  --image IMAGE         Image to use when starting Triton with 'docker' mode
-  --repo MODEL_REPOSITORY, --model-repository MODEL_REPOSITORY, --model-store MODEL_REPOSITORY
-                        Path to local model repository to use (default: ~/models)
-
-
-# Can specify custom --image
-rmccormick@ced35d0-lcedt:~/triton/cli/triton_cli$ triton server start
-triton - INFO - Starting a Triton Server using docker
-triton - INFO - Pulling docker image nvcr.io/nvidia/tritonserver:23.11-vllm-python-py3
-...
-
+# Profile model with Perf Analyzer
+triton model profile -m gpt2 --backend tensorrtllm
 ```
