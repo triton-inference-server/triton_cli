@@ -29,7 +29,7 @@ triton -h
 triton repo -h
 
 # Add a vLLM model to the model repository, downloaded from HuggingFace
-triton repo add -m my_vllm_model --source "hf:gpt2"
+triton repo add -m gpt2
 
 # Start server pointing at the default model repository
 triton server start
