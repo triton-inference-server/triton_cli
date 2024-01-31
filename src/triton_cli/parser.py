@@ -177,8 +177,7 @@ def add_profile_args(subcommands):
             "--profile-mode",
             type=str,
             choices=["online", "offline"],
-            # FIXME: "online" should be the default once IFB issues are fixed in TRT LLM
-            default="offline",
+            default="online",
             required=False,
             help="Profiling mode: offline means one full response will be generated, online means response will be streaming tokens as they are generated.",
         )
@@ -472,8 +471,7 @@ def profile_model(args: argparse.Namespace, client: TritonClient):
         url=f"{args.url}:{args.port}",
         input_length=args.input_length,
         output_length=args.output_length,
-        # WAR: FIXME after IFB is fixed for TRT-LLM
-        # Should be "online" for IFB / streaming
+        # Should be "online" for IFB / streaming, and "offline" for non-streaming
         offline=(args.profile_mode == "offline"),
         verbose=args.verbose,
     )

@@ -1,4 +1,4 @@
-FROM nvcr.io/nvidia/tritonserver:23.12-trtllm-python-py3
+FROM nvcr.io/nvidia/tritonserver:24.01-trtllm-python-py3
 
 # Setup vLLM Triton backend
 RUN mkdir -p /opt/tritonserver/backends/vllm && \

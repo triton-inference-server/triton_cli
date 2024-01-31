@@ -133,6 +133,8 @@ class TritonServerFactory:
 
         triton_config = TritonServerConfig()
         triton_config["model-repository"] = config.model_repository
+        if config.verbose:
+            triton_config["log-verbose"] = "1"
         server = TritonServerFactory.create_server_local(
             path=tritonserver_path,
             config=triton_config,
@@ -145,6 +147,9 @@ class TritonServerFactory:
     def _get_docker_server_handle(config, gpus):
         triton_config = TritonServerConfig()
         triton_config["model-repository"] = os.path.abspath(config.model_repository)
+        if config.verbose:
+            triton_config["log-verbose"] = "1"
+
         server = TritonServerFactory.create_server_docker(
             image=config.image,
             config=triton_config,

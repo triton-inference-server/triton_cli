@@ -8,18 +8,29 @@ class LlamaBuilder:
     def build(self):
         from .scripts import build
 
-        # FIXME: Due to ongoing issues with IFB, max_batch_size must also
-        # be set to 1 in order to avoid the input dimension error.
+        # NOTE: These are for IFB. Omit these args for V1 engines.
+        ifb_args = [
+            "--use_gpt_attention_plugin=float16",
+            "--paged_kv_cache",
+            "--remove_input_padding",
+        ]
+
+        # TODO: Expose configurability
+        int8_args = [
+            "--use_weight_only",
+            "--weight_only_precision=int8",
+            # INT8 KV Cache requires calibration data (scaling factors)
+            # "--int8_kv_cache",
+        ]
+
         args = [
             "--model_dir",
             self.tokenizer_path,
-            "--dtype",
-            "float16",
+            "--max_batch_size=64",
+            "--dtype=float16",
             "--enable_context_fmha",
-            "--max_batch_size",
-            "1",
-            "--use_gemm_plugin",
-            "float16",
+            *ifb_args,
+            *int8_args,
             "--output_dir",
             self.engine_output_path,
         ]
