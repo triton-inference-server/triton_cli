@@ -46,7 +46,18 @@ triton model profile -m gpt2
 
 ## Examples
 
+> [!NOTE]
+> Usage of `llama-2-7b` requires authentication in Huggingface through either
+> `huggingface-login` or setting the `HF_TOKEN` environment variable.
+
 ### Serving a vLLM Model
+
+The following models have currently been tested for vLLM through the CLI:
+- `gpt2`
+- `llama-2-7b`
+- `opt125m`
+- `mistral-7b`
+- `falcon-7b`
 
 ```
 # Generate a Triton model repository containing a vLLM model config
@@ -97,6 +108,11 @@ pip install \
 ```
 
 #### Example
+
+The following models are currently supported for automating TRT-LLM
+engine builds through the CLI:
+- `gpt2`
+- `llama-2-7b`
 
 ```
 # Build TRT LLM engine and generate a Triton model repository pointing at it
