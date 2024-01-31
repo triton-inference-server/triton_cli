@@ -14,8 +14,8 @@ RUN pip install \
 
 # vLLM runtime dependencies
 RUN pip install \
-  vllm==0.2.3 \
-  transformers==4.35.2 \
+  vllm==0.3.0 \
+  transformers>=4.37.0 \
   accelerate==0.26.1
 
 # TODO: Install Triton CLI in this image
