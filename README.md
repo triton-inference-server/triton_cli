@@ -46,7 +46,7 @@ pip install triton_cli -U --extra-index-url https://urm.nvidia.com/artifactory/a
 
 ### Install from Source
 
-```
+```bash
 # Clone repo, git mode for development/contribution
 git clone git@github.com:triton-inference-server/triton_cli.git
 cd triton_cli
