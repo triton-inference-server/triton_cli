@@ -9,7 +9,7 @@
 > corresponding `tritonserver` container image, which should have all necessary
 > system dependencies installed.
 >
-> For vLLM and TRT-LLM, you can use the respective image:
+> For vLLM and TRT-LLM, you can use their respective image:
 > - `nvcr.io/nvidia/tritonserver:24.01-vllm-python-py3`
 > - `nvcr.io/nvidia/tritonserver:24.01-trtllm-python-py3`
 >
