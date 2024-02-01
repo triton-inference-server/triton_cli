@@ -121,7 +121,8 @@ triton model profile -m gpt2
 #### Pre-requisites
 
 (optional) If you don't want to install TRT-LLM dependencies on the host, you
-can also run the following instructions inside of a container started like so:
+can also run the following instructions inside of a container that is launched
+with the following command:
 ```
 # NOTE: Mounting the huggingface cache is optional, but will allow saving and
 # re-using downloaded huggingface models across different runs and containers.
