@@ -40,7 +40,7 @@
 
 ### Install from Pip
 
-```
+```bash
 pip install triton_cli -U --extra-index-url https://urm.nvidia.com/artifactory/api/pypi/sw-dl-triton-pypi-local/simple
 ```
 
@@ -57,7 +57,7 @@ pip install .
 
 ## Quickstart
 
-```
+```bash
 # Explore the commands
 triton -h
 
@@ -95,7 +95,7 @@ The following models have currently been tested for vLLM through the CLI:
 - `mistral-7b`
 - `falcon-7b`
 
-```
+```bash
 # Generate a Triton model repository containing a vLLM model config
 triton repo clear
 triton repo add -m gpt2 --backend vllm
@@ -123,7 +123,7 @@ triton model profile -m gpt2
 (optional) If you don't want to install TRT-LLM dependencies on the host, you
 can also run the following instructions inside of a container that is launched
 with the following command:
-```
+```bash
 # NOTE: Mounting the huggingface cache is optional, but will allow saving and
 # re-using downloaded huggingface models across different runs and containers.
 docker run -ti \
@@ -135,7 +135,7 @@ docker run -ti \
 ```
 
 Install the TRT-LLM dependencies:
-```
+```bash
 # Install TRT LLM building dependencies
 pip install \
   "psutil" \
@@ -151,7 +151,7 @@ engine builds through the CLI:
 - `gpt2`
 - `llama-2-7b`
 
-```
+```bash
 # Build TRT LLM engine and generate a Triton model repository pointing at it
 triton repo clear
 triton repo add -m gpt2 --backend tensorrtllm
