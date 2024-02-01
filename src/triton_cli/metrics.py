@@ -128,3 +128,6 @@ class MetricsClient:
             console.print(table)
         else:
             logger.error("Metrics table was empty")
+
+    def display_json(self, model_name=None):
+        print(json.dumps(self.get(model_name=model_name)))
