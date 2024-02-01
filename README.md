@@ -22,7 +22,7 @@
 > perf_analyzer: error while loading shared libraries: libb64.so.0d
 > ```
 >
-> Then you likely need to install this system dependency. For example:
+> Then you likely need to install this system dependency:
 > ```
 > apt install libb64-dev
 > ```
