@@ -1,5 +1,41 @@
 # Triton CLI
 
+## Pre-requisites
+
+> [!NOTE]
+> When using Triton and related tools on your host, there are some system
+> dependencies that may be required for various workflows. Most system dependency
+> issues can be resolved by installing and running the CLI from within the latest
+> corresponding `tritonserver` container image, which should have all necessary
+> system dependencies installed.
+>
+> For vLLM and TRT-LLM, you can use the respective image:
+> - `nvcr.io/nvidia/tritonserver:24.01-vllm-python-py3`
+> - `nvcr.io/nvidia/tritonserver:24.01-trtllm-python-py3`
+>
+> If you decide to run the CLI on the host or in a custom image, you
+> may encounter the following system dependency issues:
+>
+> 1. If you encounter an error related to `libb64.so` from `triton model profile`
+> or `perf_analyzer` such as:
+> ```
+> perf_analyzer: error while loading shared libraries: libb64.so.0d
+> ```
+>
+> Then you likely need to install this system dependency. For example:
+> ```
+> apt install libb64-dev
+> ```
+>
+> 2. If you encounter an error related to `libcudart.so` from `triton model profile`
+> or `perf_analyzer` such as:
+> ```
+> perf_analyzer: error while loading shared libraries: libcudart.so
+> ```
+>
+> Then you likely need to install the CUDA toolkit or set your `LD_LIBRARY_PATH`
+> correctly. Refer to: https://developer.nvidia.com/cuda-downloads.
+
 ## Installation
 
 ### Install from Pip
@@ -43,40 +79,6 @@ curl -X POST localhost:8000/v2/models/gpt2/generate -d '{"text_input": "machine 
 # Profile model with Perf Analyzer
 triton model profile -m gpt2
 ```
-
-> [!NOTE]
-> When using Triton and related tools on your host, there are some system
-> dependencies that may be required for various workflows. Most system dependency
-> issues can be resolved by installing and running the CLI from within the latest
-> corresponding `tritonserver` container image, which should have all necessary
-> system dependencies installed.
->
-> For vLLM and TRT-LLM, you can use the respective image:
-> - `nvcr.io/nvidia/tritonserver:24.01-vllm-python-py3`
-> - `nvcr.io/nvidia/tritonserver:24.01-trtllm-python-py3`
->
-> If you decide to run the CLI on the host or in a custom image, you
-> may encounter the following system dependency issues:
->
-> 1. If you encounter an error related to `libb64.so` from `triton model profile`
-> or `perf_analyzer` such as:
-> ```
-> perf_analyzer: error while loading shared libraries: libb64.so.0d
-> ```
->
-> Then you likely need to install this system dependency. For example:
-> ```
-> apt install libb64-dev
-> ```
->
-> 2. If you encounter an error related to `libcudart.so` from `triton model profile`
-> or `perf_analyzer` such as:
-> ```
-> perf_analyzer: error while loading shared libraries: libcudart.so
-> ```
->
-> Then you likely need to install the CUDA toolkit or set your `LD_LIBRARY_PATH`
-> correctly. Refer to: https://developer.nvidia.com/cuda-downloads.
 
 ## Examples
 
