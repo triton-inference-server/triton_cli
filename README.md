@@ -9,7 +9,7 @@
 > corresponding `tritonserver` container image, which should have all necessary
 > system dependencies installed.
 >
-> For vLLM and TRT-LLM, you can use the respective image:
+> For vLLM and TRT-LLM, you can use their respective image:
 > - `nvcr.io/nvidia/tritonserver:24.01-vllm-python-py3`
 > - `nvcr.io/nvidia/tritonserver:24.01-trtllm-python-py3`
 >
@@ -22,7 +22,7 @@
 > perf_analyzer: error while loading shared libraries: libb64.so.0d
 > ```
 >
-> Then you likely need to install this system dependency. For example:
+> Then you likely need to install this system dependency:
 > ```
 > apt install libb64-dev
 > ```
@@ -46,7 +46,7 @@ pip install triton_cli -U --extra-index-url https://urm.nvidia.com/artifactory/a
 
 ### Install from Source
 
-```
+```bash
 # Clone repo, git mode for development/contribution
 git clone git@github.com:triton-inference-server/triton_cli.git
 cd triton_cli
@@ -121,7 +121,8 @@ triton model profile -m gpt2
 #### Pre-requisites
 
 (optional) If you don't want to install TRT-LLM dependencies on the host, you
-can also run the following instructions inside of a container started like so:
+can also run the following instructions inside of a container that is launched
+with the following command:
 ```
 # NOTE: Mounting the huggingface cache is optional, but will allow saving and
 # re-using downloaded huggingface models across different runs and containers.
