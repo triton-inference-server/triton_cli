@@ -47,6 +47,7 @@ authors = []
 maintainers = []
 keywords = []
 requires-python = ">=3.8,<4"
+# TODO: Add [gpu] set of dependencies for trtllm once it's available on pypi
 dependencies = [
     "directory-tree == 0.0.4", # may remove in future
     "docker == 6.1.3",

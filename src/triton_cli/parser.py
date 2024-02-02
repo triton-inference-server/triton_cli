@@ -24,6 +24,7 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+import json
 import time
 import logging
 import argparse
@@ -267,7 +268,10 @@ def handle_model(args: argparse.Namespace):
     elif args.subcommand == "metrics":
         client = MetricsClient(args.url, args.port)
         # For model subcommand, limit metrics to only specified model metrics
-        client.display_table(model_name=args.model)
+        # NOTE: Consider pretty table in future, but JSON output seems more
+        #       functionally useful for now.
+        # client.display_table(model_name=args.model)
+        client.display_json(model_name=args.model)
     else:
         raise Exception(f"model subcommand {args.subcommand} not supported")
 
@@ -326,19 +330,20 @@ def handle_server(args: argparse.Namespace):
     # TODO: Consider top-level metrics command/handler
     elif args.subcommand == "metrics":
         client = MetricsClient(args.url, args.port)
-        client.display_table()
+        # NOTE: Consider pretty table in future, but JSON output seems more
+        #       functionally useful for now.
+        # client.display_table()
+        client.display_json()
     elif args.subcommand == "health":
         client = TritonClient(url=args.url, port=args.port, protocol=args.protocol)
         health = client.get_server_health()
         if health:
-            logger.info(f"{args.subcommand}:\n{health}")
+            print(json.dumps(health))
     elif args.subcommand == "metadata":
         client = TritonClient(url=args.url, port=args.port, protocol=args.protocol)
         metadata = client.get_server_metadata()
         if metadata:
-            logger.info(f"{args.subcommand}:")
-            # TODO: Table
-            rich_print(metadata)
+            print(json.dumps(metadata))
     else:
         raise NotImplementedError(f"server subcommand {args.subcommand} not supported")
 

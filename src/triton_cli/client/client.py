@@ -88,13 +88,8 @@ class TritonClient:
 
     def get_server_health(self):
         live = self.is_server_live()
-        if not live:
-            return "❌ Server is not live"
         ready = self.is_server_ready()
-        if not ready:
-            return "❌ Server is live, but not ready for inference"
-
-        return "✅ Server is live and ready for inference"
+        return {"live": live, "ready": ready}
 
     def __parse_input(self, _input: dict):
         name = _input.get("name", "")
