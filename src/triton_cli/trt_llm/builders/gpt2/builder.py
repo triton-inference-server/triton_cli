@@ -52,20 +52,26 @@ class GPTBuilder:
         ]
 
         # TODO: Expose configurability
-        int8_args = [
-            "--use_weight_only",
-            "--weight_only_precision=int8",
-            # INT8 KV Cache requires calibration data (scaling factors)
-            # "--int8_kv_cache",
-        ]
+        # int8_args = [
+        #    "--use_weight_only",
+        #    "--weight_only_precision=int8",
+        #    # INT8 KV Cache requires calibration data (scaling factors)
+        #    # "--int8_kv_cache",
+        # ]
 
         args = [
             "--model_dir",
             self.final_converted_weights_path,
-            "--max_batch_size=64",
+            # Spawning 1 instance of bls/pre/post models for each batch size
+            # significantly increases startup time. Keep GPT2 as batch size 1
+            # for simpler demo output and speed purposes.
+            "--max_batch_size=1",
             "--dtype=float16",
             *ifb_args,
-            *int8_args,
+            # NOTE: GPT2 emits a lot of warnings for INT8 build when it finds
+            # invalid kernel configurations. This should be fixed in a later
+            # release. Disabling int8 for GPT2 for easier demo output purposes.
+            # *int8_args,
             "--output_dir",
             self.engine_output_path,
         ]
