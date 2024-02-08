@@ -35,6 +35,13 @@
 >
 > Then you likely need to install the CUDA toolkit or set your `LD_LIBRARY_PATH`
 > correctly. Refer to: https://developer.nvidia.com/cuda-downloads.
+>
+> 3. To build TensorRT LLM engines, you will need MPI installed in your environment.
+> MPI should be shipped in any relevant Triton or TRT-LLM containers, but if
+> building engines on host you can install them like so:
+> ```
+> sudo apt install libopenmpi-dev
+> ```
 
 ## Installation
 
