@@ -46,7 +46,11 @@ def run_server(repo=None):
 def wait_for_server_ready(timeout: int = 120):
     start = time.time()
     while time.time() - start < timeout:
-        print("Waiting for server to be ready...", flush=True)
+        print(
+            "Waiting for server to be ready ",
+            round(timeout - (time.time() - start)),
+            flush=True,
+        )
         time.sleep(1)
         try:
             if check_server_ready():

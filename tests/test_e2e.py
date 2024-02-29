@@ -58,8 +58,10 @@ class TestE2E:
             args += ["--repo", repo]
         run(args)
 
-    def model_infer(self, model, prompt, protocol=None):
-        args = ["model", "infer", "-m", model, "--prompt", prompt]
+    def model_infer(self, model, prompt=None, protocol=None):
+        args = ["model", "infer", "-m", model]
+        if prompt:
+            args += ["--prompt", prompt]
         if protocol:
             args += ["-i", protocol]
         run(args)
@@ -72,13 +74,24 @@ class TestE2E:
             args += ["--backend", backend]
         run(args)
 
+    class KillServerByPid:
+        def __init__(self):
+            self.pid = None
+
+        def kill_server(self):
+            if self.pid is not None:
+                utils.kill_server(self.pid)
+
     @pytest.fixture
     def setup_and_teardown(self):
-        pids = []
+        # Setup before the test case is run.
+        kill_server = self.KillServerByPid()
         self.repo_clear()
-        yield pids
-        for pid in pids:
-            utils.kill_server(pid)
+
+        yield kill_server
+
+        # Teardown after the test case is done.
+        kill_server.kill_server()
         self.repo_clear()
 
     @pytest.mark.skipif(
@@ -100,11 +113,11 @@ class TestE2E:
         for model in TRTLLM_MODELS:
             self.repo_add(model, backend="tensorrtllm")
         pid = utils.run_server()
-        setup_and_teardown.append(pid)
+        setup_and_teardown.pid = pid
         utils.wait_for_server_ready()
 
         for model in TRTLLM_MODELS:
-            self.model_infer(model, PROMPT, protocol=protocol)
+            self.model_infer(model, prompt=PROMPT, protocol=protocol)
             self.model_profile(model, backend="tensorrtllm", protocol=protocol)
 
     @pytest.mark.skipif(
@@ -130,5 +143,5 @@ class TestE2E:
         utils.wait_for_server_ready()
 
         for model in VLLM_MODELS:
-            self.model_infer(model, PROMPT, protocol=protocol)
+            self.model_infer(model, prompt=PROMPT, protocol=protocol)
             self.model_profile(model, protocol=protocol)
