@@ -1,0 +1,6 @@
+--extra-index-url https://pypi.nvidia.com/
+psutil
+pynvml>=11.5.0
+# TODO: Update TRT-LLM version
+tensorrt_llm==0.8.0.dev2024013000
+torch==2.1.2
