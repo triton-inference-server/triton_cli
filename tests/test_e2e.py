@@ -26,6 +26,7 @@
 import sys
 
 
+import os
 import pytest
 from triton_cli.main import run
 from triton_cli.parser import KNOWN_MODEL_SOURCES
@@ -80,6 +81,9 @@ class TestE2E:
             utils.kill_server(pid)
         self.repo_clear()
 
+    @pytest.mark.skipif(
+        os.environ.get("IMAGE_KIND") != "TRTLLM", reason="Only run for TRT-LLM image"
+    )
     @pytest.mark.parametrize(
         "protocol",
         [
@@ -103,6 +107,9 @@ class TestE2E:
             self.model_infer(model, PROMPT, protocol=protocol)
             self.model_profile(model, backend="tensorrtllm", protocol=protocol)
 
+    @pytest.mark.skipif(
+        os.environ.get("IMAGE_KIND") != "VLLM", reason="Only run for VLLM image"
+    )
     @pytest.mark.parametrize(
         "protocol",
         [
