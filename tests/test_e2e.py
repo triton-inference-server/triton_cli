@@ -139,7 +139,7 @@ class TestE2E:
         for model in VLLM_MODELS:
             self.repo_add(model)
         pid = utils.run_server()
-        setup_and_teardown.append(pid)
+        setup_and_teardown.pid = pid
         utils.wait_for_server_ready()
 
         for model in VLLM_MODELS:
