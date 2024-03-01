@@ -35,6 +35,8 @@ on:
 jobs:
   build:
     runs-on: ${{ matrix.os }}
+    container:
+      image: nvcr.io/nvidia/tritonserver:24.01-py3
     strategy:
       fail-fast: false
       matrix:
