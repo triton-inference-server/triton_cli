@@ -62,5 +62,6 @@ jobs:
     - name: Test with pytest
       run: |
         pip install pytest pytest-cov psutil
-        pytest tests -v --capture=tee-sys --junitxml=junit/test-results.xml --cov=triton_cli --cov-report=xml --cov-report=html
+        cd tests
+        pytest -v --capture=tee-sys --junitxml=junit/test-results.xml --cov=triton_cli --cov-report=xml --cov-report=html
 
