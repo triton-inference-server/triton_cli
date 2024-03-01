@@ -34,10 +34,12 @@ from subprocess import Popen
 from triton_cli.client.client import InferenceServerException
 
 
-def run_server(repo=None):
+def run_server(repo=None, mode="local"):
     args = ["triton", "server", "start"]
     if repo:
         args += ["--repo", repo]
+    if mode:
+        args += ["--mode", mode]
     # Use Popen to run the server in the background as a separate process.
     p = Popen(args)
     return p.pid
