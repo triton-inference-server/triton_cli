@@ -35,8 +35,6 @@ on:
 jobs:
   build:
     runs-on: ${{ matrix.os }}
-    # container:
-    #   image: nvcr.io/nvidia/tritonserver:24.01-py3
     strategy:
       fail-fast: false
       matrix:
@@ -63,5 +61,4 @@ jobs:
       run: |
         pip install pytest pytest-cov psutil nvidia-pytriton
         cd tests
-        pytest -v --capture=tee-sys --doctest-modules --junitxml=junit/test-results.xml --cov=triton_cli/tests --cov-report=xml --cov-report=html --ignore-glob=test_models test_e2e.py::TestE2E::test_non_llm
-
+        pytest -v --capture=tee-sys --junitxml=../test-reports/pytest.xml
