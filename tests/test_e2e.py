@@ -145,3 +145,37 @@ class TestE2E:
         for model in VLLM_MODELS:
             self.model_infer(model, prompt=PROMPT, protocol=protocol)
             self.model_profile(model, protocol=protocol)
+
+    @pytest.mark.parametrize("protocol", ["grpc", "http"])
+    def test_non_llm(self, protocol, setup_and_teardown):
+        # This test runs on the default Triton image, as well as on both TRT-LLM and VLLM images.
+        # Use the existing models.
+        model_repo = "test_models"
+        pid = utils.run_server(repo=model_repo)
+        setup_and_teardown.pid = pid
+        utils.wait_for_server_ready()
+
+        model = "add_sub"
+        # infer should work without a prompt for non-LLM models
+        self.model_infer(model, protocol=protocol)
+        # profile should fail for non-LLM models
+        with pytest.raises(Exception):
+            if protocol == "http":
+                pytest.xfail("Profiler does not support http protocol at this time")
+            self.model_profile(model, protocol=protocol)
+
+    @pytest.mark.parametrize("protocol", ["grpc", "http"])
+    def test_mock_llm(self, protocol, setup_and_teardown):
+        # This test runs on the default Triton image, as well as on both TRT-LLM and VLLM images.
+        # Use the existing models.
+        model_repo = "test_models"
+        pid = utils.run_server(repo=model_repo)
+        setup_and_teardown.pid = pid
+        utils.wait_for_server_ready()
+
+        model = "mock_llm"
+        # infer should work with a prompt for LLM models
+        self.model_infer(model, prompt=PROMPT, protocol=protocol)
+        # infer should fail without a prompt for LLM models
+        with pytest.raises(Exception):
+            self.model_profile(model, protocol=protocol)
