@@ -42,7 +42,7 @@ from triton_cli.trt_llm.engine_config_parser import parse_and_substitute
 from huggingface_hub import snapshot_download
 from huggingface_hub import utils as hf_utils
 
-from triton_cli.trt_llm.builders.llama2.builder import LlamaBuilder
+from triton_cli.trt_llm.builder import TRTLLMBuilder
 from triton_cli.trt_llm.builders.gpt2.builder import GPTBuilder
 
 logger = logging.getLogger(LOGGER_NAME)
@@ -73,13 +73,15 @@ ENGINE_DEST_PATH = os.environ.get("ENGINE_DEST_PATH", "/tmp/engines")
 HF_TOKEN_PATH = Path.home() / ".cache" / "huggingface" / "token"
 
 SUPPORTED_TRT_LLM_BUILDERS = {
-    "gpt2": {
-        "builder": GPTBuilder,
-        "hf_allow_patterns": ["*.safetensors", "*.json"],
+    "facebook/opt-125m": {
+        "hf_allow_patterns": ["*.bin", "*.json", "*.txt"],
     },
     "meta-llama/Llama-2-7b-hf": {
-        "builder": LlamaBuilder,
         "hf_allow_patterns": ["*.safetensors", "*.json"],
+    },
+    "gpt2": {
+        "hf_allow_patterns": ["*.safetensors", "*.json"],
+        "hf_ignore_patterns": ["onnx/*"],
     },
 }
 
@@ -254,11 +256,8 @@ class ModelRepository:
                     f"Building a TRT LLM engine for {huggingface_id} is not currently supported."
                 )
 
-            Builder = builder_info["builder"]
-            hf_allow_patterns = builder_info["hf_allow_patterns"]
-
             engines_path = ENGINE_DEST_PATH + "/" + name
-            tokenizer_path = ENGINE_DEST_PATH + "/" + name + "/tokenizer"
+            hf_download_path = ENGINE_DEST_PATH + "/" + name + "/hf_download"
 
             engines = [engine for engine in Path(engines_path).glob("*.engine")]
             if engines:
@@ -266,26 +265,20 @@ class ModelRepository:
                     f"Found existing engine(s) at {engines_path}, skipping build."
                 )
             else:
-                self.__download_hf_model(
-                    huggingface_id, tokenizer_path, allow_patterns=hf_allow_patterns
+                self.__generate_trtllm_model(
+                    huggingface_id, hf_download_path, engines_path
                 )
-
-                builder = Builder(
-                    tokenizer_path=tokenizer_path,
-                    engine_output_path=engines_path,
-                )
-                builder.build()
 
             # NOTE: In every case, the TRT LLM template should be filled in with values.
             # If the model exists, the CLI will raise an exception when creating the model repo.
             # If a user clears the model repo, they won't need to re-build the engines,
             # but they will still need to modify the TRT LLM template.
             parse_and_substitute(
-                str(self.repo),
-                name,
-                engines_path,
-                tokenizer_path,
-                "auto",
+                triton_model_dir=str(self.repo),
+                bls_model_name=name,
+                engine_dir=engines_path,
+                token_dir=hf_download_path,
+                token_type="auto",
                 dry_run=False,
             )
         else:
@@ -300,7 +293,11 @@ class ModelRepository:
                 model_file.write_text(contents)
 
     def __download_hf_model(
-        self, huggingface_id: str, tokenizer_path: str, allow_patterns: list = []
+        self,
+        huggingface_id: str,
+        hf_download_path: str,
+        allow_patterns: list = [],
+        ignore_patterns: list = [],
     ):
         # Shouldn't require the user to authenticate with HF unless
         # necessary (i.e., the model exists in a gated repo)
@@ -308,7 +305,8 @@ class ModelRepository:
             snapshot_download(
                 huggingface_id,
                 allow_patterns=allow_patterns,
-                local_dir=tokenizer_path,
+                ignore_patterns=ignore_patterns,
+                local_dir=hf_download_path,
             )
         except hf_utils.GatedRepoError:
             if not HF_TOKEN_PATH.exists():
@@ -318,7 +316,8 @@ class ModelRepository:
             snapshot_download(
                 huggingface_id,
                 allow_patterns=allow_patterns,
-                local_dir=tokenizer_path,
+                ignore_patterns=ignore_patterns,
+                local_dir=hf_download_path,
                 use_auth_token=True,  # for gated repos like llama
             )
 
@@ -340,6 +339,28 @@ class ModelRepository:
         parse_and_substitute(
             str(self.repo), name, engines_path, engines_path, "auto", dry_run=False
         )
+
+    def __generate_trtllm_model(self, huggingface_id, hf_download_path, engines_path):
+        builder_info = SUPPORTED_TRT_LLM_BUILDERS.get(huggingface_id)
+        hf_allow_patterns = builder_info["hf_allow_patterns"]
+        hf_ignore_patterns = builder_info.get("hf_ignore_patterns", None)
+        self.__download_hf_model(
+            huggingface_id,
+            hf_download_path,
+            allow_patterns=hf_allow_patterns,
+            ignore_patterns=hf_ignore_patterns,
+        )
+
+        # FIXME: Use generic handler for gpt2 when it migrates to using unified builder
+        if huggingface_id == "gpt2":
+            builder = GPTBuilder(engine_output_path=engines_path)
+        else:
+            builder = TRTLLMBuilder(
+                huggingface_id=huggingface_id,
+                hf_download_path=hf_download_path,
+                engine_output_path=engines_path,
+            )
+        builder.build()
 
     def __create_model_repository(
         self, name: str, version: int = 1, backend: str = None

@@ -38,6 +38,12 @@ repos:
   rev: v0.1.3
   hooks:
     - id: ruff
+      exclude: |
+        (?x)^(
+            src/triton_cli/trt_llm/builders/gpt2/scripts/.*|
+            src/triton_cli/trt_llm/checkpoint_scripts/.*|
+            src/triton_cli/templates/.*
+        )$
 
 # Upgrade Python syntax
 - repo: https://github.com/asottile/pyupgrade
@@ -53,7 +59,15 @@ repos:
   - id: codespell
     additional_dependencies: [tomli]
     args: ["--toml", "pyproject.toml"]
-    exclude: (?x)^(.*stemmer.*|.*stop_words.*|^CHANGELOG.md$)
+    exclude: |
+      (?x)^(
+          .*stemmer.*|
+          .*stop_words.*|
+          ^CHANGELOG.md$|
+          src/triton_cli/trt_llm/builders/gpt2/scripts/.*|
+          src/triton_cli/trt_llm/checkpoint_scripts/.*|
+          src/triton_cli/templates/.*
+      )
 
 # More details about these pre-commit hooks here:
 # https://pre-commit.com/hooks.html

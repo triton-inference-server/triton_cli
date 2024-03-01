@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2022-2023 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-FileCopyrightText: Copyright (c) 2022-2024 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -109,7 +109,6 @@ def parse_arguments():
         "--use_gpt_attention_plugin", default=False, action="store_true"
     )
     parser.add_argument("--use_gemm_plugin", default=False, action="store_true")
-    parser.add_argument("--use_layernorm_plugin", default=False, action="store_true")
     parser.add_argument("--output_dir", type=str, default="gpt_outputs")
     return parser.parse_args()
 
@@ -231,12 +230,11 @@ if __name__ == "__main__":
 
     # Module -> Network
     network = builder.create_network()
+    network.plugin_config.to_legacy_setting()
     if args.use_gpt_attention_plugin:
         network.plugin_config.set_gpt_attention_plugin()
     if args.use_gemm_plugin:
         network.plugin_config.set_gemm_plugin()
-    if args.use_layernorm_plugin:
-        network.plugin_config.set_layernorm_plugin()
     with net_guard(network):
         # Prepare
         network.set_named_parameters(tensorrt_llm_gpt.named_parameters())

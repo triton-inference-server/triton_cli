@@ -7,8 +7,7 @@ logger = logging.getLogger(LOGGER_NAME)
 
 
 class GPTBuilder:
-    def __init__(self, tokenizer_path: str, engine_output_path: str):
-        self.tokenizer_path = tokenizer_path
+    def __init__(self, engine_output_path: str):
         self.engine_output_path = engine_output_path
         self.converted_weights_path = engine_output_path + "/c-model/gpt2"
 
