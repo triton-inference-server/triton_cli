@@ -61,6 +61,7 @@ jobs:
         ruff format .
     - name: Test with pytest
       run: |
-        pip install pytest pytest-cov psutil nvidia-pytriton
-        pytest tests -v --capture=tee-sys --doctest-modules --junitxml=junit/test-results.xml --cov=triton_cli --cov-report=xml --cov-report=html --ignore=tests/test_models
+        pip install pytest pytest-cov psutil
+        # TODO: Use pytest-cov to generate coverage report
+        pytest tests --doctest-modules --junitxml=junit/test-results.xml
 
