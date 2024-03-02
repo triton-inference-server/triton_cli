@@ -367,7 +367,8 @@ def generate_int8(weights, act_range, is_qkv=False, multi_query_mode=False):
             ]
         )
 
-    to_i8 = lambda x: x.round().clip(-127, 127).astype(np.int8)
+    def to_i8(x):
+        x.round().clip(-127, 127).astype(np.int8)
 
     if is_qkv and multi_query_mode:
         weight_int8 = to_i8(weights / scale_w_quant_orig_t)
@@ -859,9 +860,9 @@ def convert_hf_llama(
     mha_mode = num_key_value_heads == num_attention_heads
     layers_range = mapping.pp_layers(hf_model.config.num_hidden_layers)
 
-    for l in layers_range:
-        prefix = f"model.layers.{l}."
-        tllm_prex = f"transformer.layers.{l - layers_range[0]}."
+    for layer in layers_range:
+        prefix = f"model.layers.{layer}."
+        tllm_prex = f"transformer.layers.{layer - layers_range[0]}."
         q_weight = get_weight(model_params, prefix + "self_attn.q_proj", dtype)
         k_weight = get_weight(model_params, prefix + "self_attn.k_proj", dtype)
         v_weight = get_weight(model_params, prefix + "self_attn.v_proj", dtype)
@@ -1009,28 +1010,36 @@ def convert_hf_llama(
                 rank_experts = mapping.ep_experts(moe_config.num_experts)
             for suffix in ["w1", "w2", "w3"]:
                 model_params[
-                    f"model.layers.{l}.block_sparse_moe.experts.{suffix}.weight"
+                    f"model.layers.{layer}.block_sparse_moe.experts.{suffix}.weight"
                 ] = torch.stack(
                     [
                         model_params[
-                            f"model.layers.{l}.block_sparse_moe.experts.{expert}.{suffix}.weight"
+                            f"model.layers.{layer}.block_sparse_moe.experts.{expert}.{suffix}.weight"
                         ].detach()
                         for expert in rank_experts
                     ]
                 )
-            w3 = model_params[f"model.layers.{l}.block_sparse_moe.experts.w3.weight"]
-            w2 = model_params[f"model.layers.{l}.block_sparse_moe.experts.w2.weight"]
-            w1 = model_params[f"model.layers.{l}.block_sparse_moe.experts.w1.weight"]
+            w3 = model_params[
+                f"model.layers.{layer}.block_sparse_moe.experts.w3.weight"
+            ]
+            w2 = model_params[
+                f"model.layers.{layer}.block_sparse_moe.experts.w2.weight"
+            ]
+            w1 = model_params[
+                f"model.layers.{layer}.block_sparse_moe.experts.w1.weight"
+            ]
             if moe_config.tp_mode == moe_config.ParallelismMode.TENSOR_PARALLEL:
                 w3 = split(w3, mapping.tp_size, mapping.tp_rank, dim=1)
                 w2 = split(w2, mapping.tp_size, mapping.tp_rank, dim=2)
                 w1 = split(w1, mapping.tp_size, mapping.tp_rank, dim=1)
 
             model_params[
-                f"model.layers.{l}.block_sparse_moe.experts.w3w1.weight"
+                f"model.layers.{layer}.block_sparse_moe.experts.w3w1.weight"
             ] = torch.concat([w3, w1], dim=-2)
 
-            model_params[f"model.layers.{l}.block_sparse_moe.experts.w2.weight"] = w2
+            model_params[
+                f"model.layers.{layer}.block_sparse_moe.experts.w2.weight"
+            ] = w2
 
             ## block_sparse_moe.experts.w2.weight
             moe_experts_w2_weights = get_weight(

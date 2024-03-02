@@ -416,7 +416,7 @@ def parse_arguments(args):
     if not args.remove_input_padding:
         if args.use_gpt_attention_plugin:
             logger.warning(
-                f"It is recommended to specify --remove_input_padding when using GPT attention plugin"
+                "It is recommended to specify --remove_input_padding when using GPT attention plugin"
             )
 
     args.bias = not args.no_bias
@@ -549,7 +549,7 @@ def build_rank_engine(
                 share_embedding_table = check_embedding_share(args.model_dir)
 
         if not share_embedding_table:
-            logger.warning(f"Cannot share the embedding lookup table.")
+            logger.warning("Cannot share the embedding lookup table.")
 
     if share_embedding_table:
         logger.info(
@@ -668,7 +668,7 @@ def build_rank_engine(
 
     if args.use_context_fmha_for_generation:
         logger.warning(
-            f"use_context_fmha_for_generation is set. This flag must be used only for testing"
+            "use_context_fmha_for_generation is set. This flag must be used only for testing"
         )
         assert (
             args.use_gpt_attention_plugin
@@ -727,7 +727,7 @@ def build(rank, args):
             continue
         # NOTE: when only int8 kv cache is used together with paged kv cache no int8 tensors are exposed to TRT
         int8_trt_flag = args.quant_mode.has_act_or_weight_quant() or (
-            args.paged_kv_cache == False and args.quant_mode.has_int8_kv_cache()
+            args.paged_kv_cache is False and args.quant_mode.has_int8_kv_cache()
         )
         num_kv_heads = 1 if args.multi_query_mode else args.n_head
         builder_config = builder.create_builder_config(

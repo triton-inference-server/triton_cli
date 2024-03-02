@@ -175,9 +175,9 @@ def convert_hf_opt(
     num_attention_heads = hf_model.config.num_attention_heads
     hidden_size = hf_model.config.hidden_size
 
-    for l in range(hf_model.config.num_hidden_layers):
-        prefix = f"model.decoder.layers.{l}."
-        tllm_prex = f"transformer.layers.{l}."
+    for layer in range(hf_model.config.num_hidden_layers):
+        prefix = f"model.decoder.layers.{layer}."
+        tllm_prex = f"transformer.layers.{layer}."
 
         q_weight, q_bias = get_weight_and_bias(
             model_params, prefix + "self_attn.q_proj", dtype

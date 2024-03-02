@@ -61,10 +61,6 @@ class GPTBuilder:
         args = [
             "--model_dir",
             self.final_converted_weights_path,
-            # Spawning 1 instance of bls/pre/post models for each batch size
-            # significantly increases startup time. Keep GPT2 as batch size 1
-            # for simpler demo output and speed purposes.
-            "--max_batch_size=1",
             "--dtype=float16",
             *ifb_args,
             # NOTE: GPT2 emits a lot of warnings for INT8 build when it finds

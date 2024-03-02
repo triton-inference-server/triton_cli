@@ -35,7 +35,6 @@ class TRTLLMBuilder:
 
         build_args = [
             f"--checkpoint_dir={self.converted_weights_path}",
-            "--max_batch_size=1",
             "--context_fmha=enable",
             *ifb_args,
             *int8_args,

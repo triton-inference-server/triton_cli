@@ -102,18 +102,18 @@ def lora_convert_cpp_runtime(out_dir, lora_config, lora_weights, precision="floa
         LOGGER.debug(f"layer {layer_id} out_weights: {out_weights.shape}")
         in_out_weights = []
         adapter_size = 0
-        for w, inout in ((in_weights, "in"), (out_weights, "out")):
+        for w, in_out in ((in_weights, "in"), (out_weights, "out")):
             assert len(w.shape) == 2
             # assume that the hidden dim is the larger of the 2
             dim0 = w.shape[0]
             dim1 = w.shape[1]
             adapter_size = min(dim0, dim1)
             # in_weights should have shape [adaper_size, hidden]
-            if dim1 < dim0 and inout == "in":
+            if dim1 < dim0 and in_out == "in":
                 adapter_size = dim1
                 w = w.transpose(1, 0)
             # out_weights should have shape [hidden, adapter_size]
-            elif dim0 < dim1 and inout == "out":
+            elif dim0 < dim1 and in_out == "out":
                 adapter_size = dim0
                 w = w.transpose(1, 0)
 
