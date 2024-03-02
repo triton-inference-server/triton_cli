@@ -1,4 +1,4 @@
-# Copyright 2023, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# Copyright 2024, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -23,44 +23,22 @@
 # OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+import sys
+import triton_python_backend_utils as pb_utils
 
-# This workflow will install Python dependencies, run tests and lint with a variety of Python versions
-# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-python
+sys.path.append("../../")
 
-name: Python package
 
-on:
-  pull_request:
+class TritonPythonModel:
+    """An identity model that returns the input tensor as output."""
 
-jobs:
-  build:
-    runs-on: ${{ matrix.os }}
-    container:
-      image: nvcr.io/nvidia/tritonserver:24.01-py3
-    strategy:
-      fail-fast: false
-      matrix:
-        os: ["ubuntu-22.04"]
-        python-version: ["3.8", "3.10"]
+    def initialize(self, args):
+        pass
 
-    steps:
-    - uses: actions/checkout@v3
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v3
-      with:
-        python-version: ${{ matrix.python-version }}
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        python -m pip install -e .
-        python -c "import triton_cli; print(triton_cli.__version__)"
-    - name: Lint and format with ruff
-      run: |
-        python -m pip install ruff
-        ruff check .
-        ruff format .
-    - name: Test with pytest
-      run: |
-        pip install pytest pytest-cov psutil
-        cd tests
-        pytest --doctest-modules --junitxml=junit/test-results.xml --cov=triton_cli --cov-report=xml --cov-report=html --ignore-glob=test_models
+    def execute(self, requests):
+        responses = []
+        for request in requests:
+            in_0 = pb_utils.get_input_tensor_by_name(request, "TEXT_INPUT")
+            out_tensor_0 = pb_utils.Tensor("TEXT_OUTPUT", in_0.as_numpy())
+            responses.append(pb_utils.InferenceResponse([out_tensor_0]))
+        return responses

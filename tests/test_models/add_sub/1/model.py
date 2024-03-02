@@ -24,59 +24,50 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-import time
-import psutil
-import io
 import json
-from contextlib import redirect_stdout
-from triton_cli.main import run
-from subprocess import Popen
-from triton_cli.client.client import InferenceServerException
+import triton_python_backend_utils as pb_utils
 
 
-def run_server(repo=None, mode="local"):
-    args = ["triton", "server", "start"]
-    if repo:
-        args += ["--repo", repo]
-    if mode:
-        args += ["--mode", mode]
-    # Use Popen to run the server in the background as a separate process.
-    p = Popen(args)
-    return p.pid
+class TritonPythonModel:
+    """A simple add_sub model to test Triton CLI with non-LLM models."""
 
+    def initialize(self, args):
+        self.model_config = model_config = json.loads(args["model_config"])
 
-def wait_for_server_ready(timeout: int = 120):
-    start = time.time()
-    while time.time() - start < timeout:
-        print(
-            "Waiting for server to be ready ",
-            round(timeout - (time.time() - start)),
-            flush=True,
+        output0_config = pb_utils.get_output_config_by_name(model_config, "OUTPUT0")
+        output1_config = pb_utils.get_output_config_by_name(model_config, "OUTPUT1")
+
+        self.output0_dtype = pb_utils.triton_string_to_numpy(
+            output0_config["data_type"]
         )
-        time.sleep(1)
-        try:
-            if check_server_ready():
-                return
-        except InferenceServerException:
-            pass
-    raise Exception(f"=== Timeout {timeout} secs. Server not ready. ===")
+        self.output1_dtype = pb_utils.triton_string_to_numpy(
+            output1_config["data_type"]
+        )
 
+    def execute(self, requests):
+        output0_dtype = self.output0_dtype
+        output1_dtype = self.output1_dtype
 
-def kill_server(pid: int, sig: int = 2):
-    try:
-        proc = psutil.Process(pid)
-        proc.send_signal(sig)
-        proc.wait()
-    except psutil.NoSuchProcess as e:
-        print(e)
+        responses = []
 
+        for request in requests:
+            in_0 = pb_utils.get_input_tensor_by_name(request, "INPUT0")
+            in_1 = pb_utils.get_input_tensor_by_name(request, "INPUT1")
 
-def check_server_ready():
-    args = ["server", "health"]
-    output = ""
-    # Redirect stdout to a buffer to capture the output of the command.
-    with io.StringIO() as buf, redirect_stdout(buf):
-        run(args)
-        output = buf.getvalue()
-    output = json.loads(output)
-    return output["ready"]
+            out_0, out_1 = (
+                in_0.as_numpy() + in_1.as_numpy(),
+                in_0.as_numpy() - in_1.as_numpy(),
+            )
+
+            out_tensor_0 = pb_utils.Tensor("OUTPUT0", out_0.astype(output0_dtype))
+            out_tensor_1 = pb_utils.Tensor("OUTPUT1", out_1.astype(output1_dtype))
+
+            inference_response = pb_utils.InferenceResponse(
+                output_tensors=[out_tensor_0, out_tensor_1]
+            )
+            responses.append(inference_response)
+
+        return responses
+
+    def finalize(self):
+        pass
