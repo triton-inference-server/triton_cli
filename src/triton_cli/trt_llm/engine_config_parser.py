@@ -42,17 +42,21 @@ def parse_and_substitute(
     config_dict["engine_dir"] = engine_dir
     config_dict["tokenizer_dir"] = token_dir
     config_dict["tokenizer_type"] = token_type
-    config_dict["triton_max_batch_size"] = config_file["builder_config"][
+
+    # FIXME: Revert handling using 'build_config' as the key when gpt migrates to using unified builder
+    build_config_key = (
+        "builder_config"
+        if config_file.get("builder_config") is not None
+        else "build_config"
+    )
+    config_dict["triton_max_batch_size"] = config_file[build_config_key][
         "max_batch_size"
     ]
+    config_dict["max_queue_delay_microseconds"] = 1000
     # The following parameters are based on NGC's model requirements
-    config_dict["bls_instance_count"] = config_file["builder_config"]["max_batch_size"]
-    config_dict["postprocessing_instance_count"] = config_file["builder_config"][
-        "max_batch_size"
-    ]
-    config_dict["preprocessing_instance_count"] = config_file["builder_config"][
-        "max_batch_size"
-    ]
+    config_dict["bls_instance_count"] = 1
+    config_dict["postprocessing_instance_count"] = 1
+    config_dict["preprocessing_instance_count"] = 1
 
     trtllm_filepath = triton_model_dir + "/tensorrt_llm/config.pbtxt"
     substitute(trtllm_filepath, config_dict, dry_run)

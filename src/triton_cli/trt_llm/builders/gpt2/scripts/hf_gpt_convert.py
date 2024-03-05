@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2022-2023 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-FileCopyrightText: Copyright (c) 2022-2024 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -24,15 +24,14 @@ from pathlib import Path
 
 import torch
 import torch.multiprocessing as multiprocessing
-from tqdm import tqdm
-from transformers import AutoModelForCausalLM  # transformers-4.10.0-py3
-from transformers import AutoTokenizer
-from transformers.models.gpt2.modeling_gpt2 import GPT2Block
-
 from triton_cli.trt_llm.builders.gpt2.scripts.smoothquant import (
     capture_activation_range,
     smooth_gemm,
 )
+from tqdm import tqdm
+from transformers import AutoModelForCausalLM  # transformers-4.10.0-py3
+from transformers import AutoTokenizer
+from transformers.models.gpt2.modeling_gpt2 import GPT2Block
 from triton_cli.trt_llm.builders.gpt2.scripts.utils.convert import split_and_save_weight
 
 from tensorrt_llm._utils import str_dtype_to_torch, torch_to_numpy
@@ -319,6 +318,7 @@ def hf_gpt_converter(args: ProgArgs):
                         },
                     )
                 )
+
     starmap_args = tqdm(starmap_args, desc="saving weights")
     if args.processes > 1:
         with multiprocessing.Pool(args.processes) as pool:
