@@ -7,8 +7,7 @@ logger = logging.getLogger(LOGGER_NAME)
 
 
 class GPTBuilder:
-    def __init__(self, tokenizer_path: str, engine_output_path: str):
-        self.tokenizer_path = tokenizer_path
+    def __init__(self, engine_output_path: str):
         self.engine_output_path = engine_output_path
         self.converted_weights_path = engine_output_path + "/c-model/gpt2"
 
@@ -62,10 +61,6 @@ class GPTBuilder:
         args = [
             "--model_dir",
             self.final_converted_weights_path,
-            # Spawning 1 instance of bls/pre/post models for each batch size
-            # significantly increases startup time. Keep GPT2 as batch size 1
-            # for simpler demo output and speed purposes.
-            "--max_batch_size=1",
             "--dtype=float16",
             *ifb_args,
             # NOTE: GPT2 emits a lot of warnings for INT8 build when it finds

@@ -207,11 +207,14 @@ class TRTLLMUtils:
             engine_config_path = engine_path / "config.json"
             with open(engine_config_path) as json_data:
                 data = json.load(json_data)
-                config = data.get("builder_config")
+                # FIXME: Revert handling using 'build_config' as the key when gpt migrates to using unified builder
+                config = (
+                    data.get("builder_config")
+                    if data.get("builder_config") is not None
+                    else data.get("build_config")
+                )
                 if not config:
-                    raise Exception(
-                        f"Unable to parse 'builder_config' from {engine_config_path}"
-                    )
+                    raise Exception(f"Unable to parse config from {engine_config_path}")
                 tp = int(config.get("tensor_parallel", 1))
                 pp = int(config.get("pipeline_parallel", 1))
                 return tp * pp

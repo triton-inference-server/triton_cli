@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2022-2023 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-FileCopyrightText: Copyright (c) 2022-2024 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -104,7 +104,6 @@ def generate_int8(weights, act_range, is_qkv=False, multi_query_mode=False):
             scale_w_quant_orig_t, scale_w_orig_quant_c.shape
         )
 
-    # [CLI Change] Variable name changed to satisfy pre-commit hooks
     def to_i8(x):
         x.round().clip(-127, 127).astype(np.int8)
 

@@ -1,4 +1,4 @@
-FROM nvcr.io/nvidia/tritonserver:24.01-trtllm-python-py3
+FROM nvcr.io/nvidia/tritonserver:24.02-trtllm-python-py3
 
 # Setup vLLM Triton backend
 RUN mkdir -p /opt/tritonserver/backends/vllm && \
@@ -10,7 +10,7 @@ RUN pip install \
   "psutil" \
   "pynvml>=11.5.0" \
   "torch==2.1.2" \
-  --extra-index-url https://pypi.nvidia.com/ "tensorrt-llm==0.7.1"
+  --extra-index-url https://pypi.nvidia.com/ "tensorrt-llm==0.8.0"
 
 # vLLM runtime dependencies
 RUN pip install \

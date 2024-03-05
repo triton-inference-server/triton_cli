@@ -1,4 +1,4 @@
-# Copyright 2023, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# Copyright 2024, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -63,7 +63,7 @@ class TritonPythonModel:
             self.tokenizer = T5Tokenizer(vocab_file=tokenizer_dir, padding_side="left")
         elif tokenizer_type == "auto":
             self.tokenizer = AutoTokenizer.from_pretrained(
-                tokenizer_dir, padding_side="left"
+                tokenizer_dir, padding_side="left", trust_remote_code=True
             )
         elif tokenizer_type == "llama":
             self.tokenizer = LlamaTokenizer.from_pretrained(
@@ -124,6 +124,16 @@ class TritonPythonModel:
                 request, "OUTPUT_LOG_PROBS"
             ).as_numpy()
 
+            # Get context logits
+            context_logits = pb_utils.get_input_tensor_by_name(
+                request, "CONTEXT_LOGITS"
+            ).as_numpy()
+
+            # Get generation logits
+            generation_logits = pb_utils.get_input_tensor_by_name(
+                request, "GENERATION_LOGITS"
+            ).as_numpy()
+
             # Reshape Input
             # tokens_batch = tokens_batch.reshape([-1, tokens_batch.shape[0]])
             # tokens_batch = tokens_batch.T
@@ -143,6 +153,12 @@ class TritonPythonModel:
                 "OUT_OUTPUT_LOG_PROBS", output_log_probs
             )
 
+            out_context_logits = pb_utils.Tensor("OUT_CONTEXT_LOGITS", context_logits)
+
+            out_generation_logits = pb_utils.Tensor(
+                "OUT_GENERATION_LOGITS", generation_logits
+            )
+
             # Create InferenceResponse. You can set an error here in case
             # there was a problem with handling this inference request.
             # Below is an example of how you can set errors in inference
@@ -151,7 +167,13 @@ class TritonPythonModel:
             # pb_utils.InferenceResponse(
             #    output_tensors=..., TritonError("An error occurred"))
             inference_response = pb_utils.InferenceResponse(
-                output_tensors=[output_tensor, out_cum_log_probs, out_output_log_probs]
+                output_tensors=[
+                    output_tensor,
+                    out_cum_log_probs,
+                    out_output_log_probs,
+                    out_context_logits,
+                    out_generation_logits,
+                ]
             )
             responses.append(inference_response)
 
