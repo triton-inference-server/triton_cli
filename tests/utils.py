@@ -35,7 +35,7 @@ from triton_cli.client.client import InferenceServerException
 
 
 def run_server(repo=None, mode="local"):
-    args = ["triton", "server", "start"]
+    args = ["triton", "start"]
     if repo:
         args += ["--repo", repo]
     if mode:
@@ -72,7 +72,7 @@ def kill_server(pid: int, sig: int = 2):
 
 
 def check_server_ready():
-    args = ["server", "health"]
+    args = ["status"]
     output = ""
     # Redirect stdout to a buffer to capture the output of the command.
     with io.StringIO() as buf, redirect_stdout(buf):
