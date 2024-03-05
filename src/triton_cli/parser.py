@@ -272,7 +272,7 @@ def handle_repo_remove(args: argparse.Namespace):
     repo.remove(args.model)
 
 
-def handle_import(args: argparse.Namespace):
+def handle_repo_import(args: argparse.Namespace):
     repo = ModelRepository(args.model_repository)
     # Handle common models for convenience
     if not args.source:
@@ -401,6 +401,7 @@ def parse_args_inference(parser):
 def parse_args_repo(parser):
     # Model Repository Management
     repo_import = parser.add_parser("import", help="Import model to model repository")
+    repo_import.set_defaults(func=handle_repo_import)
     repo_import.add_argument(
         "-m",
         "--model",
@@ -418,6 +419,7 @@ def parse_args_repo(parser):
     )
 
     repo_remove = parser.add_parser("remove", help="Remove model from model repository")
+    repo_remove.set_defaults(func=handle_repo_remove)
     repo_remove.add_argument(
         "-m",
         "--model",
@@ -427,6 +429,7 @@ def parse_args_repo(parser):
     )
 
     repo_list = parser.add_parser("list", help="List models in the model repository")
+    repo_list.set_defaults(func=handle_repo_list)
 
     add_backend_args([repo_import])
     add_repo_args([repo_import, repo_remove, repo_list])
@@ -434,11 +437,11 @@ def parse_args_repo(parser):
 
 
 def parse_args_utils(parser):
+    status = parser.add_parser("status", help="Get status of running Triton server")
     config = parser.add_parser("config", help="Get config for model")
     metrics = parser.add_parser("metrics", help="Get metrics for model")
-    status = parser.add_parser("status", help="Get status of running Triton server")
     add_model_args([config])
-    # TODO: No grpc support for metrics endpoint
+    # TODO: Refactor later - No grpc support for metrics endpoint
     add_client_args([config, metrics, status])
 
 
@@ -465,4 +468,5 @@ def parse_args(argv=None):
 
 
 if __name__ == "__main__":
-    parse_args()
+    args = parse_args()
+    args.func(args)
