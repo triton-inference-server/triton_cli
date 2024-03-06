@@ -501,8 +501,3 @@ def parse_args(argv=None):
     add_verbose_args([parser])
     args = parser.parse_args(argv)
     return args
-
-
-if __name__ == "__main__":
-    args = parse_args()
-    args.func(args)
