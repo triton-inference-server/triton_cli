@@ -1,5 +1,7 @@
 --extra-index-url https://pypi.nvidia.com/
 psutil
-pynvml>=11.5.0
+# NOTE: downgrade to 11.4.0 so that tests will run on all
+# CI runners successfully. See review thread for more details.
+pynvml>=11.4.0
 tensorrt_llm==0.8.0
 torch==2.1.2

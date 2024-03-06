@@ -94,12 +94,15 @@ class TestRepo:
         # TODO: Parse repo to find model, with vllm backend in config
         self._clear()
 
+    @pytest.mark.skipif(
+        os.environ.get("IMAGE_KIND") != "TRTLLM", reason="Only run for TRT-LLM image"
+    )
     @pytest.mark.parametrize("model,source", CUSTOM_TRTLLM_MODEL_SOURCES)
     def test_repo_add_trtllm_build(self, model, source):
         # TODO: Parse repo to find TRT-LLM models and backend in config
-        self.repo_clear()
-        self.repo_add(model, source=source, backend="tensorrtllm")
-        self.repo_clear()
+        self._clear()
+        self._import(model, source=source, backend="tensorrtllm")
+        self._clear()
         pass
 
     @pytest.mark.skip(reason="Pre-built TRT-LLM engines not available")
