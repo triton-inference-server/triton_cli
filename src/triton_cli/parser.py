@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 # Copyright 2023-2024, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -75,6 +76,8 @@ def check_known_sources(model: str):
 
 # TODO: Move out of parser
 # TODO: Show server log/progress until ready
+# NOTE: This function is not currently used. Keeping for potential use when
+# launching the server in the background.
 def wait_for_ready(timeout, server, client):
     with Progress(transient=True) as progress:
         _ = progress.add_task("[green]Loading models...", total=None)
@@ -95,6 +98,9 @@ def wait_for_ready(timeout, server, client):
         )
 
 
+# ================================================
+# ARG GROUPS
+# ================================================
 def add_verbose_args(subcommands):
     for subcommand in subcommands:
         subcommand.add_argument(
@@ -126,6 +132,7 @@ def add_server_start_args(subcommands):
             required=False,
             help="Mode to start Triton with. If a mode is explicitly specified, only that mode will be tried. If no mode is specified (default), 'local' mode is tried first, then falls back to 'docker' mode on failure.",
         )
+        # TODO: Should probably not use the custom image by default, it's more for developer convenience
         subcommand.add_argument(
             "--image",
             type=str,
@@ -137,8 +144,8 @@ def add_server_start_args(subcommands):
             "--server-timeout",
             type=int,
             required=False,
-            default=600,
-            help="Maximum number of seconds to wait for server startup. (Default: 600)",
+            default=300,
+            help="Maximum number of seconds to wait for server startup. (Default: 300)",
         )
 
 
@@ -229,71 +236,89 @@ def add_repo_args(subcommands):
         )
 
 
-def handle_repo(args: argparse.Namespace):
+# ================================================
+# REPO
+# ================================================
+def parse_args_repo(parser):
+    repo_import = parser.add_parser("import", help="Import model to model repository")
+    repo_import.set_defaults(func=handle_repo_import)
+    repo_import.add_argument(
+        "-m",
+        "--model",
+        type=str,
+        required=True,
+        help="Name to assign to model in repository",
+    )
+    repo_import.add_argument(
+        "-s",
+        "--source",
+        type=str,
+        required=False,
+        help="Local model path or model identifier. Use prefix 'hf:' to specify a HuggingFace model ID. "
+        "NOTE: HuggingFace model support is currently limited to Transformer models through the vLLM backend.",
+    )
+
+    repo_remove = parser.add_parser("remove", help="Remove model from model repository")
+    repo_remove.set_defaults(func=handle_repo_remove)
+    repo_remove.add_argument(
+        "-m",
+        "--model",
+        type=str,
+        required=True,
+        help="Name of model to remove from repository. Specify 'all' to remove all models in the model repository.",
+    )
+
+    repo_list = parser.add_parser("list", help="List models in the model repository")
+    repo_list.set_defaults(func=handle_repo_list)
+
+    add_backend_args([repo_import])
+    add_repo_args([repo_import, repo_remove, repo_list])
+    return parser
+
+
+def handle_repo_import(args: argparse.Namespace):
     repo = ModelRepository(args.model_repository)
-    if args.subcommand == "add":
-        # Handle common models for convenience
-        if not args.source:
-            args.source = check_known_sources(args.model)
+    # Handle common models for convenience
+    if not args.source:
+        args.source = check_known_sources(args.model)
 
-        repo.add(
-            args.model,
-            version=1,
-            source=args.source,
-            backend=args.backend,
-        )
-    elif args.subcommand == "remove":
-        repo.remove(args.model)
-    elif args.subcommand == "list":
-        repo.list()
-    elif args.subcommand == "clear":
-        repo.clear()
-    else:
-        raise Exception(f"Invalid subcommand: {args.subcommand}")
+    repo.add(
+        args.model,
+        version=1,
+        source=args.source,
+        backend=args.backend,
+    )
 
 
-def handle_model(args: argparse.Namespace):
-    client = TritonClient(url=args.url, port=args.port, protocol=args.protocol)
-
-    if args.subcommand == "infer":
-        client.infer(args.model, args.data, args.prompt)
-    elif args.subcommand == "profile":
-        profile_model(args, client)
-    elif args.subcommand == "config":
-        config = client.get_model_config(args.model)
-        if config:
-            logger.info(f"{args.subcommand}:")
-            # TODO: Table
-            rich_print(config)
-    elif args.subcommand == "metrics":
-        client = MetricsClient(args.url, args.port)
-        # For model subcommand, limit metrics to only specified model metrics
-        # NOTE: Consider pretty table in future, but JSON output seems more
-        #       functionally useful for now.
-        # client.display_table(model_name=args.model)
-        client.display_json(model_name=args.model)
-    else:
-        raise Exception(f"model subcommand {args.subcommand} not supported")
+def handle_repo_remove(args: argparse.Namespace):
+    repo = ModelRepository(args.model_repository)
+    repo.remove(args.model)
 
 
-def start_server(args: argparse.Namespace, blocking=True):
-    assert args.mode is not None
-    server = TritonServerFactory.get_server_handle(args)
-    server.start()
-
-    if blocking:
-        try:
-            logger.info("Reading server output...")
-            server.logs()
-        except KeyboardInterrupt:
-            print()
-
-        logger.info("Stopping server...")
-        server.stop()
-
-    return server
+def handle_repo_list(args: argparse.Namespace):
+    repo = ModelRepository(args.model_repository)
+    repo.list()
 
 
+# ================================================
+# SERVER
+# ================================================
+def parse_args_server(parser):
+    server_start = parser.add_parser("start", help="Start a Triton server")
+    server_start.set_defaults(func=handle_server_start)
+    add_server_start_args([server_start])
+    add_repo_args([server_start])
+
+    # TODO:
+    #   - triton stop
+    #   - triton status
+
+
+def handle_server_start(args: argparse.Namespace):
+    start_server_with_fallback(args, blocking=True)
+
+
+# TODO: Move to utils <-- Delete?
 def start_server_with_fallback(args: argparse.Namespace, blocking=True):
     modes = [args.mode]
     if not args.mode:
@@ -324,135 +349,66 @@ def start_server_with_fallback(args: argparse.Namespace, blocking=True):
     return server
 
 
-def handle_server(args: argparse.Namespace):
-    if args.subcommand == "start":
-        start_server_with_fallback(args, blocking=True)
-    # TODO: Consider top-level metrics command/handler
-    elif args.subcommand == "metrics":
-        client = MetricsClient(args.url, args.port)
-        # NOTE: Consider pretty table in future, but JSON output seems more
-        #       functionally useful for now.
-        # client.display_table()
-        client.display_json()
-    elif args.subcommand == "health":
-        client = TritonClient(url=args.url, port=args.port, protocol=args.protocol)
-        health = client.get_server_health()
-        if health:
-            print(json.dumps(health))
-    elif args.subcommand == "metadata":
-        client = TritonClient(url=args.url, port=args.port, protocol=args.protocol)
-        metadata = client.get_server_metadata()
-        if metadata:
-            print(json.dumps(metadata))
-    else:
-        raise NotImplementedError(f"server subcommand {args.subcommand} not supported")
+def start_server(args: argparse.Namespace, blocking=True):
+    assert args.mode is not None
+    server = TritonServerFactory.get_server_handle(args)
+    server.start()
+
+    if blocking:
+        try:
+            logger.info("Reading server output...")
+            server.logs()
+        except KeyboardInterrupt:
+            print()
+
+        logger.info("Stopping server...")
+        server.stop()
+
+    return server
 
 
-def parse_args_model(subcommands):
-    # Infer
-    model = subcommands.add_parser(
-        "model", help="Interact with running server using model APIs"
-    )
-    model.set_defaults(func=handle_model)
+# ================================================
+# INFERENCE
+# ================================================
+def parse_args_inference(parser):
+    infer = parser.add_parser("infer", help="Send inference requests to models")
+    infer.set_defaults(func=handle_infer)
+    add_model_args([infer])
 
-    model_commands = model.add_subparsers(required=True, dest="subcommand")
-    infer = model_commands.add_parser("infer", help="Send inference requests to models")
-    profile = model_commands.add_parser(
-        "profile", help="Profile LLM models using Perf Analyzer"
-    )
-    config = model_commands.add_parser("config", help="Get config for model")
-    metrics = model_commands.add_parser("metrics", help="Get metrics for model")
-    add_model_args([infer, profile, config, metrics])
-
-    infer.add_argument(
-        "--data",
-        type=str,
-        choices=["random", "scalar"],
-        default="random",
-        help="Method to provide input data to model",
-    )
     infer.add_argument(
         "--prompt",
         type=str,
         default=None,
         help="Text input to LLM-like models. Required for inference on LLMs, optional otherwise.",
     )
+    add_client_args([infer])
 
+
+def handle_infer(args: argparse.Namespace):
+    client = TritonClient(url=args.url, port=args.port, protocol=args.protocol)
+    client.infer(model=args.model, prompt=args.prompt)
+
+
+# ================================================
+# Profile
+# ================================================
+def parse_args_profile(parser):
+    profile = parser.add_parser(
+        "profile", help="Profile LLM models using Perf Analyzer"
+    )
+    profile.set_defaults(func=handle_profile)
+    add_model_args([profile])
     add_profile_args([profile])
     add_backend_args([profile])
-    add_client_args([infer, profile, config, metrics])
-    return model
+    add_client_args([profile])
 
 
-def parse_args_repo(subcommands):
-    # Model Repository Management
-    repo = subcommands.add_parser(
-        "repo", help="Interact with a Triton model repository."
-    )
-    repo.set_defaults(func=handle_repo)
-    repo_commands = repo.add_subparsers(required=True, dest="subcommand")
-    repo_add = repo_commands.add_parser("add", help="Add model to model repository")
-    repo_add.add_argument(
-        "-m",
-        "--model",
-        type=str,
-        required=True,
-        help="Name to assign to model in repository",
-    )
-    repo_add.add_argument(
-        "-s",
-        "--source",
-        type=str,
-        required=False,
-        help="Local model path or model identifier. Use prefix 'hf:' to specify a HuggingFace model ID. "
-        "NOTE: HuggingFace model support is currently limited to Transformer models through the vLLM backend.",
-    )
-
-    repo_remove = repo_commands.add_parser(
-        "remove", help="Remove model from model repository"
-    )
-    repo_remove.add_argument(
-        "-m",
-        "--model",
-        type=str,
-        required=True,
-        help="Name of model to remove from repository",
-    )
-
-    repo_list = repo_commands.add_parser(
-        "list", help="List the models in the model repository"
-    )
-    repo_clear = repo_commands.add_parser(
-        "clear", help="Delete all contents in model repository"
-    )
-
-    add_backend_args([repo_add])
-    add_repo_args([repo_add, repo_remove, repo_list, repo_clear])
-    return repo
+def handle_profile(args: argparse.Namespace):
+    client = TritonClient(url=args.url, port=args.port, protocol=args.protocol)
+    profile_model(args, client)
 
 
-def parse_args_server(subcommands):
-    # Model Repository Management
-    server = subcommands.add_parser("server", help="Interact with a Triton server.")
-    server.set_defaults(func=handle_server)
-    server_commands = server.add_subparsers(required=True, dest="subcommand")
-    server_start = server_commands.add_parser("start", help="Start a Triton server")
-    add_server_start_args([server_start])
-    add_repo_args([server_start])
-
-    server_metrics = server_commands.add_parser(
-        "metrics", help="Get metrics from running Triton server"
-    )
-    server_health = server_commands.add_parser(
-        "health", help="Get health of running Triton server"
-    )
-    server_metadata = server_commands.add_parser(
-        "metadata", help="Get metadata of running Triton server"
-    )
-    add_client_args([server_metrics, server_health, server_metadata])
-    return server
-
-
+# TODO: Move to utils? <-- Delete?
 def profile_model(args: argparse.Namespace, client: TritonClient):
     if args.protocol != "grpc":
         raise Exception("Profiler only supports 'grpc' protocol at this time.")
@@ -482,83 +438,53 @@ def profile_model(args: argparse.Namespace, client: TritonClient):
     )
 
 
-def handle_bench(args: argparse.Namespace):
-    if args.verbose:
-        logger.setLevel(logging.DEBUG)
+# ================================================
+# Util
+# ================================================
+def parse_args_utils(parser):
+    metrics = parser.add_parser("metrics", help="Get metrics for model")
+    metrics.set_defaults(func=handle_metrics)
+    config = parser.add_parser("config", help="Get config for model")
+    config.set_defaults(func=handle_config)
+    status = parser.add_parser("status", help="Get status of running Triton server")
+    status.set_defaults(func=handle_status)
 
-    ### Add model to repo
-    repo = ModelRepository(args.model_repository)
-    # To avoid stale models or too many models across runs
-    repo.clear()
-    # Handle common models for convenience
-    if not args.source:
-        args.source = check_known_sources(args.model)
+    add_model_args([config])
+    # TODO: Refactor later - No grpc support for metrics endpoint
+    add_client_args([config, metrics, status])
 
-    repo.add(
-        args.model,
-        version=1,
-        source=args.source,
-        backend=args.backend,
-        verbose=args.verbose,
-    )
-
-    server = None
-    try:
-        ### Start server
-        server = start_server_with_fallback(args, blocking=False)
-        client = TritonClient(url=args.url, port=args.port, protocol=args.protocol)
-        wait_for_ready(args.server_timeout, server, client)
-
-        ### Profile model
-        logger.info("Server is ready for inference.")
-        profile_model(args, client)
-    except KeyboardInterrupt:
-        print()
-    except TimeoutError as e:
-        logger.error(e)
-    except Exception as e:
-        logger.error(f"Unexpected error: {e}")
-
-    if server:
-        logger.info("Stopping server...")
-        server.stop()
+    # TODO:
+    #   - triton load
+    #   - triton unload
 
 
-def parse_args_bench(subcommands):
-    # Model Repository Management
-    bench_run = subcommands.add_parser(
-        "bench", help="Run benchmarks on a model loaded into the Triton server."
-    )
-    bench_run.set_defaults(func=handle_bench)
-    # Conceptually group args for easier visualization
-    model_group = bench_run.add_argument_group("model")
-    known_models = list(KNOWN_MODEL_SOURCES.keys())
-    model_group.add_argument(
-        "-m",
-        "--model",
-        type=str,
-        required=True,
-        help=f"The name of the model to benchmark. Popular models with known sources can be selected directly from this list: {known_models}. Otherwise, provide a --source for unknown models.",
-    )
-    model_group.add_argument(
-        "-s",
-        "--source",
-        type=str,
-        required=False,
-        help="Local model path or model identifier. Use prefix 'hf:' to specify a HuggingFace model ID, or 'ngc:' for NGC model ID. "
-        "NOTE: HuggingFace models are currently limited to vLLM, and NGC models are currently limited to TRT-LLM",
-    )
+def handle_metrics(args: argparse.Namespace):
+    client = MetricsClient(args.url, args.port)
+    # NOTE: Consider pretty table in future, but JSON output seems more
+    #       functionally useful for now.
+    # client.display_table()
+    client.display_json()
 
-    server_group = bench_run.add_argument_group("server")
-    client_group = bench_run.add_argument_group("client")
-    profile_group = bench_run.add_argument_group("profile")
-    add_server_start_args([server_group])
-    add_repo_args([server_group])
-    add_client_args([client_group])
-    add_profile_args([profile_group])
-    add_backend_args([model_group])
 
-    return bench_run
+def handle_config(args: argparse.Namespace):
+    client = TritonClient(url=args.url, port=args.port, protocol=args.protocol)
+    config = client.get_model_config(args.model)
+    if config:
+        # TODO: Table
+        rich_print(config)
+
+
+def handle_status(args: argparse.Namespace):
+    client = TritonClient(url=args.url, port=args.port, protocol=args.protocol)
+
+    # FIXME: Does this need its own subcommand? e.g., triton metadata
+    # metadata = client.get_server_metadata()
+    # if metadata:
+    #     print(json.dumps(metadata))
+
+    health = client.get_server_health()
+    if health:
+        print(json.dumps(health))
 
 
 # Optional argv used for testing - will default to sys.argv if None.
@@ -566,11 +492,12 @@ def parse_args(argv=None):
     parser = argparse.ArgumentParser(
         prog="triton", description="CLI to interact with Triton Inference Server"
     )
-    subcommands = parser.add_subparsers(required=True, dest="command")
-    _ = parse_args_model(subcommands)
-    _ = parse_args_repo(subcommands)
-    _ = parse_args_server(subcommands)
-    _ = parse_args_bench(subcommands)
+    subcommands = parser.add_subparsers(required=True)
+    parse_args_repo(subcommands)
+    parse_args_server(subcommands)
+    parse_args_inference(subcommands)
+    parse_args_profile(subcommands)
+    parse_args_utils(subcommands)
     add_verbose_args([parser])
     args = parser.parse_args(argv)
     return args

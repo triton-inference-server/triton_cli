@@ -228,6 +228,9 @@ class ModelRepository:
     # TODO: remove doesn't support removing groups of models like TRT LLM at this time
     # Use "clear" instead to clean up the repo as a WAR.
     def remove(self, name: str, verbose=True):
+        if name.lower() == "all":
+            return self.clear()
+
         model_dir = self.repo / name
         if not model_dir.exists():
             raise FileNotFoundError(f"No model folder exists at {model_dir}")

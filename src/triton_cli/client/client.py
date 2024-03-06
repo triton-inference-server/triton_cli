@@ -198,7 +198,8 @@ class TritonClient:
         return infer_inputs
 
     # TODO: Add specialized 'triton llm infer' subcommand for LLM handling
-    def infer(self, model: str, data_mode: str, prompt: str = None):
+    # TODO: enum for data mode
+    def infer(self, model: str, data_mode: str = "random", prompt: str = None):
         self.prompt = prompt
         config = self.get_model_config(model)
         inputs = self.generate_data(config, data_mode)

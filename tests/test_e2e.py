@@ -42,14 +42,12 @@ PROMPT = "machine learning is"
 
 
 class TestE2E:
-    def repo_clear(self, repo=None):
-        args = ["repo", "clear"]
-        if repo:
-            args += ["--repo", repo]
+    def _clear(self):
+        args = ["remove", "-m", "all"]
         run(args)
 
-    def repo_add(self, model, source=None, backend=None, repo=None):
-        args = ["repo", "add", "-m", model]
+    def _import(self, model, source=None, backend=None, repo=None):
+        args = ["import", "-m", model]
         if source:
             args += ["--source", source]
         if backend:
@@ -58,16 +56,16 @@ class TestE2E:
             args += ["--repo", repo]
         run(args)
 
-    def model_infer(self, model, prompt=None, protocol=None):
-        args = ["model", "infer", "-m", model]
+    def _infer(self, model, prompt=None, protocol=None):
+        args = ["infer", "-m", model]
         if prompt:
             args += ["--prompt", prompt]
         if protocol:
             args += ["-i", protocol]
         run(args)
 
-    def model_profile(self, model, protocol=None, backend=None):
-        args = ["model", "profile", "-m", model]
+    def _profile(self, model, protocol=None, backend=None):
+        args = ["profile", "-m", model]
         if protocol:
             args += ["-i", protocol]
         if backend:
@@ -86,13 +84,13 @@ class TestE2E:
     def setup_and_teardown(self):
         # Setup before the test case is run.
         kill_server = self.KillServerByPid()
-        self.repo_clear()
+        self._clear()
 
         yield kill_server
 
         # Teardown after the test case is done.
         kill_server.kill_server()
-        self.repo_clear()
+        self._clear()
 
     @pytest.mark.skipif(
         os.environ.get("IMAGE_KIND") != "TRTLLM", reason="Only run for TRT-LLM image"
@@ -111,14 +109,14 @@ class TestE2E:
     )
     def test_tensorrtllm_e2e(self, protocol, setup_and_teardown):
         for model in TRTLLM_MODELS:
-            self.repo_add(model, backend="tensorrtllm")
+            self._import(model, backend="tensorrtllm")
         pid = utils.run_server()
         setup_and_teardown.pid = pid
         utils.wait_for_server_ready()
 
         for model in TRTLLM_MODELS:
-            self.model_infer(model, prompt=PROMPT, protocol=protocol)
-            self.model_profile(model, backend="tensorrtllm", protocol=protocol)
+            self._infer(model, prompt=PROMPT, protocol=protocol)
+            self._profile(model, backend="tensorrtllm", protocol=protocol)
 
     @pytest.mark.skipif(
         os.environ.get("IMAGE_KIND") != "VLLM", reason="Only run for VLLM image"
@@ -137,14 +135,14 @@ class TestE2E:
     )
     def test_vllm_e2e(self, protocol, setup_and_teardown):
         for model in VLLM_MODELS:
-            self.repo_add(model)
+            self._import(model)
         pid = utils.run_server()
         setup_and_teardown.pid = pid
         utils.wait_for_server_ready()
 
         for model in VLLM_MODELS:
-            self.model_infer(model, prompt=PROMPT, protocol=protocol)
-            self.model_profile(model, protocol=protocol)
+            self._infer(model, prompt=PROMPT, protocol=protocol)
+            self._profile(model, protocol=protocol)
 
     @pytest.mark.parametrize("protocol", ["grpc", "http"])
     def test_non_llm(self, protocol, setup_and_teardown):
@@ -157,12 +155,12 @@ class TestE2E:
 
         model = "add_sub"
         # infer should work without a prompt for non-LLM models
-        self.model_infer(model, protocol=protocol)
+        self._infer(model, protocol=protocol)
         # profile should fail for non-LLM models
         with pytest.raises(Exception):
             if protocol == "http":
                 pytest.xfail("Profiler does not support http protocol at this time")
-            self.model_profile(model, protocol=protocol)
+            self._profile(model, protocol=protocol)
 
     @pytest.mark.parametrize("protocol", ["grpc", "http"])
     def test_mock_llm(self, protocol, setup_and_teardown):
@@ -175,7 +173,7 @@ class TestE2E:
 
         model = "mock_llm"
         # infer should work with a prompt for LLM models
-        self.model_infer(model, prompt=PROMPT, protocol=protocol)
+        self._infer(model, prompt=PROMPT, protocol=protocol)
         # infer should fail without a prompt for LLM models
         with pytest.raises(Exception):
-            self.model_profile(model, protocol=protocol)
+            self._profile(model, protocol=protocol)
