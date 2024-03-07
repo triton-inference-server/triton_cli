@@ -239,41 +239,6 @@ def add_repo_args(subcommands):
 # ================================================
 # REPO
 # ================================================
-def parse_args_repo(parser):
-    repo_import = parser.add_parser("import", help="Import model to model repository")
-    repo_import.set_defaults(func=handle_repo_import)
-    repo_import.add_argument(
-        "-m",
-        "--model",
-        type=str,
-        required=True,
-        help="Name to assign to model in repository",
-    )
-    repo_import.add_argument(
-        "-s",
-        "--source",
-        type=str,
-        required=False,
-        help="Local model path or model identifier. Use prefix 'hf:' to specify a HuggingFace model ID. "
-        "NOTE: HuggingFace model support is currently limited to Transformer models through the vLLM backend.",
-    )
-
-    repo_remove = parser.add_parser("remove", help="Remove model from model repository")
-    repo_remove.set_defaults(func=handle_repo_remove)
-    repo_remove.add_argument(
-        "-m",
-        "--model",
-        type=str,
-        required=True,
-        help="Name of model to remove from repository. Specify 'all' to remove all models in the model repository.",
-    )
-
-    repo_list = parser.add_parser("list", help="List models in the model repository")
-    repo_list.set_defaults(func=handle_repo_list)
-
-    add_backend_args([repo_import])
-    add_repo_args([repo_import, repo_remove, repo_list])
-    return parser
 
 
 def handle_repo_import(args: argparse.Namespace):
@@ -303,15 +268,6 @@ def handle_repo_list(args: argparse.Namespace):
 # ================================================
 # SERVER
 # ================================================
-def parse_args_server(parser):
-    server_start = parser.add_parser("start", help="Start a Triton server")
-    server_start.set_defaults(func=handle_server_start)
-    add_server_start_args([server_start])
-    add_repo_args([server_start])
-
-    # TODO:
-    #   - triton stop
-    #   - triton status
 
 
 def handle_server_start(args: argparse.Namespace):
@@ -370,18 +326,6 @@ def start_server(args: argparse.Namespace, blocking=True):
 # ================================================
 # INFERENCE
 # ================================================
-def parse_args_inference(parser):
-    infer = parser.add_parser("infer", help="Send inference requests to models")
-    infer.set_defaults(func=handle_infer)
-    add_model_args([infer])
-
-    infer.add_argument(
-        "--prompt",
-        type=str,
-        default=None,
-        help="Text input to LLM-like models. Required for inference on LLMs, optional otherwise.",
-    )
-    add_client_args([infer])
 
 
 def handle_infer(args: argparse.Namespace):
@@ -392,15 +336,6 @@ def handle_infer(args: argparse.Namespace):
 # ================================================
 # Profile
 # ================================================
-def parse_args_profile(parser):
-    profile = parser.add_parser(
-        "profile", help="Profile LLM models using Perf Analyzer"
-    )
-    profile.set_defaults(func=handle_profile)
-    add_model_args([profile])
-    add_profile_args([profile])
-    add_backend_args([profile])
-    add_client_args([profile])
 
 
 def handle_profile(args: argparse.Namespace):
@@ -441,23 +376,6 @@ def profile_model(args: argparse.Namespace, client: TritonClient):
 # ================================================
 # Util
 # ================================================
-def parse_args_utils(parser):
-    metrics = parser.add_parser("metrics", help="Get metrics for model")
-    metrics.set_defaults(func=handle_metrics)
-    config = parser.add_parser("config", help="Get config for model")
-    config.set_defaults(func=handle_config)
-    status = parser.add_parser("status", help="Get status of running Triton server")
-    status.set_defaults(func=handle_status)
-
-    add_model_args([config])
-    # TODO: Refactor later - No grpc support for metrics endpoint
-    add_client_args([config, metrics, status])
-
-    # TODO:
-    #   - triton load
-    #   - triton unload
-
-
 def handle_metrics(args: argparse.Namespace):
     client = MetricsClient(args.url, args.port)
     # NOTE: Consider pretty table in future, but JSON output seems more
@@ -487,17 +405,133 @@ def handle_status(args: argparse.Namespace):
         print(json.dumps(health))
 
 
+# ================================================
+# Parsers
+# ================================================
+def parse_config(subcommands):
+    config = subcommands.add_parser("config", help="Get config for model")
+    config.set_defaults(func=handle_config)
+    add_model_args([config])
+    add_client_args([config])
+
+
+def parse_import(subcommands):
+    repo_import = subcommands.add_parser(
+        "import", help="Import model to model repository"
+    )
+    repo_import.set_defaults(func=handle_repo_import)
+    repo_import.add_argument(
+        "-m",
+        "--model",
+        type=str,
+        required=True,
+        help="Name to assign to model in repository",
+    )
+    repo_import.add_argument(
+        "-s",
+        "--source",
+        type=str,
+        required=False,
+        help="Local model path or model identifier. Use prefix 'hf:' to specify a HuggingFace model ID. "
+        "NOTE: HuggingFace model support is currently limited to Transformer models through the vLLM backend.",
+    )
+    add_backend_args([repo_import])
+    add_repo_args([repo_import])
+
+
+def parse_infer(subcommands):
+    infer = subcommands.add_parser("infer", help="Send inference requests to models")
+    infer.set_defaults(func=handle_infer)
+    add_model_args([infer])
+
+    infer.add_argument(
+        "--prompt",
+        type=str,
+        default=None,
+        help="Text input to LLM-like models. Required for inference on LLMs, optional otherwise.",
+    )
+    add_client_args([infer])
+
+
+def parse_list(subcommands):
+    repo_list = subcommands.add_parser(
+        "list", help="List models in the model repository"
+    )
+    repo_list.set_defaults(func=handle_repo_list)
+    add_repo_args([repo_list])
+
+
+def parse_metrics(subcommands):
+    metrics = subcommands.add_parser("metrics", help="Get metrics for model")
+    metrics.set_defaults(func=handle_metrics)
+    # TODO: Refactor later - No grpc support for metrics endpoint
+    add_client_args([metrics])
+
+
+def parse_profile(subcommands):
+    profile = subcommands.add_parser(
+        "profile", help="Profile LLM models using Perf Analyzer"
+    )
+    profile.set_defaults(func=handle_profile)
+    add_model_args([profile])
+    add_profile_args([profile])
+    add_backend_args([profile])
+    add_client_args([profile])
+
+
+def parse_remove(subcommands):
+    repo_remove = subcommands.add_parser(
+        "remove", help="Remove model from model repository"
+    )
+    repo_remove.set_defaults(func=handle_repo_remove)
+    repo_remove.add_argument(
+        "-m",
+        "--model",
+        type=str,
+        required=True,
+        help="Name of model to remove from repository. Specify 'all' to remove all models in the model repository.",
+    )
+    add_repo_args([repo_remove])
+
+
+def parse_start(subcommands):
+    server_start = subcommands.add_parser("start", help="Start a Triton server")
+    server_start.set_defaults(func=handle_server_start)
+    add_server_start_args([server_start])
+    add_repo_args([server_start])
+
+
+def parse_status(subcommands):
+    status = subcommands.add_parser(
+        "status", help="Get status of running Triton server"
+    )
+    status.set_defaults(func=handle_status)
+    add_client_args([status])
+
+
+# ================================================
+# Entrypoint
+# ================================================
+
+
 # Optional argv used for testing - will default to sys.argv if None.
 def parse_args(argv=None):
     parser = argparse.ArgumentParser(
-        prog="triton", description="CLI to interact with Triton Inference Server"
+        prog="triton",
+        description="CLI to interact with Triton Inference Server",
     )
-    subcommands = parser.add_subparsers(required=True)
-    parse_args_repo(subcommands)
-    parse_args_server(subcommands)
-    parse_args_inference(subcommands)
-    parse_args_profile(subcommands)
-    parse_args_utils(subcommands)
+    subcommands = parser.add_subparsers(title="subcommands", required=True)
+    parse_config(subcommands)
+    parse_import(subcommands)
+    parse_infer(subcommands)
+    parse_list(subcommands)
+    parse_metrics(subcommands)
+    parse_profile(subcommands)
+    parse_remove(subcommands)
+    parse_start(subcommands)
+    parse_status(subcommands)
+    # TODO: Apply verbose arg to all subcommands, rather than to top-level
     add_verbose_args([parser])
+
     args = parser.parse_args(argv)
     return args
