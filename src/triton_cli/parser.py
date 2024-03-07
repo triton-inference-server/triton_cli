@@ -520,7 +520,7 @@ def parse_args(argv=None):
         prog="triton",
         description="CLI to interact with Triton Inference Server",
     )
-    subcommands = parser.add_subparsers(title="subcommands", required=True)
+    subcommands = parser.add_subparsers(title="commands", required=True)
     parse_config(subcommands)
     parse_import(subcommands)
     parse_infer(subcommands)
