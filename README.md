@@ -16,7 +16,7 @@
 > If you decide to run the CLI on the host or in a custom image, you
 > may encounter the following system dependency issues:
 >
-> 1. If you encounter an error related to `libb64.so` from `triton model profile`
+> 1. If you encounter an error related to `libb64.so` from `triton profile`
 > or `perf_analyzer` such as:
 > ```
 > perf_analyzer: error while loading shared libraries: libb64.so.0d
@@ -27,7 +27,7 @@
 > apt install libb64-dev
 > ```
 >
-> 2. If you encounter an error related to `libcudart.so` from `triton model profile`
+> 2. If you encounter an error related to `libcudart.so` from `triton profile`
 > or `perf_analyzer` such as:
 > ```
 > perf_analyzer: error while loading shared libraries: libcudart.so
@@ -68,23 +68,20 @@ pip install .
 # Explore the commands
 triton -h
 
-# Interact with a local model repository
-triton repo -h
-
 # Add a vLLM model to the model repository, downloaded from HuggingFace
-triton repo add -m gpt2
+triton import -m gpt2
 
 # Start server pointing at the default model repository
-triton server start
+triton start
 
 # Infer with CLI
-triton model infer -m gpt2 --prompt "machine learning is"
+triton infer -m gpt2 --prompt "machine learning is"
 
 # Infer with curl using the generate endpoint
 curl -X POST localhost:8000/v2/models/gpt2/generate -d '{"text_input": "machine learning is", "max_tokens": 128}'
 
 # Profile model with Perf Analyzer
-triton model profile -m gpt2
+triton profile -m gpt2
 ```
 
 ## Examples
@@ -104,17 +101,17 @@ The following models have currently been tested for vLLM through the CLI:
 
 ```bash
 # Generate a Triton model repository containing a vLLM model config
-triton repo clear
-triton repo add -m gpt2 --backend vllm
+triton remove -m all
+triton import -m gpt2 --backend vllm
 
 # Start Triton pointing at the default model repository
-triton server start
+triton start
 
 # Interact with model
-triton model infer -m gpt2 --prompt "machine learning is"
+triton infer -m gpt2 --prompt "machine learning is"
 
 # Profile model with Perf Analyzer
-triton model profile -m gpt2
+triton profile -m gpt2
 ```
 
 ### Serving a TRT-LLM Model
@@ -169,15 +166,15 @@ engine builds through the CLI:
 
 ```bash
 # Build TRT LLM engine and generate a Triton model repository pointing at it
-triton repo clear
-triton repo add -m gpt2 --backend tensorrtllm
+triton remove -m all
+triton import -m gpt2 --backend tensorrtllm
 
 # Start Triton pointing at the default model repository
-triton server start
+triton start
 
 # Interact with model
-triton model infer -m gpt2 --prompt "machine learning is"
+triton infer -m gpt2 --prompt "machine learning is"
 
 # Profile model with Perf Analyzer
-triton model profile -m gpt2 --backend tensorrtllm
+triton profile -m gpt2 --backend tensorrtllm
 ```
