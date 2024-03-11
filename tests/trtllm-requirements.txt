@@ -1,3 +1,4 @@
 --extra-index-url https://pypi.nvidia.com/
+pytest
 tensorrt_llm==0.8.0
 torch==2.1.2

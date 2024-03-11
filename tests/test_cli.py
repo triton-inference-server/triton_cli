@@ -103,7 +103,6 @@ class TestRepo:
         self._clear()
         self._import(model, source=source, backend="tensorrtllm")
         self._clear()
-        pass
 
     @pytest.mark.skip(reason="Pre-built TRT-LLM engines not available")
     def test_import_trtllm_prebuilt(self, model, source):
