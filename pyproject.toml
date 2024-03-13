@@ -59,6 +59,8 @@ dependencies = [
     # TODO: Test on cpu-only machine if [cuda] dependency is an issue
     "tritonclient[all] >= 2.38",
     "huggingface-hub >= 0.19.4",
+    "pytest >= 8.1.1", # may remove later
+    "psutil >= 5.9.5", # may remove later
 ]
 
 # CLI Entrypoint

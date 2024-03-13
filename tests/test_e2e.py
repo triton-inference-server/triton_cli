@@ -23,20 +23,12 @@
 # OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-import sys
-
 
 import os
 import pytest
 from triton_cli.main import run
-from triton_cli.parser import KNOWN_MODEL_SOURCES
 import utils
 
-sys.path.append("../")
-KNOWN_MODELS = KNOWN_MODEL_SOURCES.keys()
-KNOWN_SOURCES = KNOWN_MODEL_SOURCES.values()
-TRTLLM_MODELS = ["gpt2"]
-VLLM_MODELS = ["gpt2"]
 
 PROMPT = "machine learning is"
 
@@ -108,15 +100,16 @@ class TestE2E:
         ],
     )
     def test_tensorrtllm_e2e(self, protocol, setup_and_teardown):
-        for model in TRTLLM_MODELS:
-            self._import(model, backend="tensorrtllm")
+        # NOTE: TRTLLM test models will be passed by the testing infrastructure.
+        # Only a single model will be passed per test to enable tests to run concurrently.
+        model = os.environ.get("TRTLLM_MODEL")
+        self._import(model, backend="tensorrtllm")
         pid = utils.run_server()
         setup_and_teardown.pid = pid
         utils.wait_for_server_ready()
 
-        for model in TRTLLM_MODELS:
-            self._infer(model, prompt=PROMPT, protocol=protocol)
-            self._profile(model, backend="tensorrtllm", protocol=protocol)
+        self._infer(model, prompt=PROMPT, protocol=protocol)
+        self._profile(model, backend="tensorrtllm", protocol=protocol)
 
     @pytest.mark.skipif(
         os.environ.get("IMAGE_KIND") != "VLLM", reason="Only run for VLLM image"
@@ -134,15 +127,16 @@ class TestE2E:
         ],
     )
     def test_vllm_e2e(self, protocol, setup_and_teardown):
-        for model in VLLM_MODELS:
-            self._import(model)
+        # NOTE: VLLM test models will be passed by the testing infrastructure.
+        # Only a single model will be passed per test to enable tests to run concurrently.
+        model = os.environ.get("VLLM_MODEL")
+        self._import(model)
         pid = utils.run_server()
         setup_and_teardown.pid = pid
         utils.wait_for_server_ready()
 
-        for model in VLLM_MODELS:
-            self._infer(model, prompt=PROMPT, protocol=protocol)
-            self._profile(model, protocol=protocol)
+        self._infer(model, prompt=PROMPT, protocol=protocol)
+        self._profile(model, protocol=protocol)
 
     @pytest.mark.parametrize("protocol", ["grpc", "http"])
     def test_non_llm(self, protocol, setup_and_teardown):

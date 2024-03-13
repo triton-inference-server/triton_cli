@@ -52,12 +52,14 @@ class TestRepo:
         args = ["remove", "-m", "all"]
         run(args)
 
-    def _import(self, model, source=None, repo=None):
+    def _import(self, model, source=None, repo=None, backend=None):
         args = ["import", "-m", model]
         if source:
             args += ["--source", source]
         if repo:
             args += ["--repo", repo]
+        if backend:
+            args += ["--backend", backend]
         run(args)
 
     def _remove(self, model, repo=None):
@@ -92,10 +94,15 @@ class TestRepo:
         # TODO: Parse repo to find model, with vllm backend in config
         self._clear()
 
-    @pytest.mark.skip(reason="TRT-LLM engine build support not ready to test")
-    def test_import_trtllm_build(self, model, source):
+    @pytest.mark.skipif(
+        os.environ.get("IMAGE_KIND") != "TRTLLM", reason="Only run for TRT-LLM image"
+    )
+    @pytest.mark.parametrize("model,source", CUSTOM_TRTLLM_MODEL_SOURCES)
+    def test_repo_add_trtllm_build(self, model, source):
         # TODO: Parse repo to find TRT-LLM models and backend in config
-        pass
+        self._clear()
+        self._import(model, source=source, backend="tensorrtllm")
+        self._clear()
 
     @pytest.mark.skip(reason="Pre-built TRT-LLM engines not available")
     def test_import_trtllm_prebuilt(self, model, source):
