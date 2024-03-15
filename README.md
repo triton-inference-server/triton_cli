@@ -1,4 +1,4 @@
-# Triton CLI
+# Triton Command Line Interface (Triton CLI)
 > [!NOTE]
 > Triton CLI is currently in BETA. Its features and functionality are likely to change as we collect feedback. We're excited to hear any thoughts you have (especially if you find the tool useful) and what features you'd like to see!
 > are subject to modification in the near-term.
