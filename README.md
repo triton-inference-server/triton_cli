@@ -1,6 +1,6 @@
 # Triton CLI
 > [!NOTE]
-> Triton CLI is currently in early access. Its features and functionality
+> Triton CLI is currently in BETA. Its features and functionality are likely to change as we collect feedback. We're excited to hear any thoughts you have (especially if you find the tool useful) and what features you'd like to see!
 > are subject to modification in the near-term.
 
 Triton CLI is an open source command line interface that enables users to
