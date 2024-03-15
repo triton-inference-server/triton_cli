@@ -4,6 +4,8 @@ Triton CLI is an open source command line interface that enables users to
 effortlessly create, deploy, and profile models served by the Triton Inference
 Server.
 
+## Table of Contents
+
 - [Pre-requisites](#pre-requisites)
 - [Installation](#installation)
 - [Quickstart](#quickstart)
