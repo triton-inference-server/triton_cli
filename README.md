@@ -166,8 +166,9 @@ pip install \
 
 The following models are currently supported for automating TRT-LLM
 engine builds through the CLI:
-> [!NOTE] Building a TRT-LLM engine for llama-2-7b will require a
-> system with at least 64GB of RAM.
+> [!NOTE] 
+> Building a TRT-LLM engine for `llama-2-7b` will require a system 
+> with at least 64GB of RAM.
 - `gpt2`
 - `llama-2-7b`
 -  `opt125m`
