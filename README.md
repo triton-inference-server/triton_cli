@@ -148,7 +148,7 @@ with the following command:
 # NOTE: Mounting the huggingface cache is optional, but will allow saving and
 # re-using downloaded huggingface models across different runs and containers.
 
-# NOTE: Mounting tmp is also optional, but will allow the saving and re-use of
+# NOTE: Mounting /tmp is also optional, but will allow the saving and re-use of
 # TRT-LLM engines across different containers. This assumes the value of
 # `ENGINE_DEST_PATH` has not been modified.
 
