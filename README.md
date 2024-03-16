@@ -1,7 +1,9 @@
 # Triton Command Line Interface (Triton CLI)
 > [!NOTE]
-> Triton CLI is currently in BETA. Its features and functionality are likely to change as we collect feedback. We're excited to hear any thoughts you have (especially if you find the tool useful) and what features you'd like to see!
-> are subject to modification in the near-term.
+> Triton CLI is currently in BETA. Its features and functionality are likely
+> to change as we collect feedback. We're excited to hear any thoughts you
+> have (especially if you find the tool useful) and what features you'd like
+> to see!
 
 Triton CLI is an open source command line interface that enables users to
 create, deploy, and profile models served by the Triton Inference
@@ -9,22 +11,15 @@ Server.
 
 ## Table of Contents
 
-- [Pre-requisites](#pre-requisites)
-- [Installation](#installation)
-- [Quickstart](#quickstart)
-- [Serving LLM Models](#serving-llm-models)
-  - [Serving a vLLM Model](#serving-a-vllm-model)
-  - [Serving a TRT-LLM Model](#serving-a-trt-llm-model)
-- [Additional Dependencies for Custom Environments](#additional-dependencies-for-custom-environments)
-- [Known Limitations](#known-limitations)
+| [Pre-requisites](#pre-requisites) | [Installation](#installation) | [Quickstart](#quickstart) | [Serving LLM Models](#serving-llm-models) | [Serving a vLLM Model](#serving-a-vllm-model) | [Serving a TRT-LLM Model](#serving-a-trt-llm-model) | [Additional Dependencies for Custom Environments](#additional-dependencies-for-custom-environments) | [Known Limitations](#known-limitations) |
 
 ## Pre-requisites
 
-When using Triton and related tools on your host, there are some system
-dependencies that may be required for various workflows. Most system dependency
-issues can be resolved by installing and running the CLI from within the latest
-corresponding `tritonserver` container image, which should have all necessary
-system dependencies installed.
+When using Triton and related tools on your host (outside of a Triton container
+image) there are a number of additional dependencies that may be required for
+various workflows. Most system dependency issues can be resolved by installing
+and running the CLI from within the latest corresponding `tritonserver`
+container image, which should have all necessary system dependencies installed.
 
 For vLLM and TRT-LLM, you can use their respective images:
 - `nvcr.io/nvidia/tritonserver:{YY.MM}-vllm-python-py3`
@@ -37,19 +32,14 @@ you may need to install.
 
 ## Installation
 
-Triton CLI can be installed from both pip and source. When installing Triton
-CLI, please be aware of the versioning matrix below:
+Currently, Triton CLI can only be installed from source, with plans to host a
+pip wheel soon. When installing Triton CLI, please be aware of the versioning
+matrix below:
 
 | Triton CLI Version | TRT-LLM Version | Triton Container Tag |
 |:------------------:|:---------------:|:--------------------:|
 | 0.0.6 | v0.8.0 | 24.02 |
 | 0.0.5 | v0.7.1 | 24.01 |
-
-### Install from Pip
-
-```bash
-pip install triton_cli -U --extra-index-url https://urm.nvidia.com/artifactory/api/pypi/sw-dl-triton-pypi-local/simple
-```
 
 ### Install from Source
 
