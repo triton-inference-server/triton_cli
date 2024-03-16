@@ -11,7 +11,7 @@ Server.
 
 ## Table of Contents
 
-| [Quickstart](#quickstart) | [Installation](#installation) | [Serving LLM Models](#serving-llm-models) | [Additional Dependencies for Custom Environments](#additional-dependencies-for-custom-environments) | [Known Limitations](#known-limitations) |
+| [Quickstart](#quickstart) | [Installation](#installation) | [Serving LLMs](#serving-llms) | [Additional Dependencies for Custom Environments](#additional-dependencies-for-custom-environments) | [Known Limitations](#known-limitations) |
 
 ## Quickstart
 The instructions below outline the process of building, deploying, and profiling
