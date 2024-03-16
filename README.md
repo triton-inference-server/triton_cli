@@ -18,13 +18,13 @@ The instructions below outline the process of building, deploying, and profiling
 a simple `gpt2` model using Triton CLI.
 
 ### Launch an NGC Docker Image
-For this example, we will be running a TRT-LLM model, so we will use the 
+For this example, we will be running a TRT-LLM model, so we will use the
 corresponding Triton + TRT-LLM NGC image to ensure we are operating in an
 environment with all the necessary system and runtime dependencies.
 Start a TRT-LLM container by running the following command:
 
 ```bash
-# NOTE: Mounting the huggingface cache and /tmp directories are both optional, 
+# NOTE: Mounting the huggingface cache and /tmp directories are both optional,
 # but will allow model saving and re-use across different runs and containers.
 
 docker run -it \
@@ -56,7 +56,7 @@ pip install .
 ### Import a Model
 With Triton CLI and TRT-LLM dependencies installed, we are now ready to
 import gpt2. Running the following command will automatically build a TRT-LLM
-gpt2 engine and generate a corresponding model repository: 
+gpt2 engine and generate a corresponding model repository:
 ```bash
 triton import -m gpt2 --backend tensorrtllm
 ```
@@ -77,7 +77,7 @@ I0922 23:28:40.395611 1 http_server.cc:187] Started Metrics Service at 0.0.0.0:8
 
 ### Send an Inference Request
 With the server now live, we are ready to send an inference request to our gpt2
-model. To do so, start a shell in the running docker container and use Triton 
+model. To do so, start a shell in the running docker container and use Triton
 CLI to send the gpt2 model an inference request:
 ```bash
 # Exec into running Triton container with CLI installed
@@ -100,7 +100,7 @@ triton profile -m gpt2 --backend tensorrtllm
  * Avg end-to-end latency: 213.4111 ms
  * Avg end-to-end throughput: 1199.8399 tokens/s
  * Avg generation throughput: 642.3200 output tokens/s
-``` 
+```
 
 ## Installation
 
@@ -125,7 +125,7 @@ pip install .
 ```
 ## Serving LLMs
 
-Triton CLI currently supports serving the following TRT-LLM and vLLM models. 
+Triton CLI currently supports serving the following TRT-LLM and vLLM models.
 
 > [!NOTE]
 > Usage of `llama-2-7b` requires authentication in Huggingface through either
