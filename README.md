@@ -1,55 +1,45 @@
-# Triton CLI
+# Triton Command Line Interface (Triton CLI)
+> [!NOTE]
+> Triton CLI is currently in BETA. Its features and functionality are likely
+> to change as we collect feedback. We're excited to hear any thoughts you
+> have (especially if you find the tool useful) and what features you'd like
+> to see!
+
+Triton CLI is an open source command line interface that enables users to
+create, deploy, and profile models served by the Triton Inference
+Server.
+
+## Table of Contents
+
+| [Pre-requisites](#pre-requisites) | [Installation](#installation) | [Quickstart](#quickstart) | [Serving LLM Models](#serving-llm-models) | [Serving a vLLM Model](#serving-a-vllm-model) | [Serving a TRT-LLM Model](#serving-a-trt-llm-model) | [Additional Dependencies for Custom Environments](#additional-dependencies-for-custom-environments) | [Known Limitations](#known-limitations) |
 
 ## Pre-requisites
 
-> [!NOTE]
-> When using Triton and related tools on your host, there are some system
-> dependencies that may be required for various workflows. Most system dependency
-> issues can be resolved by installing and running the CLI from within the latest
-> corresponding `tritonserver` container image, which should have all necessary
-> system dependencies installed.
->
-> For vLLM and TRT-LLM, you can use their respective image:
-> - `nvcr.io/nvidia/tritonserver:24.01-vllm-python-py3`
-> - `nvcr.io/nvidia/tritonserver:24.01-trtllm-python-py3`
->
-> If you decide to run the CLI on the host or in a custom image, you
-> may encounter the following system dependency issues:
->
-> 1. If you encounter an error related to `libb64.so` from `triton profile`
-> or `perf_analyzer` such as:
-> ```
-> perf_analyzer: error while loading shared libraries: libb64.so.0d
-> ```
->
-> Then you likely need to install this system dependency:
-> ```
-> apt install libb64-dev
-> ```
->
-> 2. If you encounter an error related to `libcudart.so` from `triton profile`
-> or `perf_analyzer` such as:
-> ```
-> perf_analyzer: error while loading shared libraries: libcudart.so
-> ```
->
-> Then you likely need to install the CUDA toolkit or set your `LD_LIBRARY_PATH`
-> correctly. Refer to: https://developer.nvidia.com/cuda-downloads.
->
-> 3. To build TensorRT LLM engines, you will need MPI installed in your environment.
-> MPI should be shipped in any relevant Triton or TRT-LLM containers, but if
-> building engines on host you can install them like so:
-> ```
-> sudo apt install libopenmpi-dev
-> ```
+When using Triton and related tools on your host (outside of a Triton container
+image) there are a number of additional dependencies that may be required for
+various workflows. Most system dependency issues can be resolved by installing
+and running the CLI from within the latest corresponding `tritonserver`
+container image, which should have all necessary system dependencies installed.
+
+For vLLM and TRT-LLM, you can use their respective images:
+- `nvcr.io/nvidia/tritonserver:{YY.MM}-vllm-python-py3`
+- `nvcr.io/nvidia/tritonserver:{YY.MM}-trtllm-python-py3`
+
+If you decide to run the CLI on the host or in a custom image, please
+see this list of [additional dependencies](#additional-dependencies-for-custom-environments)
+you may need to install.
+
 
 ## Installation
 
-### Install from Pip
+Currently, Triton CLI can only be installed from source, with plans to host a
+pip wheel soon. When installing Triton CLI, please be aware of the versioning
+matrix below:
 
-```bash
-pip install triton_cli -U --extra-index-url https://urm.nvidia.com/artifactory/api/pypi/sw-dl-triton-pypi-local/simple
-```
+| Triton CLI Version | TRT-LLM Version | Triton Container Tag |
+|:------------------:|:---------------:|:--------------------:|
+| 0.0.6 | v0.8.0 | 24.02 |
+| 0.0.5 | v0.7.1 | 24.01 |
 
 ### Install from Source
 
@@ -63,7 +53,11 @@ pip install .
 ```
 
 ## Quickstart
-
+The instructions below outline the process of deploying a simple `gpt2`
+model using Triton's [vLLM backend](https://github.com/triton-inference-server/vllm_backend).
+If you are not in an environment where the `tritonserver` executable is
+present, Triton CLI will automatically generate and run a custom image
+capable of serving the model. This behavior is subject to change.
 ```bash
 # Explore the commands
 triton -h
@@ -84,7 +78,11 @@ curl -X POST localhost:8000/v2/models/gpt2/generate -d '{"text_input": "machine 
 triton profile -m gpt2
 ```
 
-## Examples
+## Serving LLM Models
+
+Triton CLI is particularly adept at simplifying the workflow to deploy and
+interact with LLM models. The steps below illustrate how to serve a vLLM
+or TRT-LLM model from scratch in minutes.
 
 > [!NOTE]
 > Usage of `llama-2-7b` requires authentication in Huggingface through either
@@ -120,7 +118,8 @@ triton profile -m gpt2
 > By default, TRT-LLM engines are generated in `/tmp/engines/{model_name}`,
 > such as `/tmp/engines/gpt2`. They are intentionally kept outside of the model
 > repository to improve re-usability across examples and repositories. This
-> destination can be customized with the `ENGINE_DEST_PATH` environment variable.
+> default location is subject to change, but can be customized with the
+> `ENGINE_DEST_PATH` environment variable.
 >
 > The model configurations generated by the CLI prioritize accessibility over
 > performance. As such, the default number of model instances for each model
@@ -138,12 +137,18 @@ with the following command:
 ```bash
 # NOTE: Mounting the huggingface cache is optional, but will allow saving and
 # re-using downloaded huggingface models across different runs and containers.
+
+# NOTE: Mounting /tmp is also optional, but will allow the saving and re-use of
+# TRT-LLM engines across different containers. This assumes the value of
+# `ENGINE_DEST_PATH` has not been modified.
+
 docker run -ti \
   --gpus all \
   --network=host \
   --shm-size=1g --ulimit memlock=-1 \
+  -v /tmp:/tmp \
   -v $HOME/.cache/huggingface:/root/.cache/huggingface \
-  nvcr.io/nvidia/tritonserver:24.01-trtllm-python-py3
+  nvcr.io/nvidia/tritonserver:24.02-trtllm-python-py3
 ```
 
 Install the TRT-LLM dependencies:
@@ -160,6 +165,9 @@ pip install \
 
 The following models are currently supported for automating TRT-LLM
 engine builds through the CLI:
+> [!NOTE]
+> Building a TRT-LLM engine for `llama-2-7b` will require a system
+> with at least 64GB of RAM.
 - `gpt2`
 - `llama-2-7b`
 -  `opt125m`
@@ -178,3 +186,45 @@ triton infer -m gpt2 --prompt "machine learning is"
 # Profile model with Perf Analyzer
 triton profile -m gpt2 --backend tensorrtllm
 ```
+## Additional Dependencies for Custom Environments
+
+When using Triton CLI outside of official Triton NGC containers, you may
+encounter the following issues, indicating additional dependencies need
+to be installed.
+
+1. If you encounter an error related to `libb64.so` from `triton profile`
+or `perf_analyzer` such as:
+```
+perf_analyzer: error while loading shared libraries: libb64.so.0d
+```
+
+Then you likely need to install this system dependency:
+```
+apt install libb64-dev
+```
+
+2. If you encounter an error related to `libcudart.so` from `triton profile`
+or `perf_analyzer` such as:
+```
+perf_analyzer: error while loading shared libraries: libcudart.so
+```
+
+Then you likely need to install the CUDA toolkit or set your `LD_LIBRARY_PATH`
+correctly. Refer to: https://developer.nvidia.com/cuda-downloads.
+
+3. To build TensorRT LLM engines, you will need MPI installed in your environment.
+MPI should be shipped in any relevant Triton or TRT-LLM containers, but if
+building engines on host you can install them like so:
+```
+sudo apt install libopenmpi-dev
+```
+
+## Known Limitations
+- Triton CLI's `profile` command currently only supports TRT-LLM and vLLM models.
+- Models and configurations generated by Triton CLI are focused on ease-of-use,
+and may not be as optimized as possible for your system or use case.
+- Triton CLI currently uses the TRT-LLM dependencies installed in its environment
+to build TRT-LLM engines, so you must take care to match the build-time and
+run-time versions of TRT-LLM.
+- Triton CLI currently does not support launching the server as a background
+process.
