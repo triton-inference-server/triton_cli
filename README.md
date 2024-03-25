@@ -62,7 +62,7 @@ capable of serving the model. This behavior is subject to change.
 > [!NOTE]
 > `triton start` is a blocking command and will stream server logs to the
 > current shell. To interact with the running server, you will need to start
-> a separate shell and possibly `docker exec` into the container.
+> a separate shell and `docker exec` into the running container if using one.
 
 ```bash
 # Explore the commands
