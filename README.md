@@ -44,8 +44,8 @@ matrix below:
 ### Install from Source
 
 ```bash
-# Clone repo, git mode for development/contribution
-git clone git@github.com:triton-inference-server/triton_cli.git
+# Clone repo for development/contribution
+git clone https://github.com/triton-inference-server/triton_cli.git
 cd triton_cli
 
 # Should be pointing at directory containing pyproject.toml
@@ -58,6 +58,12 @@ model using Triton's [vLLM backend](https://github.com/triton-inference-server/v
 If you are not in an environment where the `tritonserver` executable is
 present, Triton CLI will automatically generate and run a custom image
 capable of serving the model. This behavior is subject to change.
+
+> [!NOTE]
+> `triton start` is a blocking command and will stream server logs to the
+> current shell. To interact with the running server, you will need to start
+> a separate shell and possibly `docker exec` into the container.
+
 ```bash
 # Explore the commands
 triton -h
