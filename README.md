@@ -44,12 +44,7 @@ matrix below:
 ### Install from Source
 
 ```bash
-# Clone repo for development/contribution
-git clone https://github.com/triton-inference-server/triton_cli.git
-cd triton_cli
-
-# Should be pointing at directory containing pyproject.toml
-pip install .
+pip install git+https://github.com/triton-inference-server/triton_cli.git
 ```
 
 ## Quickstart
