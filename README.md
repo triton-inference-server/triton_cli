@@ -43,8 +43,18 @@ matrix below:
 
 ### Install from GitHub
 
+Install latest from `main` branch:
+
 ```bash
 pip install git+https://github.com/triton-inference-server/triton_cli.git
+```
+
+It is also possible to install from a specific branch name, a commit hash
+or a tag name. For example to install `triton_cli` with tag 0.0.6:
+
+```bash
+GIT_REF="0.0.6"
+pip install git+https://github.com/triton-inference-server/triton_cli.git@${GIT_REF}
 ```
 
 ### Install from Source
