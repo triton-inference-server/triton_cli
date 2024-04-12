@@ -41,10 +41,21 @@ matrix below:
 | 0.0.6 | v0.8.0 | 24.02 |
 | 0.0.5 | v0.7.1 | 24.01 |
 
-### Install from Source
+### Install from GitHub
 
 ```bash
 pip install git+https://github.com/triton-inference-server/triton_cli.git
+```
+
+### Install from Source
+
+```bash
+# Clone repo for development/contribution
+git clone https://github.com/triton-inference-server/triton_cli.git
+cd triton_cli
+
+# Should be pointing at directory containing pyproject.toml
+pip install .
 ```
 
 ## Quickstart
