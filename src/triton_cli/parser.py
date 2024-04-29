@@ -45,7 +45,6 @@ from triton_cli.client.client import InferenceServerException, TritonClient
 from triton_cli.metrics import MetricsClient
 from triton_cli.repository import ModelRepository
 from triton_cli.server.server_factory import TritonServerFactory
-from triton_cli.profiler import Profiler
 
 logger = logging.getLogger(LOGGER_NAME)
 
@@ -363,15 +362,13 @@ def handle_infer(args: argparse.Namespace):
 # Profile
 # ================================================
 def parse_args_profile(parser):
-    profile = parser.add_parser(
-        "profile", help="Profile models"
-    )
+    profile = parser.add_parser("profile", help="Profile models")
     profile.set_defaults(func=handle_profile)
     profile.add_argument(
         "--task",
         type=str,
         required=False,
-        help="Specify the task type to select the profiling tool (e.g., llm for LLM models)"
+        help="Specify the task type to select the profiling tool (e.g., llm for LLM models)",
     )
 
 
@@ -382,7 +379,9 @@ def handle_profile(args: argparse.Namespace):
     elif args.task is None:
         cmd = build_command("perf_analyzer", args)
     else:
-        raise ValueError("Unsupported task type. Only 'llm' or unspecified tasks are supported for profiling.")
+        raise ValueError(
+            "Unsupported task type. Only 'llm' or unspecified tasks are supported for profiling."
+        )
     subprocess.run(cmd, check=True)
 
 
@@ -390,7 +389,9 @@ def handle_profile(args: argparse.Namespace):
 # Optimize
 # ================================================
 def parse_args_optimize(parser):
-    optimize = parser.add_parser("optimize", help="Optimize models using Model Analyzer")
+    optimize = parser.add_parser(
+        "optimize", help="Optimize models using Model Analyzer"
+    )
     optimize.set_defaults(func=handle_optimize)
 
 
@@ -480,40 +481,41 @@ def build_command(executable: str, args: argparse.Namespace):
     skip_args = ["task"]
     cmd = [executable]
     for arg, value in vars(args).items():
-            if arg in skip_args:
-                pass
-            elif value is False:
-                pass
-            elif value is True:
-                if len(arg) == 1:
-                    cmd += [f"-{arg}"]
-                else:
-                    cmd += [f"--{arg}"]
+        if arg in skip_args:
+            pass
+        elif value is False:
+            pass
+        elif value is True:
+            if len(arg) == 1:
+                cmd += [f"-{arg}"]
             else:
-                if len(arg) == 1:
-                    cmd += [f"-{arg}", f"{value}"]
-                else:
-                    arg = arg
-                    cmd += [f"--{arg}", f"{value}"]
+                cmd += [f"--{arg}"]
+        else:
+            if len(arg) == 1:
+                cmd += [f"-{arg}", f"{value}"]
+            else:
+                arg = arg
+                cmd += [f"--{arg}", f"{value}"]
     return cmd
 
 
 def add_unknown_args_to_args(args: argparse.Namespace, unknown_args: list[str]):
-    """ Add unknown args to args """
+    """Add unknown args to args"""
     unknown_args_dict = turn_unknown_args_into_dict(unknown_args)
     for key, value in unknown_args_dict.items():
         setattr(args, key, value)
     return args
 
+
 def turn_unknown_args_into_dict(unknown_args: list[str]):
-    """ Convert list of unknown args to dictionary """
+    """Convert list of unknown args to dictionary"""
     it = iter(unknown_args)
     unknown_args_dict = {}
     for arg in it:
         if arg.startswith("--"):
-            key = arg.lstrip('--')  # Ensure double dash is removed
+            key = arg.lstrip("--")  # Ensure double dash is removed
         elif arg.startswith("-"):
-            key = arg.lstrip('-')
+            key = arg.lstrip("-")
         else:
             raise ValueError(f"Invalid argument: {arg}")
         value = next(it, None)
@@ -524,10 +526,10 @@ def turn_unknown_args_into_dict(unknown_args: list[str]):
 class CustomHelpAction(argparse.Action):
     def __call__(self, parser, namespace, values, option_string=None):
         # Check specific conditions or namespace attributes
-        if getattr(namespace, 'task', None) == 'llm':
+        if getattr(namespace, "task", None) == "llm":
             # Perform the subprocess call instead of showing help
             print("Redirecting to a subprocess call for help...")
-            subprocess.run(['echo', 'Simulate subprocess call'])
+            subprocess.run(["echo", "Simulate subprocess call"])
         else:
             # Default help behavior
             parser.print_help()
