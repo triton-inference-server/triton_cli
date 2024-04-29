@@ -26,6 +26,8 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import json
+import subprocess
+import sys
 import time
 import logging
 import argparse
@@ -156,41 +158,6 @@ def add_model_args(subcommands):
     for subcommand in subcommands:
         subcommand.add_argument(
             "-m", "--model", type=str, required=True, help="Model name"
-        )
-
-
-def add_profile_args(subcommands):
-    for subcommand in subcommands:
-        subcommand.add_argument(
-            "-b",
-            "--batch-size",
-            type=int,
-            default=1,
-            required=False,
-            help="The batch size / concurrency to benchmark. (Default: 1)",
-        )
-        subcommand.add_argument(
-            "--input-length",
-            type=int,
-            default=128,
-            required=False,
-            help="The input length (tokens) to use for benchmarking LLMs. (Default: 128)",
-        )
-        subcommand.add_argument(
-            "--output-length",
-            type=int,
-            default=128,
-            required=False,
-            help="The output length (tokens) to use for benchmarking LLMs. (Default: 128)",
-        )
-        # TODO: Revisit terminology here. Online/offline vs streaming, etc.
-        subcommand.add_argument(
-            "--profile-mode",
-            type=str,
-            choices=["online", "offline"],
-            default="online",
-            required=False,
-            help="Profiling mode: offline means one full response will be generated, online means response will be streaming tokens as they are generated.",
         )
 
 
@@ -397,48 +364,40 @@ def handle_infer(args: argparse.Namespace):
 # ================================================
 def parse_args_profile(parser):
     profile = parser.add_parser(
-        "profile", help="Profile LLM models using Perf Analyzer"
+        "profile", help="Profile models"
     )
     profile.set_defaults(func=handle_profile)
-    add_model_args([profile])
-    add_profile_args([profile])
-    add_backend_args([profile])
-    add_client_args([profile])
+    profile.add_argument(
+        "--task",
+        type=str,
+        required=False,
+        help="Specify the task type to select the profiling tool (e.g., llm for LLM models)"
+    )
 
 
 def handle_profile(args: argparse.Namespace):
-    client = TritonClient(url=args.url, port=args.port, protocol=args.protocol)
-    profile_model(args, client)
+    args.__delattr__("func")
+    if args.task == "llm":
+        cmd = build_command("genai-perf", args)
+    elif args.task is None:
+        cmd = build_command("perf_analyzer", args)
+    else:
+        raise ValueError("Unsupported task type. Only 'llm' or unspecified tasks are supported for profiling.")
+    subprocess.run(cmd, check=True)
 
 
-# TODO: Move to utils? <-- Delete?
-def profile_model(args: argparse.Namespace, client: TritonClient):
-    if args.protocol != "grpc":
-        raise Exception("Profiler only supports 'grpc' protocol at this time.")
+# ================================================
+# Optimize
+# ================================================
+def parse_args_optimize(parser):
+    optimize = parser.add_parser("optimize", help="Optimize models using Model Analyzer")
+    optimize.set_defaults(func=handle_optimize)
 
-    if not args.port:
-        args.port = 8001 if args.protocol == "grpc" else 8000
 
-    # TODO: Consider python(BLS)/ensemble case for the model
-    # receiving requests in the case of TRT-LLM. For now, TRT-LLM
-    # should be manually specified.
-    backend = args.backend
-    if not args.backend:
-        # Profiler needs to know TRT-LLM vs vLLM to form correct payload
-        backend = client.get_model_backend(args.model)
-
-    logger.info(f"Running Perf Analyzer profiler on '{args.model}'...")
-    Profiler.profile(
-        model=args.model,
-        backend=backend,
-        batch_size=args.batch_size,
-        url=f"{args.url}:{args.port}",
-        input_length=args.input_length,
-        output_length=args.output_length,
-        # Should be "online" for IFB / streaming, and "offline" for non-streaming
-        offline=(args.profile_mode == "offline"),
-        verbose=args.verbose,
-    )
+def handle_optimize(args: argparse.Namespace):
+    args.__delattr__("func")
+    cmd = build_command("model-analyzer", args)
+    subprocess.run(cmd, check=True)
 
 
 # ================================================
@@ -500,7 +459,76 @@ def parse_args(argv=None):
     parse_args_server(subcommands)
     parse_args_inference(subcommands)
     parse_args_profile(subcommands)
+    parse_args_optimize(subcommands)
     parse_args_utils(subcommands)
     add_verbose_args([parser])
-    args = parser.parse_args(argv)
+
+    passthrough_subcommands = ["profile", "optimize"]
+    argv_ = argv if argv is not None else sys.argv[1:]
+    if len(argv_) > 1 and argv_[0] in passthrough_subcommands:
+        args, unknown_args = parser.parse_known_args(argv)
+        args = add_unknown_args_to_args(args, unknown_args)
+    else:
+        args = parser.parse_args(argv)
     return args
+
+
+# ================================================
+# Helper functions
+# ================================================
+def build_command(executable: str, args: argparse.Namespace):
+    skip_args = ["task"]
+    cmd = [executable]
+    for arg, value in vars(args).items():
+            if arg in skip_args:
+                pass
+            elif value is False:
+                pass
+            elif value is True:
+                if len(arg) == 1:
+                    cmd += [f"-{arg}"]
+                else:
+                    cmd += [f"--{arg}"]
+            else:
+                if len(arg) == 1:
+                    cmd += [f"-{arg}", f"{value}"]
+                else:
+                    arg = arg
+                    cmd += [f"--{arg}", f"{value}"]
+    return cmd
+
+
+def add_unknown_args_to_args(args: argparse.Namespace, unknown_args: list[str]):
+    """ Add unknown args to args """
+    unknown_args_dict = turn_unknown_args_into_dict(unknown_args)
+    for key, value in unknown_args_dict.items():
+        setattr(args, key, value)
+    return args
+
+def turn_unknown_args_into_dict(unknown_args: list[str]):
+    """ Convert list of unknown args to dictionary """
+    it = iter(unknown_args)
+    unknown_args_dict = {}
+    for arg in it:
+        if arg.startswith("--"):
+            key = arg.lstrip('--')  # Ensure double dash is removed
+        elif arg.startswith("-"):
+            key = arg.lstrip('-')
+        else:
+            raise ValueError(f"Invalid argument: {arg}")
+        value = next(it, None)
+        unknown_args_dict[key] = value
+    return unknown_args_dict
+
+
+class CustomHelpAction(argparse.Action):
+    def __call__(self, parser, namespace, values, option_string=None):
+        # Check specific conditions or namespace attributes
+        if getattr(namespace, 'task', None) == 'llm':
+            # Perform the subprocess call instead of showing help
+            print("Redirecting to a subprocess call for help...")
+            subprocess.run(['echo', 'Simulate subprocess call'])
+        else:
+            # Default help behavior
+            parser.print_help()
+        sys.exit(0)
