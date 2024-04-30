@@ -67,6 +67,17 @@ class TestE2E:
             args += ["--backend", backend]
         run(args)
 
+    def _optimize(self, model, backend=None):
+        args = [
+            "optimize",
+            "profile",
+            "--profile-models",
+            model,
+            "--triton-launch-mode",
+            "local",
+        ]
+        run(args)
+
     class KillServerByPid:
         def __init__(self):
             self.pid = None
@@ -159,11 +170,8 @@ class TestE2E:
         model = "add_sub"
         # infer should work without a prompt for non-LLM models
         self._infer(model, protocol=protocol)
-        # profile should fail for non-LLM models
-        with pytest.raises(Exception):
-            if protocol == "http":
-                pytest.xfail("Profiler does not support http protocol at this time")
-            self._profile(model, protocol=protocol)
+        self._profile(model, protocol=protocol)
+        self._optimize(model)
 
     @pytest.mark.parametrize("protocol", ["grpc", "http"])
     def test_mock_llm(self, protocol, setup_and_teardown):
@@ -178,4 +186,6 @@ class TestE2E:
         self._infer(model, prompt=PROMPT, protocol=protocol)
         # infer should fail without a prompt for LLM models
         with pytest.raises(Exception):
-            self._profile(model, protocol=protocol)
+            self._infer(model, protocol=protocol)
+        # profile should work without a prompt for LLM models
+        self._profile(model, protocol=protocol)

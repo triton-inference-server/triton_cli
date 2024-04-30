@@ -363,8 +363,11 @@ def handle_infer(args: argparse.Namespace):
 # Profile
 # ================================================
 def parse_args_profile(parser):
-    profile = parser.add_parser("profile", help="Profile models")
+    profile = parser.add_parser("profile", help="Profile models", add_help=False)
     profile.set_defaults(func=handle_profile)
+    profile.add_argument(
+        "--help", action="store_true", help="Show help message and exit"
+    )
     profile.add_argument(
         "--task",
         type=str,
@@ -392,9 +395,12 @@ def handle_profile(args: argparse.Namespace):
 # ================================================
 def parse_args_optimize(parser):
     optimize = parser.add_parser(
-        "optimize", help="Optimize models using Model Analyzer"
+        "optimize", help="Optimize models using Model Analyzer", add_help=False
     )
     optimize.set_defaults(func=handle_optimize)
+    optimize.add_argument(
+        "--help", action="store_true", help="Show help message and exit"
+    )
 
 
 def handle_optimize(args: argparse.Namespace):
@@ -469,8 +475,15 @@ def parse_args(argv=None):
 
     passthrough_subcommands = ["profile", "optimize"]
     argv_ = argv if argv is not None else sys.argv[1:]
-    if len(argv_) > 1 and argv_[0] in passthrough_subcommands:
-        args, unknown_args = parser.parse_known_args(argv)
+    # If a passthrough command is passed as the first arg,
+    # special handling is needed.
+    need_special_handling = len(argv_) > 1 and argv_[0] in passthrough_subcommands
+    if need_special_handling:
+        modified_argv = modify_argv_to_exclude_extra_subcommands(
+            argv_, subcommands.choices.keys()
+        )
+        args, unknown_args = parser.parse_known_args(modified_argv)
+        print(args)
         args = add_unknown_args_to_args(args, unknown_args)
     else:
         args = parser.parse_args(argv)
@@ -502,6 +515,26 @@ def build_command(executable: str, args: argparse.Namespace):
     return cmd
 
 
+def modify_argv_to_exclude_extra_subcommands(argv: List[str], subcommand_names):
+    """Modify argv to handle potential argument conflicts. This removes args that use subcommand names."""
+    modified_argv = [argv[0]]
+    skip_next = False
+    for i, arg in enumerate(argv[1:]):
+        if skip_next:
+            skip_next = False
+            continue
+        if arg.startswith("--") and "=" in arg:
+            arg, value = arg.split("=", 1)
+            modified_argv.append(arg)
+            modified_argv.append(value)
+        elif arg in subcommand_names:
+            # Skip adding this to avoid confusion with subcommands
+            skip_next = True
+        else:
+            modified_argv.append(arg)
+    return modified_argv
+
+
 def add_unknown_args_to_args(args: argparse.Namespace, unknown_args: List[str]):
     """Add unknown args to args"""
     unknown_args_dict = turn_unknown_args_into_dict(unknown_args)
@@ -524,16 +557,3 @@ def turn_unknown_args_into_dict(unknown_args: List[str]):
         value = next(it, None)
         unknown_args_dict[key] = value
     return unknown_args_dict
-
-
-class CustomHelpAction(argparse.Action):
-    def __call__(self, parser, namespace, values, option_string=None):
-        # Check specific conditions or namespace attributes
-        if getattr(namespace, "task", None) == "llm":
-            # Perform the subprocess call instead of showing help
-            print("Redirecting to a subprocess call for help...")
-            subprocess.run(["echo", "Simulate subprocess call"])
-        else:
-            # Default help behavior
-            parser.print_help()
-        sys.exit(0)
