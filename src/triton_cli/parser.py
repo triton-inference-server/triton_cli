@@ -29,6 +29,7 @@ import json
 import subprocess
 import sys
 import time
+from Typing import List
 import logging
 import argparse
 from pathlib import Path
@@ -382,6 +383,7 @@ def handle_profile(args: argparse.Namespace):
         raise ValueError(
             "Unsupported task type. Only 'llm' or unspecified tasks are supported for profiling."
         )
+    logger.info(f"Running: '{' '.join(cmd)}'")
     subprocess.run(cmd, check=True)
 
 
@@ -398,6 +400,7 @@ def parse_args_optimize(parser):
 def handle_optimize(args: argparse.Namespace):
     args.__delattr__("func")
     cmd = build_command("model-analyzer", args)
+    logger.info(f"Running: '{' '.join(cmd)}'")
     subprocess.run(cmd, check=True)
 
 
@@ -499,7 +502,7 @@ def build_command(executable: str, args: argparse.Namespace):
     return cmd
 
 
-def add_unknown_args_to_args(args: argparse.Namespace, unknown_args: list[str]):
+def add_unknown_args_to_args(args: argparse.Namespace, unknown_args: List[str]):
     """Add unknown args to args"""
     unknown_args_dict = turn_unknown_args_into_dict(unknown_args)
     for key, value in unknown_args_dict.items():
@@ -507,7 +510,7 @@ def add_unknown_args_to_args(args: argparse.Namespace, unknown_args: list[str]):
     return args
 
 
-def turn_unknown_args_into_dict(unknown_args: list[str]):
+def turn_unknown_args_into_dict(unknown_args: List[str]):
     """Convert list of unknown args to dictionary"""
     it = iter(unknown_args)
     unknown_args_dict = {}

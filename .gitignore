@@ -18,12 +18,15 @@ eggs/
 lib64/
 parts/
 sdist/
+tests/tmp/
+tmp/
 var/
 wheels/
 share/python-wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+llm_inputs.json
 MANIFEST
 
 # PyInstaller
