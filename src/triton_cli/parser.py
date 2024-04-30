@@ -29,7 +29,7 @@ import json
 import subprocess
 import sys
 import time
-from Typing import List
+from typing import List
 import logging
 import argparse
 from pathlib import Path
