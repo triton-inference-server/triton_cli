@@ -41,6 +41,7 @@ from triton_cli.constants import (
     DEFAULT_MODEL_REPO,
     DEFAULT_TRITONSERVER_IMAGE,
     LOGGER_NAME,
+    PASSTHROUGH_SUBCOMMANDS,
 )
 from triton_cli.client.client import InferenceServerException, TritonClient
 from triton_cli.metrics import MetricsClient
@@ -473,18 +474,16 @@ def parse_args(argv=None):
     parse_args_utils(subcommands)
     add_verbose_args([parser])
 
-    passthrough_subcommands = ["profile", "optimize"]
     argv_ = argv if argv is not None else sys.argv[1:]
     # If a passthrough command is passed as the first arg,
     # special handling is needed.
-    need_special_handling = len(argv_) > 1 and argv_[0] in passthrough_subcommands
+    need_special_handling = len(argv_) > 1 and argv_[0] in PASSTHROUGH_SUBCOMMANDS
     if need_special_handling:
-        modified_argv = modify_argv_to_exclude_extra_subcommands(
+        updated_args, pruned_args = prune_extra_subcommand_args(
             argv_, subcommands.choices.keys()
         )
-        args, unknown_args = parser.parse_known_args(modified_argv)
-        print(args)
-        args = add_unknown_args_to_args(args, unknown_args)
+        args, unknown_args = parser.parse_known_args(updated_args)
+        args = add_unknown_args_to_args(args, pruned_args, unknown_args)
     else:
         args = parser.parse_args(argv)
     return args
@@ -496,9 +495,12 @@ def parse_args(argv=None):
 def build_command(executable: str, args: argparse.Namespace):
     skip_args = ["task"]
     cmd = [executable]
+    program_subcommand = None
     for arg, value in vars(args).items():
         if arg in skip_args:
             pass
+        elif arg in PASSTHROUGH_SUBCOMMANDS:
+            program_subcommand = arg
         elif value is False:
             pass
         elif value is True:
@@ -512,48 +514,52 @@ def build_command(executable: str, args: argparse.Namespace):
             else:
                 arg = arg
                 cmd += [f"--{arg}", f"{value}"]
+    if program_subcommand:
+        cmd = [executable, program_subcommand] + cmd[1:]
     return cmd
 
 
-def modify_argv_to_exclude_extra_subcommands(argv: List[str], subcommand_names):
-    """Modify argv to handle potential argument conflicts. This removes args that use subcommand names."""
-    modified_argv = [argv[0]]
-    skip_next = False
-    for i, arg in enumerate(argv[1:]):
-        if skip_next:
-            skip_next = False
-            continue
-        if arg.startswith("--") and "=" in arg:
-            arg, value = arg.split("=", 1)
-            modified_argv.append(arg)
-            modified_argv.append(value)
-        elif arg in subcommand_names:
-            # Skip adding this to avoid confusion with subcommands
-            skip_next = True
-        else:
-            modified_argv.append(arg)
-    return modified_argv
+def prune_extra_subcommand_args(argv: List[str], subcommand_names):
+    """Triton CLI can call other programs with passthrough args, so sometimes the first argument is a subcommand."""
+    """If so, prune it."""
+    pruned_args = []
+    if len(argv) > 1 and argv[1] in subcommand_names:
+        pruned_args.append(argv[1])
+        argv.remove(argv[1])
+    return argv, pruned_args
 
 
-def add_unknown_args_to_args(args: argparse.Namespace, unknown_args: List[str]):
+def add_unknown_args_to_args(
+    args: argparse.Namespace, pruned_args: List[str], unknown_args: List[str]
+):
     """Add unknown args to args"""
     unknown_args_dict = turn_unknown_args_into_dict(unknown_args)
+    if pruned_args:
+        setattr(args, pruned_args[0], True)
     for key, value in unknown_args_dict.items():
         setattr(args, key, value)
     return args
 
 
-def turn_unknown_args_into_dict(unknown_args: List[str]):
+def turn_unknown_args_into_dict(unknown_args):
     """Convert list of unknown args to dictionary"""
     it = iter(unknown_args)
     unknown_args_dict = {}
-    for arg in it:
-        if arg.startswith("--"):
-            key = arg.lstrip("--")  # Ensure double dash is removed
-        elif arg.startswith("-"):
-            key = arg.lstrip("-")
-        else:
-            raise ValueError(f"Invalid argument: {arg}")
-        value = next(it, None)
-        unknown_args_dict[key] = value
+    try:
+        while True:
+            arg = next(it)
+            if arg.startswith(("-", "--")):
+                key = arg.lstrip("-")
+                # Peek to see if next item is a value or another flag
+                next_arg = next(it, None)
+                if next_arg and not next_arg.startswith(("-", "--")):
+                    unknown_args_dict[key] = next_arg
+                else:
+                    unknown_args_dict[key] = True
+                    if next_arg:
+                        it = iter([next_arg] + list(it))
+            else:
+                raise ValueError(f"Invalid argument: {arg}")
+    except StopIteration:
+        pass
     return unknown_args_dict
