@@ -485,7 +485,7 @@ def add_unknown_args_to_args(args: argparse.Namespace, unknown_args: List[str]):
     return args
 
 
-def turn_unknown_args_into_dict(unknown_args: List[str]):
+def turn_unknown_args_into_dict(unknown_args):
     """Convert list of unknown args to dictionary"""
     it = iter(unknown_args)
     unknown_args_dict = {}

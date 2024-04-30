@@ -19,6 +19,7 @@ lib64/
 parts/
 sdist/
 tests/checkpoints/
+tests/output_dir/
 tests/output_model_repository/
 tests/plots/
 tests/reports/

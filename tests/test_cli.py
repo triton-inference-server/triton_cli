@@ -27,7 +27,7 @@
 import os
 import pytest
 from triton_cli.main import run
-from triton_cli.parser import KNOWN_MODEL_SOURCES
+from triton_cli.parser import KNOWN_MODEL_SOURCES, parse_args
 
 KNOWN_MODELS = KNOWN_MODEL_SOURCES.keys()
 KNOWN_SOURCES = KNOWN_MODEL_SOURCES.values()
@@ -129,3 +129,28 @@ class TestRepo:
     @pytest.mark.parametrize("repo", TEST_REPOS)
     def test_list(self, repo):
         self._list(repo)
+
+    def test_triton_profile_without_task(self, mocker, monkeypatch):
+        test_args = ["triton", "profile", "-m", "add_sub"]
+        mock_run = mocker.patch("subprocess.run")
+        monkeypatch.setattr("sys.argv", test_args)
+        args = parse_args()
+        args.func(args)
+        mock_run.assert_called_once_with(["perf_analyzer", "-m", "add_sub"], check=True)
+
+    def test_triton_profile_with_task_llm(self, mocker, monkeypatch):
+        test_args = ["triton", "profile", "-m", "gpt2", "--task", "llm"]
+        mock_run = mocker.patch("subprocess.run")
+        monkeypatch.setattr("sys.argv", test_args)
+        args = parse_args()
+        args.func(args)
+
+        mock_run.assert_called_once_with(["genai-perf", "-m", "gpt2"], check=True)
+
+    def test_triton_optimize(self, mocker, monkeypatch):
+        test_args = ["triton", "optimize", "-m", "gpt2"]
+        mock_run = mocker.patch("subprocess.run")
+        monkeypatch.setattr("sys.argv", test_args)
+        args = parse_args()
+        args.func(args)
+        mock_run.assert_called_once_with(["model-analyzer", "-m", "gpt2"], check=True)
