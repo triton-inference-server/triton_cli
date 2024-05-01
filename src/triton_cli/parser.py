@@ -511,7 +511,6 @@ def build_command(executable: str, args: argparse.Namespace):
             if len(arg) == 1:
                 cmd += [f"-{arg}", f"{value}"]
             else:
-                arg = arg
                 cmd += [f"--{arg}", f"{value}"]
     if program_subcommand:
         cmd = [executable, program_subcommand] + cmd[1:]
@@ -520,7 +519,7 @@ def build_command(executable: str, args: argparse.Namespace):
 
 def prune_extra_subcommand_args(argv: List[str], subcommand_names):
     """Triton CLI can call other programs with passthrough args, so sometimes the first argument is a subcommand."""
-    """If so, prune it."""
+    """If so, prune and save it before parsing args so that it does not conflict with Triton CLI's subcommands."""
     pruned_args = []
     if len(argv) > 1 and argv[1] in subcommand_names:
         pruned_args.append(argv[1])
