@@ -38,7 +38,8 @@ matrix below:
 
 | Triton CLI Version | TRT-LLM Version | Triton Container Tag |
 |:------------------:|:---------------:|:--------------------:|
-| 0.0.6 | v0.8.0 | 24.02 |
+| 0.0.7 | v0.9.0 | 24.04 |
+| 0.0.6 | v0.8.0 | 24.02, 24.03 |
 | 0.0.5 | v0.7.1 | 24.01 |
 
 ### Install from GitHub
@@ -179,8 +180,7 @@ Install the TRT-LLM dependencies:
 pip install \
   "psutil" \
   "pynvml>=11.5.0" \
-  "torch==2.1.2" \
-  "tensorrt_llm==0.8.0" --extra-index-url https://pypi.nvidia.com/
+  "tensorrt_llm==0.9.0" --extra-index-url https://pypi.nvidia.com/
 ```
 
 #### Example

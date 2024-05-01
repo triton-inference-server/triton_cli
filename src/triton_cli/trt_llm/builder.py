@@ -4,6 +4,7 @@ import subprocess
 CHECKPOINT_MODULE_MAP = {
     "meta-llama/Llama-2-7b-hf": "llama",
     "facebook/opt-125m": "opt",
+    "gpt2": "gpt2",
 }
 
 

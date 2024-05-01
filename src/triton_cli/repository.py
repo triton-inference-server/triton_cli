@@ -43,7 +43,6 @@ from huggingface_hub import snapshot_download
 from huggingface_hub import utils as hf_utils
 
 from triton_cli.trt_llm.builder import TRTLLMBuilder
-from triton_cli.trt_llm.builders.gpt2.builder import GPTBuilder
 
 logger = logging.getLogger(LOGGER_NAME)
 
@@ -354,15 +353,11 @@ class ModelRepository:
             ignore_patterns=hf_ignore_patterns,
         )
 
-        # FIXME: Use generic handler for gpt2 when it migrates to using unified builder
-        if huggingface_id == "gpt2":
-            builder = GPTBuilder(engine_output_path=engines_path)
-        else:
-            builder = TRTLLMBuilder(
-                huggingface_id=huggingface_id,
-                hf_download_path=hf_download_path,
-                engine_output_path=engines_path,
-            )
+        builder = TRTLLMBuilder(
+            huggingface_id=huggingface_id,
+            hf_download_path=hf_download_path,
+            engine_output_path=engines_path,
+        )
         builder.build()
 
     def __create_model_repository(

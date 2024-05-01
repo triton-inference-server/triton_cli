@@ -1,4 +1,4 @@
-FROM nvcr.io/nvidia/tritonserver:24.02-trtllm-python-py3
+FROM nvcr.io/nvidia/tritonserver:24.04-trtllm-python-py3
 
 # Setup vLLM Triton backend
 RUN mkdir -p /opt/tritonserver/backends/vllm && \
@@ -9,13 +9,12 @@ RUN mkdir -p /opt/tritonserver/backends/vllm && \
 RUN pip install \
   "psutil" \
   "pynvml>=11.5.0" \
-  "torch==2.1.2" \
-  --extra-index-url https://pypi.nvidia.com/ "tensorrt-llm==0.8.0"
+  --extra-index-url https://pypi.nvidia.com/ "tensorrt-llm==0.9.0"
 
 # vLLM runtime dependencies
 RUN pip install \
-  "vllm==0.3.0" \
-  "transformers>=4.37.0" \
-  "accelerate==0.26.1"
+  # Triton 24.04 vLLM containers comes with "vllm==0.4.0.post1", but this has
+  # incompatible dependencies with trtllm==0.9.0 around torch and transformers.
+  "vllm==0.4.1"
 
 # TODO: Install Triton CLI in this image
