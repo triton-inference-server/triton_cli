@@ -18,7 +18,11 @@ eggs/
 lib64/
 parts/
 sdist/
-tests/
+tests/checkpoints/
+tests/output_model_repository/
+tests/plots/
+tests/reports/
+tests/results/
 tmp/
 var/
 wheels/
