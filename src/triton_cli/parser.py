@@ -378,7 +378,6 @@ def parse_args_profile(parser):
 
 
 def handle_profile(args: argparse.Namespace):
-    args.__delattr__("func")
     if args.task == "llm":
         cmd = build_command("genai-perf", args)
     elif args.task is None:
@@ -469,8 +468,8 @@ def parse_args(argv=None):
     parse_args_repo(subcommands)
     parse_args_server(subcommands)
     parse_args_inference(subcommands)
-    parse_args_profile(subcommands)
     parse_args_optimize(subcommands)
+    parse_args_profile(subcommands)
     parse_args_utils(subcommands)
     add_verbose_args([parser])
 
@@ -493,7 +492,7 @@ def parse_args(argv=None):
 # Helper functions
 # ================================================
 def build_command(executable: str, args: argparse.Namespace):
-    skip_args = ["task"]
+    skip_args = ["func", "task"]
     cmd = [executable]
     program_subcommand = None
     for arg, value in vars(args).items():
@@ -532,7 +531,7 @@ def prune_extra_subcommand_args(argv: List[str], subcommand_names):
 def add_unknown_args_to_args(
     args: argparse.Namespace, pruned_args: List[str], unknown_args: List[str]
 ):
-    """Add unknown args to args"""
+    """Add unknown and pruned args to args list"""
     unknown_args_dict = turn_unknown_args_into_dict(unknown_args)
     if pruned_args:
         setattr(args, pruned_args[0], True)
@@ -541,7 +540,7 @@ def add_unknown_args_to_args(
     return args
 
 
-def turn_unknown_args_into_dict(unknown_args):
+def turn_unknown_args_into_dict(unknown_args: List[str]):
     """Convert list of unknown args to dictionary"""
     it = iter(unknown_args)
     unknown_args_dict = {}
@@ -559,7 +558,7 @@ def turn_unknown_args_into_dict(unknown_args):
                     if next_arg:
                         it = iter([next_arg] + list(it))
             else:
-                raise ValueError(f"Invalid argument: {arg}")
+                raise ValueError(f"Argument does not start with a '-' or '--': {arg}")
     except StopIteration:
         pass
     return unknown_args_dict

@@ -29,14 +29,19 @@ backend: "python"
 
 input [
   {
-    name: "TEXT_INPUT"
+    name: "text_input"
     data_type: TYPE_STRING
+    dims: [ 1 ]
+  },
+  {
+    name: "max_tokens"
+    data_type: TYPE_INT32
     dims: [ 1 ]
   }
 ]
 output [
   {
-    name: "TEXT_OUTPUT"
+    name: "text_output"
     data_type: TYPE_STRING
     dims: [ 1 ]
   }
