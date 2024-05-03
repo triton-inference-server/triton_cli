@@ -72,11 +72,21 @@ ENGINE_DEST_PATH = os.environ.get("ENGINE_DEST_PATH", "/tmp/engines")
 
 HF_TOKEN_PATH = Path.home() / ".cache" / "huggingface" / "token"
 
+# TODO: Improve this flow and reduce hard-coded model check locations
 SUPPORTED_TRT_LLM_BUILDERS = {
     "facebook/opt-125m": {
         "hf_allow_patterns": ["*.bin", "*.json", "*.txt"],
     },
     "meta-llama/Llama-2-7b-hf": {
+        "hf_allow_patterns": ["*.safetensors", "*.json"],
+    },
+    "meta-llama/Llama-2-7b-chat-hf": {
+        "hf_allow_patterns": ["*.safetensors", "*.json"],
+    },
+    "meta-llama/Meta-Llama-3-8B": {
+        "hf_allow_patterns": ["*.safetensors", "*.json"],
+    },
+    "meta-llama/Meta-Llama-3-8B-Instruct": {
         "hf_allow_patterns": ["*.safetensors", "*.json"],
     },
     "gpt2": {

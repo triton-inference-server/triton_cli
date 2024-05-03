@@ -1,8 +1,17 @@
+import logging
 import importlib
 import subprocess
+from pathlib import Path
+
+from triton_cli.constants import LOGGER_NAME
+
+logger = logging.getLogger(LOGGER_NAME)
 
 CHECKPOINT_MODULE_MAP = {
     "meta-llama/Llama-2-7b-hf": "llama",
+    "meta-llama/Llama-2-7b-chat-hf": "llama",
+    "meta-llama/Meta-Llama-3-8B": "llama",
+    "meta-llama/Meta-Llama-3-8B-Instruct": "llama",
     "facebook/opt-125m": "opt",
 }
 
@@ -28,7 +37,7 @@ class TRTLLMBuilder:
 
         # TODO: Expose configurability
         int8_args = [
-            "--weight_only_precision=int8",
+            # "--weight_only_precision=int8",
             # INT8 KV Cache requires calibration data (scaling factors)
             # "--int8_kv_cache",
         ]
@@ -40,7 +49,9 @@ class TRTLLMBuilder:
             *int8_args,
             f"--output_dir={self.engine_output_path}",
         ]
-        subprocess.run(["trtllm-build"] + build_args)
+        cmd = ["trtllm-build"] + build_args
+        logger.info(f"Running '{cmd}'")
+        subprocess.run(cmd, check=True)
 
     # NOTE: This function should be removed once 'trtllm-build' is
     # capable of converting the weights internally.
@@ -52,6 +63,11 @@ class TRTLLMBuilder:
             self.converted_weights_path,
             "--dtype=float16",
         ]
+        if Path(self.converted_weights_path).exists():
+            logger.info(
+                f"Converted weights path {self.converted_weights_path} already exists, skipping checkpoint conversion."
+            )
+            return
         convert_weights_fn = importlib.import_module(
             f"triton_cli.trt_llm.checkpoint_scripts.{self.checkpoint_id}.convert_checkpoint"
         ).main
