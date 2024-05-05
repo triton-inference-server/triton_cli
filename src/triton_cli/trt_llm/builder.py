@@ -29,27 +29,14 @@ class TRTLLMBuilder:
     def build(self):
         self.__convert_weights()
 
-        # NOTE: These are for IFB. Omit these args for V1 engines.
-        ifb_args = [
-            "--gpt_attention_plugin=float16",
-            "--paged_kv_cache=enable",
-            "--remove_input_padding=enable",
-        ]
-
-        # TODO: Expose configurability
-        int8_args = [
-            # "--weight_only_precision=int8",
-            # INT8 KV Cache requires calibration data (scaling factors)
-            # "--int8_kv_cache",
-        ]
-
+        # TODO: Move towards config-driven build args per-model
         build_args = [
             f"--checkpoint_dir={self.converted_weights_path}",
-            "--context_fmha=enable",
-            *ifb_args,
-            *int8_args,
             f"--output_dir={self.engine_output_path}",
+            "--gpt_attention_plugin=float16",
+            "--gemm_plugin=float16",
         ]
+
         cmd = ["trtllm-build"] + build_args
         logger.info(f"Running '{cmd}'")
         subprocess.run(cmd, check=True)
