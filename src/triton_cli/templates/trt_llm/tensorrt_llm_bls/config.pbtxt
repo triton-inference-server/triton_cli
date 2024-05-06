@@ -225,18 +225,6 @@ parameters: {
     string_value: "${accumulate_tokens}"
   }
 }
-parameters: {
-  key: "tensorrt_llm_model_name"
-  value: {
-    string_value: "${tensorrt_llm_model_name}"
-  }
-}
-parameters: {
-  key: "tensorrt_llm_draft_model_name"
-  value: {
-    string_value: "${tensorrt_llm_draft_model_name}"
-  }
-}
 
 instance_group [
   {
