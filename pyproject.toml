@@ -97,4 +97,5 @@ quiet-level = 3
 line-length = 88
 indent-width = 4
 # Skip linting on external TRT-LLM files we mostly use as-is
-exclude = ["src/triton_cli/trt_llm/checkpoint_scripts"]
+exclude = ["src/triton_cli/trt_llm/checkpoint_scripts",
+           "src/triton_cli/templates/trt_llm"]
