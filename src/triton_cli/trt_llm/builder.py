@@ -1,5 +1,4 @@
 import logging
-import importlib
 import subprocess
 from pathlib import Path
 
@@ -27,8 +26,38 @@ class TRTLLMBuilder:
     # TODO: User should be able to specify a what parameters they want to use to build a
     # TRT LLM engine. A input JSON should be suitable for this goal.
     def build(self):
-        self.__convert_weights()
+        self._convert_checkpoint()
+        self._trtllm_build()
 
+    # NOTE: This function should be removed once 'trtllm-build' is
+    # capable of converting the weights internally.
+    def _convert_checkpoint(self):
+        if Path(self.converted_weights_path).exists():
+            logger.info(
+                f"Converted weights path {self.converted_weights_path} already exists, skipping checkpoint conversion."
+            )
+            return
+
+        weight_conversion_args = [
+            "--model_dir",
+            self.hf_download_path,
+            "--output_dir",
+            self.converted_weights_path,
+            "--dtype=float16",
+        ]
+
+        ckpt_script = (
+            Path(__file__).resolve().parent
+            / "checkpoint_scripts"
+            / self.checkpoint_id
+            / "convert_checkpoint.py"
+        )
+        cmd = ["python3", str(ckpt_script)] + weight_conversion_args
+        cmd_str = " ".join(cmd)
+        logger.info(f"Running '{cmd_str}'")
+        subprocess.run(cmd, check=True)
+
+    def _trtllm_build(self):
         # TODO: Move towards config-driven build args per-model
         build_args = [
             f"--checkpoint_dir={self.converted_weights_path}",
@@ -38,25 +67,6 @@ class TRTLLMBuilder:
         ]
 
         cmd = ["trtllm-build"] + build_args
-        logger.info(f"Running '{cmd}'")
+        cmd_str = " ".join(cmd)
+        logger.info(f"Running '{cmd_str}'")
         subprocess.run(cmd, check=True)
-
-    # NOTE: This function should be removed once 'trtllm-build' is
-    # capable of converting the weights internally.
-    def __convert_weights(self):
-        weight_conversion_args = [
-            "--model_dir",
-            self.hf_download_path,
-            "--output_dir",
-            self.converted_weights_path,
-            "--dtype=float16",
-        ]
-        if Path(self.converted_weights_path).exists():
-            logger.info(
-                f"Converted weights path {self.converted_weights_path} already exists, skipping checkpoint conversion."
-            )
-            return
-        convert_weights_fn = importlib.import_module(
-            f"triton_cli.trt_llm.checkpoint_scripts.{self.checkpoint_id}.convert_checkpoint"
-        ).main
-        convert_weights_fn(weight_conversion_args)
