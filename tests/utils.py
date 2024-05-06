@@ -45,7 +45,7 @@ def run_server(repo=None, mode="local"):
     return p.pid
 
 
-def wait_for_server_ready(timeout: int = 120):
+def wait_for_server_ready(timeout: int = 30):
     start = time.time()
     while time.time() - start < timeout:
         print(

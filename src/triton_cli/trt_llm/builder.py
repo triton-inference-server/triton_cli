@@ -55,8 +55,6 @@ class TRTLLMBuilder:
         self._convert_checkpoint()
         self._trtllm_build()
 
-    # NOTE: This function should be removed once 'trtllm-build' is
-    # capable of converting the weights internally.
     def _convert_checkpoint(self):
         if Path(self.converted_weights_path).exists():
             logger.info(
@@ -71,6 +69,10 @@ class TRTLLMBuilder:
             self.converted_weights_path,
             "--dtype=float16",
         ]
+
+        # Need to specify gpt variant for gpt models
+        if self.checkpoint_id in ["gpt2"]:
+            weight_conversion_args += ["--gpt_variant", self.checkpoint_id]
 
         ckpt_script = (
             Path(__file__).resolve().parent
