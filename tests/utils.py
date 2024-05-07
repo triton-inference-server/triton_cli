@@ -45,7 +45,7 @@ def run_server(repo=None, mode="local"):
     return p.pid
 
 
-def wait_for_server_ready(timeout: int = 120):
+def wait_for_server_ready(timeout: int = 30):
     start = time.time()
     while time.time() - start < timeout:
         print(
@@ -55,8 +55,15 @@ def wait_for_server_ready(timeout: int = 120):
         )
         time.sleep(1)
         try:
-            if check_server_ready():
+            # For simplicity in testing, make sure both HTTP and GRPC endpoints
+            # are ready before marking server ready.
+            if check_server_ready(protocol="http") and check_server_ready(
+                protocol="grpc"
+            ):
                 return
+        except ConnectionRefusedError as e:
+            # Dump to log for testing transparency
+            print(e)
         except InferenceServerException:
             pass
     raise Exception(f"=== Timeout {timeout} secs. Server not ready. ===")
@@ -71,8 +78,8 @@ def kill_server(pid: int, sig: int = 2):
         print(e)
 
 
-def check_server_ready():
-    args = ["status"]
+def check_server_ready(protocol="grpc"):
+    args = ["status", "-i", protocol]
     output = ""
     # Redirect stdout to a buffer to capture the output of the command.
     with io.StringIO() as buf, redirect_stdout(buf):

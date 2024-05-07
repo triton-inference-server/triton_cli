@@ -25,11 +25,10 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 backend: "python"
-# FIXME: this max_batch_size is hard-coded
-max_batch_size: 1
+max_batch_size: ${triton_max_batch_size}
 
 model_transaction_policy {
-  decoupled: True
+  decoupled: true
 }
 
 input [
@@ -125,6 +124,7 @@ input [
     name: "return_log_probs"
     data_type: TYPE_BOOL
     dims: [ 1 ]
+    reshape: { shape: [ ] }
     optional: true
   },
   {
@@ -175,6 +175,19 @@ input [
       name: "embedding_bias_weights"
       data_type: TYPE_FP32
       dims: [ -1 ]
+      optional: true
+  },
+  {
+      name: "num_draft_tokens",
+      data_type: TYPE_INT32,
+      dims: [ 1 ]
+      optional: true
+  },
+  {
+      name: "use_draft_logits",
+      data_type: TYPE_BOOL,
+      dims: [ 1 ]
+      reshape: { shape: [ ] }
       optional: true
   }
 ]

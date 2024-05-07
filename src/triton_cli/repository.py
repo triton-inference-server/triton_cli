@@ -30,6 +30,7 @@ import shutil
 import logging
 import subprocess
 from pathlib import Path
+from rich.console import Console
 
 from directory_tree import display_tree
 
@@ -43,7 +44,6 @@ from huggingface_hub import snapshot_download
 from huggingface_hub import utils as hf_utils
 
 from triton_cli.trt_llm.builder import TRTLLMBuilder
-from triton_cli.trt_llm.builders.gpt2.builder import GPTBuilder
 
 logger = logging.getLogger(LOGGER_NAME)
 
@@ -72,11 +72,21 @@ ENGINE_DEST_PATH = os.environ.get("ENGINE_DEST_PATH", "/tmp/engines")
 
 HF_TOKEN_PATH = Path.home() / ".cache" / "huggingface" / "token"
 
+# TODO: Improve this flow and reduce hard-coded model check locations
 SUPPORTED_TRT_LLM_BUILDERS = {
     "facebook/opt-125m": {
         "hf_allow_patterns": ["*.bin", "*.json", "*.txt"],
     },
     "meta-llama/Llama-2-7b-hf": {
+        "hf_allow_patterns": ["*.safetensors", "*.json"],
+    },
+    "meta-llama/Llama-2-7b-chat-hf": {
+        "hf_allow_patterns": ["*.safetensors", "*.json"],
+    },
+    "meta-llama/Meta-Llama-3-8B": {
+        "hf_allow_patterns": ["*.safetensors", "*.json"],
+    },
+    "meta-llama/Meta-Llama-3-8B-Instruct": {
         "hf_allow_patterns": ["*.safetensors", "*.json"],
     },
     "gpt2": {
@@ -253,37 +263,16 @@ class ModelRepository:
             raise ValueError("HuggingFace ID must be non-empty")
 
         if backend == "tensorrtllm":
-            builder_info = SUPPORTED_TRT_LLM_BUILDERS.get(huggingface_id)
-            if not builder_info:
-                raise NotImplementedError(
-                    f"Building a TRT LLM engine for {huggingface_id} is not currently supported."
-                )
-
-            engines_path = ENGINE_DEST_PATH + "/" + name
-            hf_download_path = ENGINE_DEST_PATH + "/" + name + "/hf_download"
-
-            engines = [engine for engine in Path(engines_path).glob("*.engine")]
-            if engines:
-                logger.warning(
-                    f"Found existing engine(s) at {engines_path}, skipping build."
-                )
-            else:
-                self.__generate_trtllm_model(
-                    huggingface_id, hf_download_path, engines_path
-                )
-
-            # NOTE: In every case, the TRT LLM template should be filled in with values.
-            # If the model exists, the CLI will raise an exception when creating the model repo.
-            # If a user clears the model repo, they won't need to re-build the engines,
-            # but they will still need to modify the TRT LLM template.
-            parse_and_substitute(
-                triton_model_dir=str(self.repo),
-                bls_model_name=name,
-                engine_dir=engines_path,
-                token_dir=hf_download_path,
-                token_type="auto",
-                dry_run=False,
-            )
+            # TODO: Refactor the cleanup flow, move it to a higher level
+            try:
+                self.__generate_trtllm_model(name, huggingface_id)
+            except Exception as e:
+                # If generating TRLTLM model fails, clean up the draft models
+                # added to the model repository.
+                logger.warning(f"TRT-LLM model creation failed: {e}. Cleaning up...")
+                for model in [name, "preprocessing", "tensorrt_llm", "postprocessing"]:
+                    self.remove(model, verbose=False)
+                raise e
         else:
             # TODO: Add generic support for HuggingFace models with HF API.
             # For now, use vLLM as a means of deploying HuggingFace Transformers
@@ -343,7 +332,38 @@ class ModelRepository:
             str(self.repo), name, engines_path, engines_path, "auto", dry_run=False
         )
 
-    def __generate_trtllm_model(self, huggingface_id, hf_download_path, engines_path):
+    def __generate_trtllm_model(self, name, huggingface_id):
+        builder_info = SUPPORTED_TRT_LLM_BUILDERS.get(huggingface_id)
+        if not builder_info:
+            raise NotImplementedError(
+                f"Building a TRT LLM engine for {huggingface_id} is not currently supported."
+            )
+
+        engines_path = ENGINE_DEST_PATH + "/" + name
+        hf_download_path = ENGINE_DEST_PATH + "/" + name + "/hf_download"
+
+        engines = [engine for engine in Path(engines_path).glob("*.engine")]
+        if engines:
+            logger.warning(
+                f"Found existing engine(s) at {engines_path}, skipping build."
+            )
+        else:
+            self.__build_trtllm_engine(huggingface_id, hf_download_path, engines_path)
+
+        # NOTE: In every case, the TRT LLM template should be filled in with values.
+        # If the model exists, the CLI will raise an exception when creating the model repo.
+        # If a user clears the model repo, they won't need to re-build the engines,
+        # but they will still need to modify the TRT LLM template.
+        parse_and_substitute(
+            triton_model_dir=str(self.repo),
+            bls_model_name=name,
+            engine_dir=engines_path,
+            token_dir=hf_download_path,
+            token_type="auto",
+            dry_run=False,
+        )
+
+    def __build_trtllm_engine(self, huggingface_id, hf_download_path, engines_path):
         builder_info = SUPPORTED_TRT_LLM_BUILDERS.get(huggingface_id)
         hf_allow_patterns = builder_info["hf_allow_patterns"]
         hf_ignore_patterns = builder_info.get("hf_ignore_patterns", None)
@@ -354,16 +374,14 @@ class ModelRepository:
             ignore_patterns=hf_ignore_patterns,
         )
 
-        # FIXME: Use generic handler for gpt2 when it migrates to using unified builder
-        if huggingface_id == "gpt2":
-            builder = GPTBuilder(engine_output_path=engines_path)
-        else:
-            builder = TRTLLMBuilder(
-                huggingface_id=huggingface_id,
-                hf_download_path=hf_download_path,
-                engine_output_path=engines_path,
-            )
-        builder.build()
+        builder = TRTLLMBuilder(
+            huggingface_id=huggingface_id,
+            hf_download_path=hf_download_path,
+            engine_output_path=engines_path,
+        )
+        console = Console()
+        with console.status(f"Building TRT-LLM engine for {huggingface_id}..."):
+            builder.build()
 
     def __create_model_repository(
         self, name: str, version: int = 1, backend: str = None
