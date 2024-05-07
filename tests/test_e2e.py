@@ -96,12 +96,14 @@ class TestE2E:
             "grpc",
             pytest.param(
                 "http",
-                marks=pytest.mark.xfail(
+                # NOTE: skip because xfail was causing server to not get cleaned up by test in background
+                marks=pytest.mark.skip(
                     reason="http does not support model infer and model profile for decoupled models"
                 ),
             ),
         ],
     )
+    @pytest.mark.timeout(600)
     def test_tensorrtllm_e2e(self, protocol, setup_and_teardown):
         # NOTE: TRTLLM test models will be passed by the testing infrastructure.
         # Only a single model will be passed per test to enable tests to run concurrently.
@@ -124,12 +126,14 @@ class TestE2E:
             "grpc",
             pytest.param(
                 "http",
-                marks=pytest.mark.xfail(
+                # NOTE: skip because xfail was causing server to not get cleaned up by test in background
+                marks=pytest.mark.skip(
                     reason="http not supported decoupled models and model profiling yet"
                 ),
             ),
         ],
     )
+    @pytest.mark.timeout(600)
     def test_vllm_e2e(self, protocol, setup_and_teardown):
         # NOTE: VLLM test models will be passed by the testing infrastructure.
         # Only a single model will be passed per test to enable tests to run concurrently.
