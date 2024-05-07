@@ -126,8 +126,6 @@ or TRT-LLM model from scratch in minutes.
 > By default, vLLM models will be downloaded at runtime when starting the server
 > if not found locally in the HuggingFace cache.
 
-#### Example
-
 The following models have currently been tested for vLLM through the CLI:
 - `gpt2`
 - `opt125m`
@@ -137,6 +135,9 @@ The following models have currently been tested for vLLM through the CLI:
 - `llama-2-7b-chat`
 - `llama-3-8b`
 - `llama-3-8b-instruct`
+
+
+#### Example
 
 ```bash
 # This container comes with all of the dependencies for serving vLLM models
