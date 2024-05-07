@@ -103,14 +103,9 @@ triton profile -m gpt2
 
 ## Serving LLM Models
 
-Triton CLI is particularly adept at simplifying the workflow to deploy and
-interact with LLM models. The steps below illustrate how to serve a vLLM
-or TRT-LLM model from scratch in minutes.
-
-> [!NOTE]
-> Usage of certain restricted models like Llama models requires authentication
-> in Huggingface through either `huggingface-login` or setting the `HF_TOKEN`
-> environment variable.
+Triton CLI aims to simplify the workflow to deploy and interact with LLM models.
+The steps below illustrate how to serve a vLLM or TRT-LLM model from scratch in
+minutes.
 
 > [!NOTE]
 > Mounting the huggingface cache into the docker containers is optional, but will
@@ -118,13 +113,18 @@ or TRT-LLM model from scratch in minutes.
 > and containers.
 >
 > ex: `docker run -v ${HOME}/.cache/huggingface:/root/.cache/huggingface ...`
+>
+> Also, usage of certain restricted models like Llama models requires authentication
+> in Huggingface through either `huggingface-login` or setting the `HF_TOKEN`
+> environment variable.
 
 
 ### Serving a vLLM Model
 
-> [!NOTE]
-> By default, vLLM models will be downloaded at runtime when starting the server
-> if not found locally in the HuggingFace cache.
+vLLM models will be downloaded at runtime when starting the server if not found
+locally in the HuggingFace cache. No offline engine building step is required,
+but you can pre-download the model in advance to avoid downloading at server
+startup time.
 
 The following models have currently been tested for vLLM through the CLI:
 - `gpt2`
@@ -140,8 +140,6 @@ The following models have currently been tested for vLLM through the CLI:
 #### Example
 
 ```bash
-# This container comes with all of the dependencies for serving vLLM models
-# with Triton Inference Server.
 docker run -ti \
   --gpus all \
   --network=host \
@@ -205,7 +203,7 @@ engine builds through the CLI:
 #### Example
 
 ```bash
-# NOTE: Mounting /tmp is also optional, but will allow the saving and re-use of
+# NOTE: Mounting /tmp is optional, but will allow the saving and re-use of
 # TRT-LLM engines across different containers. This assumes the value of
 # `ENGINE_DEST_PATH` has not been modified.
 
