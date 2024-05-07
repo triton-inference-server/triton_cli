@@ -100,7 +100,7 @@ curl -X POST localhost:8000/v2/models/gpt2/generate -d '{"text_input": "machine 
 
 ## Serving LLM Models
 
-Triton CLI aims to simplify the workflow to deploy and interact with LLM models.
+Triton CLI simplifies the workflow to deploy and interact with LLM models.
 The steps below illustrate how to serve a vLLM or TRT-LLM model from scratch in
 minutes.
 
