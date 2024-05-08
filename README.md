@@ -30,18 +30,6 @@ see this list of [additional dependencies](#additional-dependencies-for-custom-e
 you may need to install.
 
 
-### Profiling Pre-requisites
-
-Triton CLI provides a way to access three profiling tools:
-- [GenAI-Perf](https://github.com/triton-inference-server/client/tree/main/src/c%2B%2B/perf_analyzer/genai-perf)
-for profiling LLM models via `triton profile --task=llm {GenAI-Perf args}`.
-- [Performance Analyzer](https://github.com/triton-inference-server/client/tree/main/src/c%2B%2B/perf_analyzer)
-for profiling non-LLM models via `triton profile {Performance Analyzer args}`.
-- [Model Analyzer](https://github.com/triton-inference-server/model_analyzer) for finding optimal model
-configurations via `triton optimize {Model Analyzer args}`.
-
-For any of these, you must have the related tool installed locally. Each tool's documentation details its build process.
-
 ## Installation
 
 Currently, Triton CLI can only be installed from source, with plans to host a
@@ -110,9 +98,7 @@ triton infer -m gpt2 --prompt "machine learning is"
 curl -X POST localhost:8000/v2/models/gpt2/generate -d '{"text_input": "machine learning is", "max_tokens": 128}'
 
 # Profile model with GenAI-Perf
-# GenAI-Perf must be installed in your environment
-# https://github.com/triton-inference-server/client/tree/main/src/c%2B%2B/perf_analyzer/genai-perf#installation
-triton profile -m --task=llm gpt2
+triton profile -m gpt2
 ```
 
 ## Serving LLM Models
