@@ -162,7 +162,7 @@ triton start
 # Interact with model
 triton infer -m llama-3-8b-instruct --prompt "machine learning is"
 
-# Profile model with Perf Analyzer
+# Profile model with GenAI-Perf
 triton profile -m llama-3-8b-instruct --backend vllm
 ```
 
@@ -232,7 +232,7 @@ triton start
 # Interact with model
 triton infer -m llama-3-8b-instruct --prompt "machine learning is"
 
-# Profile model with Perf Analyzer
+# Profile model with GenAI-Perf
 triton profile -m llama-3-8b-instruct --backend tensorrtllm
 ```
 ## Additional Dependencies for Custom Environments

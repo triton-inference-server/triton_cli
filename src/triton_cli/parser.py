@@ -29,7 +29,7 @@ import json
 import subprocess
 import sys
 import time
-from typing import List
+from typing import List, Optional
 import logging
 import argparse
 from pathlib import Path
@@ -41,7 +41,6 @@ from triton_cli.constants import (
     DEFAULT_MODEL_REPO,
     DEFAULT_TRITONSERVER_IMAGE,
     LOGGER_NAME,
-    PASSTHROUGH_SUBCOMMANDS,
 )
 from triton_cli.client.client import InferenceServerException, TritonClient
 from triton_cli.metrics import MetricsClient
@@ -369,43 +368,10 @@ def parse_args_profile(parser):
     profile.add_argument(
         "--help", action="store_true", help="Show help message and exit"
     )
-    profile.add_argument(
-        "--task",
-        type=str,
-        required=False,
-        help="Specify the task type to select the profiling tool (e.g., llm for LLM models)",
-    )
 
 
 def handle_profile(args: argparse.Namespace):
-    if args.task == "llm":
-        cmd = build_command("genai-perf", args)
-    elif args.task is None:
-        cmd = build_command("perf_analyzer", args)
-    else:
-        raise ValueError(
-            "Unsupported task type. Only 'llm' or unspecified tasks are supported for profiling."
-        )
-    logger.info(f"Running: '{' '.join(cmd)}'")
-    subprocess.run(cmd, check=True)
-
-
-# ================================================
-# Optimize
-# ================================================
-def parse_args_optimize(parser):
-    optimize = parser.add_parser(
-        "optimize", help="Optimize models using Model Analyzer", add_help=False
-    )
-    optimize.set_defaults(func=handle_optimize)
-    optimize.add_argument(
-        "--help", action="store_true", help="Show help message and exit"
-    )
-
-
-def handle_optimize(args: argparse.Namespace):
-    args.__delattr__("func")
-    cmd = build_command("model-analyzer", args)
+    cmd = build_command(args, "genai-perf", "profile")
     logger.info(f"Running: '{' '.join(cmd)}'")
     subprocess.run(cmd, check=True)
 
@@ -468,7 +434,6 @@ def parse_args(argv=None):
     parse_args_repo(subcommands)
     parse_args_server(subcommands)
     parse_args_inference(subcommands)
-    parse_args_optimize(subcommands)
     parse_args_profile(subcommands)
     parse_args_utils(subcommands)
     add_verbose_args([parser])
@@ -476,30 +441,27 @@ def parse_args(argv=None):
     argv_ = argv if argv is not None else sys.argv[1:]
     # If a passthrough command is passed as the first arg,
     # special handling is needed.
-    need_special_handling = len(argv_) > 1 and argv_[0] in PASSTHROUGH_SUBCOMMANDS
-    if need_special_handling:
-        updated_args, pruned_args = prune_extra_subcommand_args(
-            argv_, subcommands.choices.keys()
-        )
-        args, unknown_args = parser.parse_known_args(updated_args)
-        args = add_unknown_args_to_args(args, pruned_args, unknown_args)
+    if argv_[0] == "profile":
+        args, unknown_args = parser.parse_known_args(argv_)
+        args = add_unknown_args_to_args(args, unknown_args)
     else:
-        args = parser.parse_args(argv)
+        args = parser.parse_args(argv_)
     return args
 
 
 # ================================================
 # Helper functions
 # ================================================
-def build_command(executable: str, args: argparse.Namespace):
-    skip_args = ["func", "task"]
+def build_command(
+    args: argparse.Namespace, executable: str, executable_subcommand: Optional[str]
+):
+    skip_args = ["func"]
     cmd = [executable]
-    program_subcommand = None
+    if executable_subcommand:
+        cmd += [executable_subcommand]
     for arg, value in vars(args).items():
         if arg in skip_args:
             pass
-        elif arg in PASSTHROUGH_SUBCOMMANDS:
-            program_subcommand = arg
         elif value is False:
             pass
         elif value is True:
@@ -512,28 +474,12 @@ def build_command(executable: str, args: argparse.Namespace):
                 cmd += [f"-{arg}", f"{value}"]
             else:
                 cmd += [f"--{arg}", f"{value}"]
-    if program_subcommand:
-        cmd = [executable, program_subcommand] + cmd[1:]
     return cmd
 
 
-def prune_extra_subcommand_args(argv: List[str], subcommand_names):
-    """Triton CLI can call other programs with passthrough args, so sometimes the first argument is a subcommand."""
-    """If so, prune and save it before parsing args so that it does not conflict with Triton CLI's subcommands."""
-    pruned_args = []
-    if len(argv) > 1 and argv[1] in subcommand_names:
-        pruned_args.append(argv[1])
-        argv.remove(argv[1])
-    return argv, pruned_args
-
-
-def add_unknown_args_to_args(
-    args: argparse.Namespace, pruned_args: List[str], unknown_args: List[str]
-):
-    """Add unknown and pruned args to args list"""
+def add_unknown_args_to_args(args: argparse.Namespace, unknown_args: List[str]):
+    """Add unknown args to args list"""
     unknown_args_dict = turn_unknown_args_into_dict(unknown_args)
-    if pruned_args:
-        setattr(args, pruned_args[0], True)
     for key, value in unknown_args_dict.items():
         setattr(args, key, value)
     return args

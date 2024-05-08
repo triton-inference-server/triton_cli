@@ -44,6 +44,3 @@ DEFAULT_MODEL_REPO: Path = Path.home() / "models"
 DEFAULT_HF_CACHE: Path = Path.home() / ".cache" / "huggingface"
 HF_CACHE: Path = Path(os.environ.get("TRANSFORMERS_CACHE", DEFAULT_HF_CACHE))
 SUPPORTED_BACKENDS: set = {"vllm", "tensorrtllm"}
-
-# Parser
-PASSTHROUGH_SUBCOMMANDS = ["profile", "optimize"]

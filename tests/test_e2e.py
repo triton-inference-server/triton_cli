@@ -59,29 +59,13 @@ class TestE2E:
             args += ["-i", protocol]
         run(args)
 
-    def _profile(self, model, protocol=None, backend=None, is_llm=False):
+    def _profile(self, model, protocol=None, backend=None):
         args = ["profile", "-m", model]
         if backend:
             args += ["--backend", backend]
-        if is_llm:
-            args += ["--task", "llm"]
         else:
             if protocol:
                 args += ["-i", protocol]
-        run(args)
-
-    def _optimize(self, model):
-        args = [
-            "optimize",
-            "profile",
-            "--profile-models",
-            model,
-            "--triton-launch-mode",
-            "local",
-            "--model-repository",
-            "test_models",
-            "--override-output-model-repository",
-        ]
         run(args)
 
     class KillServerByPid:
@@ -132,7 +116,7 @@ class TestE2E:
         utils.wait_for_server_ready()
 
         self._infer(model, prompt=PROMPT, protocol=protocol)
-        self._profile(model, backend="tensorrtllm", is_llm=True)
+        self._profile(model, backend="tensorrtllm")
 
     @pytest.mark.skipif(
         os.environ.get("IMAGE_KIND") != "VLLM", reason="Only run for VLLM image"
@@ -163,7 +147,7 @@ class TestE2E:
         utils.wait_for_server_ready(timeout=300)
 
         self._infer(model, prompt=PROMPT, protocol=protocol)
-        self._profile(model, backend="vllm", is_llm=True)
+        self._profile(model, backend="vllm")
 
     @pytest.mark.parametrize("protocol", ["grpc", "http"])
     def test_non_llm(self, protocol, setup_and_teardown):
@@ -177,11 +161,6 @@ class TestE2E:
         # infer should work without a prompt for non-LLM models
         self._infer(model, protocol=protocol)
         self._profile(model, protocol=protocol)
-
-        # Model Analyzer will start a new instance of Triton, so shut down the previous one.
-        utils.kill_server(pid)
-        setup_and_teardown.pid = None
-        self._optimize(model)
 
     @pytest.mark.parametrize("protocol", ["grpc", "http"])
     def test_mock_llm(self, protocol, setup_and_teardown):
@@ -198,4 +177,4 @@ class TestE2E:
         with pytest.raises(Exception):
             self._infer(model, protocol=protocol)
         # profile should work without a prompt for LLM models
-        self._profile(model, protocol=protocol, backend="tensorrtllm", is_llm=True)
+        self._profile(model, protocol=protocol, backend="tensorrtllm")
