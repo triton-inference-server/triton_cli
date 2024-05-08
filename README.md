@@ -11,7 +11,7 @@ Server.
 
 ## Table of Contents
 
-| [Pre-requisites](#pre-requisites) | [Installation](#installation) | [Quickstart](#quickstart) | [Serving LLM Models](#serving-llm-models) | [Serving a vLLM Model](#serving-a-vllm-model) | [Serving a TRT-LLM Model](#serving-a-trt-llm-model) | [Profiling and Optimizing Non-LLM models](#profiling-and-optimizing-non-llm-models) | [Additional Dependencies for Custom Environments](#additional-dependencies-for-custom-environments) | [Known Limitations](#known-limitations) |
+| [Pre-requisites](#pre-requisites) | [Installation](#installation) | [Quickstart](#quickstart) | [Serving LLM Models](#serving-llm-models) | [Serving a vLLM Model](#serving-a-vllm-model) | [Serving a TRT-LLM Model](#serving-a-trt-llm-model) | [Additional Dependencies for Custom Environments](#additional-dependencies-for-custom-environments) | [Known Limitations](#known-limitations) |
 
 ## Pre-requisites
 
@@ -269,36 +269,6 @@ MPI should be shipped in any relevant Triton or TRT-LLM containers, but if
 building engines on host you can install them like so:
 ```
 sudo apt install libopenmpi-dev
-```
-
-## Profiling and Optimizing Non-LLM Models
-The instructions below outline for profiling and optimize a simple `test_model` you
-already have in the folders `.models/`.
-
-> [!NOTE]
-> `triton start` is a blocking command and will stream server logs to the
-> current shell. To interact with the running server, you will need to start
-> a separate shell and `docker exec` into the running container if using one.
-
-```bash
-
-# Find the optimal model configurations for your model with Model Analyzer
-# Model Analyzer must be installed in your environment
-# https://github.com/triton-inference-server/model_analyzer/blob/main/docs/install.md
-triton optimize profile \
-    --model-repository <path-to-examples-quick-start> \
-    --profile-models test_model --triton-launch-mode=docker \
-    --output-model-repository-path <path-to-output-model-repo>/<output_dir> \
-    --export-path profile_results --override-output-model-repository
-
-# Start server pointing at the default model repository
-triton start --model-repository models
-
-# Profile model with Perf Analyzer
-# Perf Analyzer must be installed in your environment
-# https://github.com/triton-inference-server/client/blob/main/src/c++/perf_analyzer/README.md
-triton profile -m model_name
-
 ```
 
 ## Known Limitations

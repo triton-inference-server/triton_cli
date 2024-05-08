@@ -57,8 +57,8 @@ jobs:
     - name: Lint and format with ruff
       run: |
         python -m pip install ruff
-        ruff check --exclude client .
-        ruff format --exclude client .
+        ruff check .
+        ruff format .
     - name: Test with pytest
       run: |
         pip install pytest pytest-timeout pytest-cov psutil

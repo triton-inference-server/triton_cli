@@ -68,22 +68,6 @@ class TestE2E:
                 args += ["-i", protocol]
         run(args)
 
-    def _optimize(self, model):
-        args = [
-            "optimize",
-            "profile",
-            "--profile-models",
-            model,
-            "--triton-launch-mode",
-            "local",
-            "--model-repository",
-            "test_models",
-            "--output-model-repository-path",
-            "output_dir",
-            "--override-output-model-repository",
-        ]
-        run(args)
-
     class KillServerByPid:
         def __init__(self):
             self.pid = None
