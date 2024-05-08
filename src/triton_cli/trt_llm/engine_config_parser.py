@@ -53,6 +53,8 @@ def parse_and_substitute(
         "max_batch_size"
     ]
     config_dict["max_queue_delay_microseconds"] = 1000
+    # Default echo = False
+    config_dict["exclude_input_in_output"] = "True"
     # The following parameters are based on NGC's model requirements
     config_dict["bls_instance_count"] = 1
     config_dict["postprocessing_instance_count"] = 1
