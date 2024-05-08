@@ -54,7 +54,7 @@ It is also possible to install from a specific branch name, a commit hash
 or a tag name. For example to install `triton_cli` with tag 0.0.6:
 
 ```bash
-GIT_REF="0.0.6"
+GIT_REF="0.0.7"
 pip install git+https://github.com/triton-inference-server/triton_cli.git@${GIT_REF}
 ```
 
@@ -89,50 +89,81 @@ triton -h
 triton import -m gpt2
 
 # Start server pointing at the default model repository
-triton start
+triton start --image nvcr.io/nvidia/tritonserver:24.04-vllm-python-py3
 
 # Infer with CLI
 triton infer -m gpt2 --prompt "machine learning is"
 
 # Infer with curl using the generate endpoint
 curl -X POST localhost:8000/v2/models/gpt2/generate -d '{"text_input": "machine learning is", "max_tokens": 128}'
-
-# Profile model with Perf Analyzer
-triton profile -m gpt2
 ```
 
 ## Serving LLM Models
 
-Triton CLI is particularly adept at simplifying the workflow to deploy and
-interact with LLM models. The steps below illustrate how to serve a vLLM
-or TRT-LLM model from scratch in minutes.
+Triton CLI simplifies the workflow to deploy and interact with LLM models.
+The steps below illustrate how to serve a vLLM or TRT-LLM model from scratch in
+minutes.
 
 > [!NOTE]
-> Usage of `llama-2-7b` requires authentication in Huggingface through either
-> `huggingface-login` or setting the `HF_TOKEN` environment variable.
+> Mounting the huggingface cache into the docker containers is optional, but will
+> allow saving and re-using downloaded huggingface models across different runs
+> and containers.
+>
+> ex: `docker run -v ${HOME}/.cache/huggingface:/root/.cache/huggingface ...`
+>
+> Also, usage of certain restricted models like Llama models requires authentication
+> in Huggingface through either `huggingface-login` or setting the `HF_TOKEN`
+> environment variable.
+
 
 ### Serving a vLLM Model
 
+vLLM models will be downloaded at runtime when starting the server if not found
+locally in the HuggingFace cache. No offline engine building step is required,
+but you can pre-download the model in advance to avoid downloading at server
+startup time.
+
 The following models have currently been tested for vLLM through the CLI:
 - `gpt2`
-- `llama-2-7b`
 - `opt125m`
 - `mistral-7b`
 - `falcon-7b`
+- `llama-2-7b`
+- `llama-2-7b-chat`
+- `llama-3-8b`
+- `llama-3-8b-instruct`
+
+
+#### Example
 
 ```bash
+docker run -ti \
+  --gpus all \
+  --network=host \
+  --shm-size=1g --ulimit memlock=-1 \
+  -v ${HOME}/models:/root/models \
+  -v ${HOME}/.cache/huggingface:/root/.cache/huggingface \
+  nvcr.io/nvidia/tritonserver:24.04-vllm-python-py3
+
+# Install the Triton CLI
+GIT_REF="0.0.7"
+pip install git+https://github.com/triton-inference-server/triton_cli.git@${GIT_REF}
+
+# Authenticate with huggingface for restricted models like Llama-2 and Llama-3
+huggingface-login
+
 # Generate a Triton model repository containing a vLLM model config
 triton remove -m all
-triton import -m gpt2 --backend vllm
+triton import -m llama-3-8b-instruct --backend vllm
 
 # Start Triton pointing at the default model repository
 triton start
 
 # Interact with model
-triton infer -m gpt2 --prompt "machine learning is"
+triton infer -m llama-3-8b-instruct --prompt "machine learning is"
 
 # Profile model with Perf Analyzer
-triton profile -m gpt2
+triton profile -m llama-3-8b-instruct --backend vllm
 ```
 
 ### Serving a TRT-LLM Model
@@ -152,61 +183,57 @@ triton profile -m gpt2
 > performance, especially for large batch sizes. For more information, please
 > see [here](https://docs.nvidia.com/deeplearning/triton-inference-server/user-guide/docs/user_guide/model_configuration.html#instance-groups).
 
-#### Pre-requisites
+The following models are currently supported for automating TRT-LLM
+engine builds through the CLI:
+- `gpt2`
+- `opt125m`
+- `llama-2-7b`
+- `llama-2-7b-chat`
+- `llama-3-8b`
+- `llama-3-8b-instruct`
 
-(optional) If you don't want to install TRT-LLM dependencies on the host, you
-can also run the following instructions inside of a container that is launched
-with the following command:
+> [!NOTE]
+> Building a TRT-LLM engine for Llama-2-7B or Llama-3-8B models
+> may require system RAM of at least 48GB of RAM.
+
+
+#### Example
+
 ```bash
-# NOTE: Mounting the huggingface cache is optional, but will allow saving and
-# re-using downloaded huggingface models across different runs and containers.
-
-# NOTE: Mounting /tmp is also optional, but will allow the saving and re-use of
+# NOTE: Mounting /tmp is optional, but will allow the saving and re-use of
 # TRT-LLM engines across different containers. This assumes the value of
 # `ENGINE_DEST_PATH` has not been modified.
 
+# This container comes with all of the dependencies for building TRT-LLM engines
+# and serving the engine with Triton Inference Server.
 docker run -ti \
   --gpus all \
   --network=host \
   --shm-size=1g --ulimit memlock=-1 \
   -v /tmp:/tmp \
-  -v $HOME/.cache/huggingface:/root/.cache/huggingface \
-  nvcr.io/nvidia/tritonserver:24.02-trtllm-python-py3
-```
+  -v ${HOME}/models:/root/models \
+  -v ${HOME}/.cache/huggingface:/root/.cache/huggingface \
+  nvcr.io/nvidia/tritonserver:24.04-trtllm-python-py3
 
-Install the TRT-LLM dependencies:
-```bash
-# Install TRT LLM building dependencies
-pip install \
-  "psutil" \
-  "pynvml>=11.5.0" \
-  "tensorrt_llm==0.9.0" --extra-index-url https://pypi.nvidia.com/
-```
+# Install the Triton CLI
+GIT_REF="0.0.7"
+pip install git+https://github.com/triton-inference-server/triton_cli.git@${GIT_REF}
 
-#### Example
+# Authenticate with huggingface for restricted models like Llama-2 and Llama-3
+huggingface-login
 
-The following models are currently supported for automating TRT-LLM
-engine builds through the CLI:
-> [!NOTE]
-> Building a TRT-LLM engine for `llama-2-7b` will require a system
-> with at least 64GB of RAM.
-- `gpt2`
-- `llama-2-7b`
--  `opt125m`
-
-```bash
 # Build TRT LLM engine and generate a Triton model repository pointing at it
 triton remove -m all
-triton import -m gpt2 --backend tensorrtllm
+triton import -m llama-3-8b-instruct --backend tensorrtllm
 
 # Start Triton pointing at the default model repository
 triton start
 
 # Interact with model
-triton infer -m gpt2 --prompt "machine learning is"
+triton infer -m llama-3-8b-instruct --prompt "machine learning is"
 
 # Profile model with Perf Analyzer
-triton profile -m gpt2 --backend tensorrtllm
+triton profile -m llama-3-8b-instruct --backend tensorrtllm
 ```
 ## Additional Dependencies for Custom Environments
 
@@ -243,6 +270,9 @@ sudo apt install libopenmpi-dev
 
 ## Known Limitations
 - Triton CLI's `profile` command currently only supports TRT-LLM and vLLM models.
+- Triton CLI's `profile` command will be migrating to use
+[genai-perf](https://github.com/triton-inference-server/client/tree/main/src/c++/perf_analyzer/genai-perf)
+as the backbone for LLM profiling soon.
 - Models and configurations generated by Triton CLI are focused on ease-of-use,
 and may not be as optimized as possible for your system or use case.
 - Triton CLI currently uses the TRT-LLM dependencies installed in its environment
