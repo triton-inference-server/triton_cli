@@ -136,6 +136,4 @@ class TestRepo:
         monkeypatch.setattr("sys.argv", test_args)
         args = parse_args()
         args.func(args)
-        mock_run.assert_called_once_with(
-            ["genai-perf", "profile", "-m", "add_sub"], check=True
-        )
+        mock_run.assert_called_once_with(["genai-perf", "-m", "add_sub"], check=True)

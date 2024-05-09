@@ -97,8 +97,7 @@ triton infer -m gpt2 --prompt "machine learning is"
 # Infer with curl using the generate endpoint
 curl -X POST localhost:8000/v2/models/gpt2/generate -d '{"text_input": "machine learning is", "max_tokens": 128}'
 
-# Profile model with GenAI-Perf
-triton profile -m gpt2
+
 ```
 
 ## Serving LLM Models
@@ -227,7 +226,7 @@ huggingface-login
 
 # Build TRT LLM engine and generate a Triton model repository pointing at it
 triton remove -m all
-triton import -m llama-3-8b-instruct --backend tensorrtllm
+triton import -m llama-3-8b-instruct --backend trtllm
 
 # Start Triton pointing at the default model repository
 triton start
@@ -236,7 +235,7 @@ triton start
 triton infer -m llama-3-8b-instruct --prompt "machine learning is"
 
 # Profile model with GenAI-Perf
-triton profile -m llama-3-8b-instruct --backend tensorrtllm
+triton profile -m llama-3-8b-instruct --backend trtllm
 ```
 ## Additional Dependencies for Custom Environments
 

@@ -29,7 +29,7 @@ import json
 import subprocess
 import sys
 import time
-from typing import List, Optional
+from typing import List
 import logging
 import argparse
 from pathlib import Path
@@ -371,7 +371,7 @@ def parse_args_profile(parser):
 
 
 def handle_profile(args: argparse.Namespace):
-    cmd = build_command(args, "genai-perf", "profile")
+    cmd = build_command(args, "genai-perf")
     logger.info(f"Running: '{' '.join(cmd)}'")
     subprocess.run(cmd, check=True)
 
@@ -452,13 +452,9 @@ def parse_args(argv=None):
 # ================================================
 # Helper functions
 # ================================================
-def build_command(
-    args: argparse.Namespace, executable: str, executable_subcommand: Optional[str]
-):
+def build_command(args: argparse.Namespace, executable: str):
     skip_args = ["func"]
     cmd = [executable]
-    if executable_subcommand:
-        cmd += [executable_subcommand]
     for arg, value in vars(args).items():
         if arg in skip_args:
             pass
@@ -469,6 +465,13 @@ def build_command(
                 cmd += [f"-{arg}"]
             else:
                 cmd += [f"--{arg}"]
+        # [DLIS-6656] - Remove backend renaming.
+        # This allows "tensorrtllm" to be used as the backend for consistency.
+        # Once GenAI-Perf releases 24.05, "tensorrtllm" as the backend value
+        # will be supported by default.
+        elif arg == "backend":
+            if value == "tensorrtllm":
+                cmd += ["--backend", "trtllm"]
         else:
             if len(arg) == 1:
                 cmd += [f"-{arg}", f"{value}"]
