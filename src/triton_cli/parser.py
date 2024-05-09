@@ -439,8 +439,6 @@ def parse_args(argv=None):
     add_verbose_args([parser])
 
     argv_ = argv if argv is not None else sys.argv[1:]
-    # If a passthrough command is passed as the first arg,
-    # special handling is needed.
     if argv_[0] == "profile":
         args, unknown_args = parser.parse_known_args(argv_)
         args = add_unknown_args_to_args(args, unknown_args)
