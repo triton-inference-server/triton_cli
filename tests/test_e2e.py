@@ -59,13 +59,8 @@ class TestE2E:
             args += ["-i", protocol]
         run(args)
 
-    def _profile(self, model, protocol=None, backend=None):
-        args = ["profile", "-m", model]
-        if backend:
-            args += ["--backend", backend]
-        else:
-            if protocol:
-                args += ["-i", protocol]
+    def _profile(self, model, backend):
+        args = ["profile", "-m", model, "--backend", backend]
         run(args)
 
     class KillServerByPid:
@@ -164,4 +159,4 @@ class TestE2E:
         with pytest.raises(Exception):
             self._infer(model, protocol=protocol)
         # profile should work without a prompt for LLM models
-        self._profile(model, protocol=protocol, backend="tensorrtllm")
+        self._profile(model, backend="tensorrtllm")
