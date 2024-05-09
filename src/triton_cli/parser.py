@@ -29,7 +29,6 @@ import json
 import subprocess
 import sys
 import time
-from typing import List
 import logging
 import argparse
 from pathlib import Path
@@ -44,6 +43,7 @@ from triton_cli.constants import (
 )
 from triton_cli.client.client import InferenceServerException, TritonClient
 from triton_cli.metrics import MetricsClient
+from triton_cli.profile import add_unknown_args_to_args, build_command
 from triton_cli.repository import ModelRepository
 from triton_cli.server.server_factory import TritonServerFactory
 
@@ -447,66 +447,3 @@ def parse_args(argv=None):
     else:
         args = parser.parse_args(argv_)
     return args
-
-
-# ================================================
-# Helper functions
-# ================================================
-def build_command(args: argparse.Namespace, executable: str):
-    skip_args = ["func"]
-    cmd = [executable]
-    for arg, value in vars(args).items():
-        if arg in skip_args:
-            pass
-        elif value is False:
-            pass
-        elif value is True:
-            if len(arg) == 1:
-                cmd += [f"-{arg}"]
-            else:
-                cmd += [f"--{arg}"]
-        # [DLIS-6656] - Remove backend renaming.
-        # This allows "tensorrtllm" to be used as the backend for consistency.
-        # Once GenAI-Perf releases 24.05, "tensorrtllm" as the backend value
-        # will be supported by default.
-        elif arg == "backend":
-            if value == "tensorrtllm":
-                cmd += ["--backend", "trtllm"]
-        else:
-            if len(arg) == 1:
-                cmd += [f"-{arg}", f"{value}"]
-            else:
-                cmd += [f"--{arg}", f"{value}"]
-    return cmd
-
-
-def add_unknown_args_to_args(args: argparse.Namespace, unknown_args: List[str]):
-    """Add unknown args to args list"""
-    unknown_args_dict = turn_unknown_args_into_dict(unknown_args)
-    for key, value in unknown_args_dict.items():
-        setattr(args, key, value)
-    return args
-
-
-def turn_unknown_args_into_dict(unknown_args: List[str]):
-    """Convert list of unknown args to dictionary"""
-    it = iter(unknown_args)
-    unknown_args_dict = {}
-    try:
-        while True:
-            arg = next(it)
-            if arg.startswith(("-", "--")):
-                key = arg.lstrip("-")
-                # Peek to see if next item is a value or another flag
-                next_arg = next(it, None)
-                if next_arg and not next_arg.startswith(("-", "--")):
-                    unknown_args_dict[key] = next_arg
-                else:
-                    unknown_args_dict[key] = True
-                    if next_arg:
-                        it = iter([next_arg] + list(it))
-            else:
-                raise ValueError(f"Argument does not start with a '-' or '--': {arg}")
-    except StopIteration:
-        pass
-    return unknown_args_dict

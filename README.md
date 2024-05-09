@@ -226,7 +226,7 @@ huggingface-login
 
 # Build TRT LLM engine and generate a Triton model repository pointing at it
 triton remove -m all
-triton import -m llama-3-8b-instruct --backend trtllm
+triton import -m llama-3-8b-instruct --backend tensorrtllm
 
 # Start Triton pointing at the default model repository
 triton start
@@ -235,7 +235,7 @@ triton start
 triton infer -m llama-3-8b-instruct --prompt "machine learning is"
 
 # Profile model with GenAI-Perf
-triton profile -m llama-3-8b-instruct --backend trtllm
+triton profile -m llama-3-8b-instruct --backend tensorrtllm
 ```
 ## Additional Dependencies for Custom Environments
 
