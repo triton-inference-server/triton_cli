@@ -37,8 +37,6 @@ classifiers = [
     "Topic :: Scientific/Engineering",
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.8",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Operating System :: Unix",
@@ -46,7 +44,7 @@ classifiers = [
 authors = []
 maintainers = []
 keywords = []
-requires-python = ">=3.8,<4"
+requires-python = ">=3.10,<4"
 # TODO: Add [gpu] set of dependencies for trtllm once it's available on pypi
 dependencies = [
     "directory-tree == 0.0.4", # may remove in future
