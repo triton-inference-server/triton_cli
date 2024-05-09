@@ -130,6 +130,8 @@ class TestRepo:
     def test_list(self, repo):
         self._list(repo)
 
+    # This test uses mock system args and a mock subprocess call
+    # to ensure that the correct subprocess call is made for profile.
     def test_triton_profile(self, mocker, monkeypatch):
         test_args = ["triton", "profile", "-m", "add_sub"]
         mock_run = mocker.patch("subprocess.run")

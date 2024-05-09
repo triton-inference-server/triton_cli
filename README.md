@@ -96,8 +96,6 @@ triton infer -m gpt2 --prompt "machine learning is"
 
 # Infer with curl using the generate endpoint
 curl -X POST localhost:8000/v2/models/gpt2/generate -d '{"text_input": "machine learning is", "max_tokens": 128}'
-
-
 ```
 
 ## Serving LLM Models
