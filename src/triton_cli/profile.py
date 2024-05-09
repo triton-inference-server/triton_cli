@@ -50,7 +50,7 @@ def build_command(args: argparse.Namespace, executable: str):
         # Once GenAI-Perf releases 24.05, "tensorrtllm" as the backend value
         # will be supported by default.
         elif arg == "backend":
-            if value == "tensorrtllm":
+            if value in ["tensorrtllm", "trtllm"]:
                 cmd += ["--backend", "trtllm"]
         else:
             if len(arg) == 1:
