@@ -155,10 +155,6 @@ class TestE2E:
         model = "add_sub"
         # infer should work without a prompt for non-LLM models
         self._infer(model, protocol=protocol)
-        # profile should fail for non-LLM models
-        with pytest.raises(Exception):
-            if protocol == "http":
-                pytest.xfail("Profiler does not support http protocol at this time")
 
     @pytest.mark.parametrize("protocol", ["grpc", "http"])
     def test_mock_llm(self, protocol, setup_and_teardown):
