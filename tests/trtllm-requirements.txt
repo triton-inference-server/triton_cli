@@ -1,2 +1,5 @@
---extra-index-url https://pypi.nvidia.com/
-tensorrt_llm==0.9.0
+# NOTE: No dependencies needed for running inside 24.04 TRTLLM container at this time
+#       Keeping this around for reference if this changes, but may remove later
+#       when the process is more stabilized.
+# --extra-index-url https://pypi.nvidia.com/
+# tensorrt_llm==0.9.0
