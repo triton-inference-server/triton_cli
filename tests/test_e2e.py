@@ -59,12 +59,8 @@ class TestE2E:
             args += ["-i", protocol]
         run(args)
 
-    def _profile(self, model, protocol=None, backend=None):
-        args = ["profile", "-m", model]
-        if protocol:
-            args += ["-i", protocol]
-        if backend:
-            args += ["--backend", backend]
+    def _profile(self, model, backend):
+        args = ["profile", "-m", model, "--backend", backend]
         run(args)
 
     class KillServerByPid:
@@ -115,7 +111,7 @@ class TestE2E:
         utils.wait_for_server_ready()
 
         self._infer(model, prompt=PROMPT, protocol=protocol)
-        self._profile(model, backend="tensorrtllm", protocol=protocol)
+        self._profile(model, backend="tensorrtllm")
 
     @pytest.mark.skipif(
         os.environ.get("IMAGE_KIND") != "VLLM", reason="Only run for VLLM image"
@@ -146,7 +142,7 @@ class TestE2E:
         utils.wait_for_server_ready(timeout=300)
 
         self._infer(model, prompt=PROMPT, protocol=protocol)
-        self._profile(model, protocol=protocol)
+        self._profile(model, backend="vllm")
 
     @pytest.mark.parametrize("protocol", ["grpc", "http"])
     def test_non_llm(self, protocol, setup_and_teardown):
@@ -159,11 +155,6 @@ class TestE2E:
         model = "add_sub"
         # infer should work without a prompt for non-LLM models
         self._infer(model, protocol=protocol)
-        # profile should fail for non-LLM models
-        with pytest.raises(Exception):
-            if protocol == "http":
-                pytest.xfail("Profiler does not support http protocol at this time")
-            self._profile(model, protocol=protocol)
 
     @pytest.mark.parametrize("protocol", ["grpc", "http"])
     def test_mock_llm(self, protocol, setup_and_teardown):
@@ -178,4 +169,6 @@ class TestE2E:
         self._infer(model, prompt=PROMPT, protocol=protocol)
         # infer should fail without a prompt for LLM models
         with pytest.raises(Exception):
-            self._profile(model, protocol=protocol)
+            self._infer(model, protocol=protocol)
+        # profile should work without a prompt for LLM models
+        self._profile(model, backend="tensorrtllm")

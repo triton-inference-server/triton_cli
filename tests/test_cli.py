@@ -27,7 +27,7 @@
 import os
 import pytest
 from triton_cli.main import run
-from triton_cli.parser import KNOWN_MODEL_SOURCES
+from triton_cli.parser import KNOWN_MODEL_SOURCES, parse_args
 
 KNOWN_MODELS = KNOWN_MODEL_SOURCES.keys()
 KNOWN_SOURCES = KNOWN_MODEL_SOURCES.values()
@@ -129,3 +129,13 @@ class TestRepo:
     @pytest.mark.parametrize("repo", TEST_REPOS)
     def test_list(self, repo):
         self._list(repo)
+
+    # This test uses mock system args and a mock subprocess call
+    # to ensure that the correct subprocess call is made for profile.
+    def test_triton_profile(self, mocker, monkeypatch):
+        test_args = ["triton", "profile", "-m", "add_sub"]
+        mock_run = mocker.patch("subprocess.run")
+        monkeypatch.setattr("sys.argv", test_args)
+        args = parse_args()
+        args.func(args)
+        mock_run.assert_called_once_with(["genai-perf", "-m", "add_sub"], check=True)

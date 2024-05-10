@@ -26,6 +26,8 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import json
+import subprocess
+import sys
 import time
 import logging
 import argparse
@@ -41,9 +43,9 @@ from triton_cli.constants import (
 )
 from triton_cli.client.client import InferenceServerException, TritonClient
 from triton_cli.metrics import MetricsClient
+from triton_cli.profile import add_unknown_args_to_args, build_command
 from triton_cli.repository import ModelRepository
 from triton_cli.server.server_factory import TritonServerFactory
-from triton_cli.profiler import Profiler
 
 logger = logging.getLogger(LOGGER_NAME)
 
@@ -156,41 +158,6 @@ def add_model_args(subcommands):
     for subcommand in subcommands:
         subcommand.add_argument(
             "-m", "--model", type=str, required=True, help="Model name"
-        )
-
-
-def add_profile_args(subcommands):
-    for subcommand in subcommands:
-        subcommand.add_argument(
-            "-b",
-            "--batch-size",
-            type=int,
-            default=1,
-            required=False,
-            help="The batch size / concurrency to benchmark. (Default: 1)",
-        )
-        subcommand.add_argument(
-            "--input-length",
-            type=int,
-            default=128,
-            required=False,
-            help="The input length (tokens) to use for benchmarking LLMs. (Default: 128)",
-        )
-        subcommand.add_argument(
-            "--output-length",
-            type=int,
-            default=128,
-            required=False,
-            help="The output length (tokens) to use for benchmarking LLMs. (Default: 128)",
-        )
-        # TODO: Revisit terminology here. Online/offline vs streaming, etc.
-        subcommand.add_argument(
-            "--profile-mode",
-            type=str,
-            choices=["online", "offline"],
-            default="online",
-            required=False,
-            help="Profiling mode: offline means one full response will be generated, online means response will be streaming tokens as they are generated.",
         )
 
 
@@ -396,49 +363,17 @@ def handle_infer(args: argparse.Namespace):
 # Profile
 # ================================================
 def parse_args_profile(parser):
-    profile = parser.add_parser(
-        "profile", help="Profile LLM models using Perf Analyzer"
-    )
+    profile = parser.add_parser("profile", help="Profile models", add_help=False)
     profile.set_defaults(func=handle_profile)
-    add_model_args([profile])
-    add_profile_args([profile])
-    add_backend_args([profile])
-    add_client_args([profile])
+    profile.add_argument(
+        "--help", action="store_true", help="Show help message and exit"
+    )
 
 
 def handle_profile(args: argparse.Namespace):
-    client = TritonClient(url=args.url, port=args.port, protocol=args.protocol)
-    profile_model(args, client)
-
-
-# TODO: Move to utils? <-- Delete?
-def profile_model(args: argparse.Namespace, client: TritonClient):
-    if args.protocol != "grpc":
-        raise Exception("Profiler only supports 'grpc' protocol at this time.")
-
-    if not args.port:
-        args.port = 8001 if args.protocol == "grpc" else 8000
-
-    # TODO: Consider python(BLS)/ensemble case for the model
-    # receiving requests in the case of TRT-LLM. For now, TRT-LLM
-    # should be manually specified.
-    backend = args.backend
-    if not args.backend:
-        # Profiler needs to know TRT-LLM vs vLLM to form correct payload
-        backend = client.get_model_backend(args.model)
-
-    logger.info(f"Running Perf Analyzer profiler on '{args.model}'...")
-    Profiler.profile(
-        model=args.model,
-        backend=backend,
-        batch_size=args.batch_size,
-        url=f"{args.url}:{args.port}",
-        input_length=args.input_length,
-        output_length=args.output_length,
-        # Should be "online" for IFB / streaming, and "offline" for non-streaming
-        offline=(args.profile_mode == "offline"),
-        verbose=args.verbose,
-    )
+    cmd = build_command(args, "genai-perf")
+    logger.info(f"Running: '{' '.join(cmd)}'")
+    subprocess.run(cmd, check=True)
 
 
 # ================================================
@@ -502,5 +437,12 @@ def parse_args(argv=None):
     parse_args_profile(subcommands)
     parse_args_utils(subcommands)
     add_verbose_args([parser])
-    args = parser.parse_args(argv)
+
+    argv_ = argv if argv is not None else sys.argv[1:]
+    # Add special argparse handling for passthrough to genai-perf CLI
+    if argv_[0] == "profile":
+        args, unknown_args = parser.parse_known_args(argv_)
+        args = add_unknown_args_to_args(args, unknown_args)
+    else:
+        args = parser.parse_args(argv_)
     return args

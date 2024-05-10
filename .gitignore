@@ -8,6 +8,7 @@ __pycache__/
 
 # Distribution / packaging
 .Python
+artifacts/
 build/
 develop-eggs/
 dist/
@@ -17,12 +18,20 @@ eggs/
 lib64/
 parts/
 sdist/
+tests/checkpoints/
+tests/output_dir/
+tests/output_model_repository/
+tests/plots/
+tests/reports/
+tests/results/
+tmp/
 var/
 wheels/
 share/python-wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+llm_inputs.json
 MANIFEST
 
 # PyInstaller
