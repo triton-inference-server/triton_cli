@@ -112,7 +112,7 @@ minutes.
 > ex: `docker run -v ${HOME}/.cache/huggingface:/root/.cache/huggingface ...`
 >
 > Also, usage of certain restricted models like Llama models requires authentication
-> in Huggingface through either `huggingface-login` or setting the `HF_TOKEN`
+> in Huggingface through either `huggingface-cli login` or setting the `HF_TOKEN`
 > environment variable.
 
 
@@ -150,7 +150,7 @@ GIT_REF="0.0.7"
 pip install git+https://github.com/triton-inference-server/triton_cli.git@${GIT_REF}
 
 # Authenticate with huggingface for restricted models like Llama-2 and Llama-3
-huggingface-login
+huggingface-cli login
 
 # Generate a Triton model repository containing a vLLM model config
 triton remove -m all
@@ -220,7 +220,7 @@ GIT_REF="0.0.7"
 pip install git+https://github.com/triton-inference-server/triton_cli.git@${GIT_REF}
 
 # Authenticate with huggingface for restricted models like Llama-2 and Llama-3
-huggingface-login
+huggingface-cli login
 
 # Build TRT LLM engine and generate a Triton model repository pointing at it
 triton remove -m all
