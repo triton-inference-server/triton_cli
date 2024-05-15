@@ -129,7 +129,7 @@ class TestE2E:
             ),
         ],
     )
-    @pytest.mark.timeout(600)
+    @pytest.mark.timeout(900)
     def test_vllm_e2e(self, protocol, setup_and_teardown):
         # NOTE: VLLM test models will be passed by the testing infrastructure.
         # Only a single model will be passed per test to enable tests to run concurrently.
@@ -139,7 +139,8 @@ class TestE2E:
         pid = utils.run_server()
         setup_and_teardown.pid = pid
         # vLLM will download the model on the fly, so give it a big timeout
-        utils.wait_for_server_ready(timeout=300)
+        # TODO: Consider mounting larger models pre-downloaded for testing
+        utils.wait_for_server_ready(timeout=600)
 
         self._infer(model, prompt=PROMPT, protocol=protocol)
         self._profile(model, backend="vllm")
