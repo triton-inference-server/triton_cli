@@ -61,6 +61,6 @@ jobs:
         ruff format .
     - name: Test with pytest
       run: |
-        pip install pytest pytest-timeout pytest-cov psutil
+        python -m pip install pytest pytest-timeout pytest-cov psutil
         cd tests
-        pytest -v --doctest-modules --junitxml=junit/test-results.xml --cov=triton_cli --cov-report=xml --cov-report=html --ignore-glob=test_models
+        pytest -vv --doctest-modules --junitxml=junit/test-results.xml --cov=triton_cli --cov-report=xml --cov-report=html --ignore-glob=test_models
