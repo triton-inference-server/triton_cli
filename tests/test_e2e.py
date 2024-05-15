@@ -139,7 +139,10 @@ class TestE2E:
         pid = utils.run_server()
         setup_and_teardown.pid = pid
         # vLLM will download the model on the fly, so give it a big timeout
-        # TODO: Consider mounting larger models pre-downloaded for testing
+        # TODO: Consider one of the following
+        # (a) Pre-download and mount larger models in test environment
+        # (b) Download model from HF for vLLM at import step to remove burden
+        #     from server startup step.
         utils.wait_for_server_ready(timeout=600)
 
         self._infer(model, prompt=PROMPT, protocol=protocol)
