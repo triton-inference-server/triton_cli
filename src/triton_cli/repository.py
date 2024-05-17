@@ -45,6 +45,8 @@ from huggingface_hub import utils as hf_utils
 
 from triton_cli.trt_llm.builder import TRTLLMBuilder
 
+BACKEND_TENSORRTLLM = "tensorrtllm"
+
 logger = logging.getLogger(LOGGER_NAME)
 
 # For now, generated model configs will be limited to only backends
@@ -153,10 +155,26 @@ class NGCWrapper:
 # Can eventually be an interface and have implementations
 # for remote stores or similar, but keeping it simple for now.
 class ModelRepository:
-    def __init__(self, path: str = None):
+
+    def __init__(
+        self, path: str = None, data_type: str = "float16", pipeline_parallelism: int = 1, tensor_parallelism: int = 1
+    ):
         self.repo = DEFAULT_MODEL_REPO
         if path:
             self.repo = Path(path)
+
+        if data_type not in ["bfloat16", "float16", "float32", "int8"]:
+            raise ValueError('Value of `data_type` argument must be one of the following: "bfloat16", "float16", "float32", or "int8".')
+
+        if pipeline_parallelism <= 0 or pipeline_parallelism > 16:
+            raise ValueError("Value of `pipeline_parallelism` argument must be greater than zero and less than or equal to 16.")
+
+        if tensor_parallelism <= 0 or tensor_parallelism > 16:
+            raise ValueError("Value of `tensor_parallelism` argument must be greater than zero and less than or equal to 16.")
+
+        self.__data_type = data_type
+        self.__pipeline_parallelism = pipeline_parallelism
+        self.__tensor_parallelism = tensor_parallelism
 
         # OK if model repo already exists, support adding multiple models
         try:
@@ -175,7 +193,7 @@ class ModelRepository:
         version: int = 1,
         source: str = None,
         backend: str = None,
-        verbose=True,
+        verbose: bool = True,
     ):
         if not source:
             raise ValueError("Non-empty model source must be provided")
@@ -194,7 +212,7 @@ class ModelRepository:
         elif source.startswith(SOURCE_PREFIX_NGC):
             logger.debug("NGC prefix detected, parsing NGC ID")
             source_type = "ngc"
-            backend = "tensorrtllm"
+            backend = BACKEND_TENSORRTLLM
         # Local model path
         else:
             logger.debug("No supported prefix detected, assuming local path")
@@ -262,7 +280,7 @@ class ModelRepository:
         if not huggingface_id:
             raise ValueError("HuggingFace ID must be non-empty")
 
-        if backend == "tensorrtllm":
+        if backend == BACKEND_TENSORRTLLM:
             # TODO: Refactor the cleanup flow, move it to a higher level
             try:
                 self.__generate_trtllm_model(name, huggingface_id)
@@ -378,6 +396,9 @@ class ModelRepository:
             huggingface_id=huggingface_id,
             hf_download_path=hf_download_path,
             engine_output_path=engines_path,
+            data_type=self.__data_type,
+            pp_size=self.__pipeline_parallelism,
+            tp_size=self.__tensor_parallelism,
         )
         console = Console()
         with console.status(f"Building TRT-LLM engine for {huggingface_id}..."):
@@ -391,7 +412,7 @@ class ModelRepository:
         model_dir = self.repo / name
         version_dir = model_dir / str(version)
         try:
-            if backend == "tensorrtllm":
+            if backend == BACKEND_TENSORRTLLM:
                 # Don't allow existing files for TRT-LLM for now in case we delete large engine files
                 if model_dir.exists():
                     raise ValueError(

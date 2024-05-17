@@ -227,6 +227,25 @@ def parse_args_repo(parser):
         help="Local model path or model identifier. Use prefix 'hf:' to specify a HuggingFace model ID. "
         "NOTE: HuggingFace model support is currently limited to Transformer models through the vLLM backend.",
     )
+    repo_import.add_argument(
+        "--data-type",
+        type=str,
+        choices=["float32", "bfloat16", "float16", "int8"],
+        default="float16",
+        help="Data type used when compiling and optimizing the model for TensorRT.")
+    repo_import.add_argument(
+        "--pipeline-parallelism",
+        type=int,
+        default=1,
+        help="Pipeline parallelism involves sharding the model (vertically) into chunks, where each chunk comprises a subset of layers that is executed on a separate device."
+        "The main limitation of this method is that, due to the sequential nature of the processing, some devices or layers may remain idle while waiting for the output.")
+    repo_import.add_argument(
+        "--tensor-parallelism",
+        type=int,
+        default=1,
+        help="Tensor parallelism involves sharding (horizontally) individual layers of the model into smaller, independent blocks of computation that can be executed on different devices."
+        "Attention blocks and multi-layer perceptron (MLP) layers are major components of transformers that can take advantage of tensor parallelism."
+        "In multi-head attention blocks, each head or group of heads can be assigned to a different device so they can be computed independently and in parallel.")
 
     repo_remove = parser.add_parser("remove", help="Remove model from model repository")
     repo_remove.set_defaults(func=handle_repo_remove)
@@ -247,7 +266,12 @@ def parse_args_repo(parser):
 
 
 def handle_repo_import(args: argparse.Namespace):
-    repo = ModelRepository(args.model_repository)
+    repo = ModelRepository(
+        args.model_repository,
+        args.data_type,
+        args.pipeline_parallelism,
+        args.tensor_parallelism)
+
     # Handle common models for convenience
     if not args.source:
         args.source = check_known_sources(args.model)

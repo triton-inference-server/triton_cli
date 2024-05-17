@@ -43,11 +43,23 @@ CHECKPOINT_MODULE_MAP = {
 
 
 class TRTLLMBuilder:
-    def __init__(self, huggingface_id, hf_download_path, engine_output_path):
+
+    def __init__(self, huggingface_id: str, hf_download_path: str, engine_output_path: str, data_type: str, pp_size: int, tp_size: int):
+
+        if data_type not in ["bfloat16", "float16", "float32", "int8"]:
+            raise ValueError('Value of argument `data_type` must be one of the following: "bfloat16", "float16", "float32", or "int8".')
+        if pp_size <= 0 or pp_size > 16:
+            raise ValueError("Value of argument `pp_size` must be greater than zero and less than or equal to 16.")
+        if tp_size <= 0 or tp_size > 16:
+            raise ValueError("Value of argument `tp_size` must be greater than zero and less than or equal to 16.")
+
         self.checkpoint_id = CHECKPOINT_MODULE_MAP[huggingface_id]
         self.hf_download_path = hf_download_path
         self.converted_weights_path = self.hf_download_path + "/converted_weights"
         self.engine_output_path = engine_output_path
+        self.data_type = data_type
+        self.pp_size = pp_size
+        self.tp_size = tp_size
 
     # TODO: User should be able to specify a what parameters they want to use to build a
     # TRT LLM engine. A input JSON should be suitable for this goal.
@@ -67,8 +79,12 @@ class TRTLLMBuilder:
             self.hf_download_path,
             "--output_dir",
             self.converted_weights_path,
-            "--dtype=float16",
+            "--dtype",
+            self.data_type,
         ]
+
+        if (self.pp_size > 1 or self.tp_size > 1):
+            weight_conversion_args += ["--pp_size", f"{self.pp_size}", "--tp_size", f"{self.tp_size}"]
 
         # Need to specify gpt variant for gpt models
         if self.checkpoint_id in ["gpt2"]:
@@ -90,8 +106,8 @@ class TRTLLMBuilder:
         build_args = [
             f"--checkpoint_dir={self.converted_weights_path}",
             f"--output_dir={self.engine_output_path}",
-            "--gpt_attention_plugin=float16",
-            "--gemm_plugin=float16",
+            f"--gpt_attention_plugin={self.data_type}",
+            f"--gemm_plugin={self.data_type}",
         ]
 
         cmd = ["trtllm-build"] + build_args
