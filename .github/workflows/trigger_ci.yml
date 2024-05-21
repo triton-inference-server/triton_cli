@@ -5,7 +5,7 @@ jobs:
     environment: GITLAB
     runs-on: self-hosted
     steps:
-      - name: step1
+      - name: step 1
         run: |
           #!/bin/bash
           curl --request POST --header "PRIVATE-TOKEN:${{ secrets.TOKEN }}" "${{ secrets.MIRROR_URL }}"
@@ -14,7 +14,7 @@ jobs:
     needs: mirror_repo
     runs-on: self-hosted
     steps:
-      - name: step2
+      - name: step 2
         run: |
           #!/bin/bash
           curl --fail --request POST --form token=${{ secrets.PIPELINE_TOKEN }} -F ref=${GITHUB_HEAD_REF} -F variables[RULE_WORKFLOW]="DS_TEST_TRITON_CLI" "${{ secrets.PIPELINE_URL }}"
