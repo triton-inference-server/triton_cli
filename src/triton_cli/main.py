@@ -48,6 +48,8 @@ def main():
     try:
         run()
     except Exception as e:
+        import traceback      # can move this to top
+        traceback.print_exc() # print full traceback to improve debuggability
         logger.error(f"{e}")
 
 

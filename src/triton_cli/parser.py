@@ -55,9 +55,13 @@ logger = logging.getLogger(LOGGER_NAME)
 KNOWN_MODEL_SOURCES = {
     # Require authentication
     "llama-2-7b": "hf:meta-llama/Llama-2-7b-hf",
+    "llama-2-70b": "hf:meta-llama/Llama-2-70b-hf",
     "llama-2-7b-chat": "hf:meta-llama/Llama-2-7b-chat-hf",
+    "llama-2-70b-chat": "hf:meta-llama/Llama-2-70b-chat-hf",
     "llama-3-8b": "hf:meta-llama/Meta-Llama-3-8B",
+    "llama-3-70b": "hf:meta-llama/Meta-Llama-3-70B",
     "llama-3-8b-instruct": "hf:meta-llama/Meta-Llama-3-8B-Instruct",
+    "llama-3-70b-instruct": "hf:meta-llama/Meta-Llama-3-70B-Instruct",
     # Public
     "gpt2": "hf:gpt2",
     "opt125m": "hf:facebook/opt-125m",
@@ -230,7 +234,7 @@ def parse_args_repo(parser):
     repo_import.add_argument(
         "--data-type",
         type=str,
-        choices=["float32", "bfloat16", "float16", "int8"],
+        choices=["bfloat16", "float16", "float32", "int8"],
         default="float16",
         help="Data type used when compiling and optimizing the model for TensorRT.")
     repo_import.add_argument(

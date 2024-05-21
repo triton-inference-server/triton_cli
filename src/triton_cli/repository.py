@@ -82,13 +82,25 @@ SUPPORTED_TRT_LLM_BUILDERS = {
     "meta-llama/Llama-2-7b-hf": {
         "hf_allow_patterns": ["*.safetensors", "*.json"],
     },
+    "meta-llama/Llama-2-70b-hf": {
+        "hf_allow_patterns": ["*.safetensors", "*.json"],
+    },
     "meta-llama/Llama-2-7b-chat-hf": {
+        "hf_allow_patterns": ["*.safetensors", "*.json"],
+    },
+    "meta-llama/Llama-2-70b-chat-hf": {
         "hf_allow_patterns": ["*.safetensors", "*.json"],
     },
     "meta-llama/Meta-Llama-3-8B": {
         "hf_allow_patterns": ["*.safetensors", "*.json"],
     },
+    "meta-llama/Meta-Llama-3-70B": {
+        "hf_allow_patterns": ["*.safetensors", "*.json"],
+    },
     "meta-llama/Meta-Llama-3-8B-Instruct": {
+        "hf_allow_patterns": ["*.safetensors", "*.json"],
+    },
+    "meta-llama/Meta-Llama-3-70B-Instruct": {
         "hf_allow_patterns": ["*.safetensors", "*.json"],
     },
     "gpt2": {

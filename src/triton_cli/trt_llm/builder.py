@@ -34,9 +34,13 @@ logger = logging.getLogger(LOGGER_NAME)
 
 CHECKPOINT_MODULE_MAP = {
     "meta-llama/Llama-2-7b-hf": "llama",
+    "meta-llama/Llama-2-70b-hf": "llama",
     "meta-llama/Llama-2-7b-chat-hf": "llama",
+    "meta-llama/Llama-2-70b-chat-hf": "llama",
     "meta-llama/Meta-Llama-3-8B": "llama",
+    "meta-llama/Meta-Llama-3-70B": "llama",
     "meta-llama/Meta-Llama-3-8B-Instruct": "llama",
+    "meta-llama/Meta-Llama-3-70B-Instruct": "llama",
     "facebook/opt-125m": "opt",
     "gpt2": "gpt2",
 }
