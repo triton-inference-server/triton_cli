@@ -5,7 +5,7 @@ jobs:
     environment: GITLAB
     runs-on: self-hosted
     steps:
-      - name: Mirror Repository
+      - name: Sync Mirror Repository
         run: |
           #!/bin/bash
           curl --request POST --header "PRIVATE-TOKEN:${{ secrets.TOKEN }}" "${{ secrets.MIRROR_URL }}"
