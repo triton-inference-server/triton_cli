@@ -32,7 +32,7 @@ import utils
 import io
 from contextlib import redirect_stdout
 import json
-
+import ast
 
 KNOWN_MODELS = KNOWN_MODEL_SOURCES.keys()
 KNOWN_SOURCES = KNOWN_MODEL_SOURCES.values()
@@ -82,6 +82,10 @@ class TestRepo:
     
     def _metrics(self):
         args = ["metrics"]
+        run(args)
+    
+    def _config(self, model):
+        args = ["config", "-m", model]
         run(args)
 
     def _remove(self, model, repo=None):
@@ -178,8 +182,7 @@ class TestRepo:
         # setup_and_teardown.pid = pid
         utils.wait_for_server_ready()
 
-        # infer should work without a prompt for non-LLM models
-        self._infer(model, prompt=PROMPT)
+        self._infer(model, prompt=PROMPT) # Inference the Model
 
         output = ""
         # Redirect stdout to a buffer to capture the output of the command.
@@ -187,20 +190,26 @@ class TestRepo:
             self._metrics()
             output = buf.getvalue()
         output = json.loads(output)
-
+        # Loops through all loaded models
         for loaded_models in output["nv_inference_request_success"]["metrics"]: 
             if loaded_models["labels"]["model"] == model:
                 assert loaded_models["value"] > 0
 
-        # triton infer -m model
-        # output = triton metrics
-        # result = json.loads(output) 
-        # Check if result[success] == 1
-        # Metrics that can be checked for success:
-        # 1. nv_inference_request_success
-        # 2. nv_inference_count: Number of inferences performed (does not include cached requests)
-        # 3. nv_inference_exec_count: Number of model executions performed (does not include cached requests)
+    @pytest.mark.parametrize("model", ["add_sub", "mock_llm"])
+    def test_triton_config(self, model):
+        
+        pid = utils.run_server(repo=MODEL_REPO) # Import the Model
+        
+        # TODO: Need to kill_server
+        # setup_and_teardown.pid = pid
+        utils.wait_for_server_ready()
 
-
-    # @pytest.mark.parametrize("model", ["add_sub", "mock_llm"])
-    # def test_triton_config(self, model):
+        output = ""
+        # Redirect stdout to a buffer to capture the output of the command.
+        with io.StringIO() as buf, redirect_stdout(buf):
+            self._config(model)
+            output = buf.getvalue()
+        
+        output = eval(output) # Evaluates str and converts to dictionary
+        
+        assert output["name"] == model
