@@ -28,6 +28,8 @@ import os
 import pytest
 from triton_cli.main import run
 from triton_cli.parser import KNOWN_MODEL_SOURCES, parse_args
+import utils
+
 
 KNOWN_MODELS = KNOWN_MODEL_SOURCES.keys()
 KNOWN_SOURCES = KNOWN_MODEL_SOURCES.values()
@@ -40,6 +42,11 @@ CUSTOM_TRTLLM_MODEL_SOURCES = [("trtllm-model", "hf:gpt2")]
 # TODO: Add public NGC model for testing
 CUSTOM_NGC_MODEL_SOURCES = [("my-llm", "ngc:does-not-exist")]
 
+
+PROMPT = "machine learning is"
+
+TEST_DIR = os.path.dirname(os.path.realpath(__file__))
+MODEL_REPO = os.path.join(TEST_DIR, "test_models")
 
 class TestRepo:
     def _list(self, repo=None):
@@ -61,12 +68,28 @@ class TestRepo:
         if backend:
             args += ["--backend", backend]
         run(args)
+    
+    def _infer(self, model, prompt=None, protocol=None):
+        args = ["infer", "-m", model]
+        if prompt:
+            args += ["--prompt", prompt]
+        if protocol:
+            args += ["-i", protocol]
+        run(args)
 
     def _remove(self, model, repo=None):
         args = ["remove", "-m", model]
         if repo:
             args += ["--repo", repo]
         run(args)
+    
+    class KillServerByPid:
+        def __init__(self):
+            self.pid = None
+
+        def kill_server(self):
+            if self.pid is not None:
+                utils.kill_server(self.pid)
 
     @pytest.mark.parametrize("repo", TEST_REPOS)
     def test_clear(self, repo):
@@ -141,9 +164,24 @@ class TestRepo:
         mock_run.assert_called_once_with(["genai-perf", "-m", "add_sub"], check=True)
 
     @pytest.mark.parametrize("model", ["mock_llm"])
-    def test_triton_metrics(self, model):
-        print("Passed Here!!!!!!!")
-        pass
+    def test_triton_metrics(self, model):        
+        # Import the Model
+        pid = utils.run_server(repo=MODEL_REPO)
+        setup_and_teardown.pid = pid
+        utils.wait_for_server_ready()
+
+        # infer should work without a prompt for non-LLM models
+        self._infer(model)
+
+        output = ""
+        # Redirect stdout to a buffer to capture the output of the command.
+        with io.StringIO() as buf, redirect_stdout(buf):
+            self._metrics()
+            output = buf.getvalue()
+        output = json.loads(output)
+        print(json.dumps(output, indent = 2))
+        assert output["nv_inference_request_success_total"] > 0
+
         # triton infer -m model
         # output = triton metrics
         # result = json.loads(output) 
