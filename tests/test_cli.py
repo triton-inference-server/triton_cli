@@ -167,11 +167,11 @@ class TestRepo:
     def test_triton_metrics(self, model):        
         # Import the Model
         pid = utils.run_server(repo=MODEL_REPO)
-        setup_and_teardown.pid = pid
+        # setup_and_teardown.pid = pid
         utils.wait_for_server_ready()
 
         # infer should work without a prompt for non-LLM models
-        self._infer(model)
+        self._infer(model, prompt=PROMPT)
 
         output = ""
         # Redirect stdout to a buffer to capture the output of the command.
