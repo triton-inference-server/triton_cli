@@ -32,8 +32,6 @@ import utils
 import io
 from contextlib import redirect_stdout
 import json
-import ast
-from rich import print as rich_print
 
 KNOWN_MODELS = KNOWN_MODEL_SOURCES.keys()
 KNOWN_SOURCES = KNOWN_MODEL_SOURCES.values()
@@ -51,6 +49,7 @@ PROMPT = "machine learning is"
 
 TEST_DIR = os.path.dirname(os.path.realpath(__file__))
 MODEL_REPO = os.path.join(TEST_DIR, "test_models")
+
 
 class TestRepo:
     def _list(self, repo=None):
@@ -72,7 +71,7 @@ class TestRepo:
         if backend:
             args += ["--backend", backend]
         run(args)
-    
+
     def _infer(self, model, prompt=None, protocol=None):
         args = ["infer", "-m", model]
         if prompt:
@@ -80,11 +79,11 @@ class TestRepo:
         if protocol:
             args += ["-i", protocol]
         run(args)
-    
+
     def _metrics(self):
         args = ["metrics"]
         run(args)
-    
+
     def _config(self, model):
         args = ["config", "-m", model]
         run(args)
@@ -98,7 +97,7 @@ class TestRepo:
         if repo:
             args += ["--repo", repo]
         run(args)
-    
+
     class KillServerByPid:
         def __init__(self):
             self.pid = None
@@ -106,7 +105,7 @@ class TestRepo:
         def kill_server(self):
             if self.pid is not None:
                 utils.kill_server(self.pid)
-    
+
     @pytest.fixture
     def setup_and_teardown(self):
         # Setup before the test case is run.
@@ -192,32 +191,31 @@ class TestRepo:
         mock_run.assert_called_once_with(["genai-perf", "-m", "add_sub"], check=True)
 
     @pytest.mark.parametrize("model", ["mock_llm"])
-    def test_triton_metrics(self, model, setup_and_teardown):        
+    def test_triton_metrics(self, model, setup_and_teardown):
         # Import the Model Repo
         pid = utils.run_server(repo=MODEL_REPO)
         setup_and_teardown.pid = pid
         utils.wait_for_server_ready()
-        
+
         # Inference the Model
-        self._infer(model, prompt=PROMPT) 
+        self._infer(model, prompt=PROMPT)
 
         output = ""
         # Redirect stdout to a buffer to capture the output of the command.
         with io.StringIO() as buf, redirect_stdout(buf):
             self._metrics()
             output = buf.getvalue()
-        
+
         metrics = json.loads(output)
-        
+
         # Loop through all loaded models and check for successful inference
-        for loaded_models in metrics["nv_inference_request_success"]["metrics"]: 
+        for loaded_models in metrics["nv_inference_request_success"]["metrics"]:
             if loaded_models["labels"]["model"] == model:
                 assert loaded_models["value"] > 0
 
-
     @pytest.mark.parametrize("model", ["add_sub", "mock_llm"])
     def test_triton_config(self, model, setup_and_teardown):
-        # Import the Model        
+        # Import the Model
         pid = utils.run_server(repo=MODEL_REPO)
         setup_and_teardown.pid = pid
         utils.wait_for_server_ready()
@@ -227,15 +225,15 @@ class TestRepo:
         with io.StringIO() as buf, redirect_stdout(buf):
             self._config(model)
             output = buf.getvalue()
-        
-        config = json.loads(output) 
+
+        config = json.loads(output)
 
         # Checks if correct model is loaded
-        assert config["name"] == model 
-    
+        assert config["name"] == model
+
     @pytest.mark.parametrize("model", ["add_sub", "mock_llm"])
     def test_triton_status(self, model, setup_and_teardown):
-        pid = utils.run_server(repo=MODEL_REPO) # Import the Model
+        pid = utils.run_server(repo=MODEL_REPO)  # Import the Model
         setup_and_teardown.pid = pid
         utils.wait_for_server_ready()
 
@@ -244,9 +242,9 @@ class TestRepo:
         with io.StringIO() as buf, redirect_stdout(buf):
             self._status()
             output = buf.getvalue()
-        
+
         print(f"Status: {output}")
-        status = json.loads(output) 
+        status = json.loads(output)
 
         # Checks if model(s) are live and ready
-        assert status["live"] and status["ready"] 
+        assert status["live"] and status["ready"]
