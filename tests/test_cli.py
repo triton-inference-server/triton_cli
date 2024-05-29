@@ -139,3 +139,18 @@ class TestRepo:
         args = parse_args()
         args.func(args)
         mock_run.assert_called_once_with(["genai-perf", "-m", "add_sub"], check=True)
+
+    @pytest.mark.parametrize("model", ["mock_llm"])
+    def test_triton_metrics(self, model):
+        # triton infer -m model
+        # output = triton metrics
+        # result = json.loads(output) 
+        # Check if result[success] == 1
+        # Metrics that can be checked for success:
+        # 1. nv_inference_request_success
+        # 2. nv_inference_count: Number of inferences performed (does not include cached requests)
+        # 3. nv_inference_exec_count: Number of model executions performed (does not include cached requests)
+
+
+    # @pytest.mark.parametrize("model", ["add_sub", "mock_llm"])
+    # def test_triton_config(self, model):
