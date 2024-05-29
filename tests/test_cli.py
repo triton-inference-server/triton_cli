@@ -29,6 +29,9 @@ import pytest
 from triton_cli.main import run
 from triton_cli.parser import KNOWN_MODEL_SOURCES, parse_args
 import utils
+import io
+from contextlib import redirect_stdout
+import json
 
 
 KNOWN_MODELS = KNOWN_MODEL_SOURCES.keys()
@@ -75,6 +78,10 @@ class TestRepo:
             args += ["--prompt", prompt]
         if protocol:
             args += ["-i", protocol]
+        run(args)
+    
+    def _metrics(self):
+        args = ["metrics"]
         run(args)
 
     def _remove(self, model, repo=None):
@@ -163,10 +170,11 @@ class TestRepo:
         args.func(args)
         mock_run.assert_called_once_with(["genai-perf", "-m", "add_sub"], check=True)
 
-    @pytest.mark.parametrize("model", ["mock_llm"])
+    @pytest.mark.parametrize("model", ["add_sub", "mock_llm"])
     def test_triton_metrics(self, model):        
         # Import the Model
         pid = utils.run_server(repo=MODEL_REPO)
+        # TODO: Need to kill_server
         # setup_and_teardown.pid = pid
         utils.wait_for_server_ready()
 
@@ -179,8 +187,10 @@ class TestRepo:
             self._metrics()
             output = buf.getvalue()
         output = json.loads(output)
-        print(json.dumps(output, indent = 2))
-        assert output["nv_inference_request_success_total"] > 0
+
+        for loaded_models in output["nv_inference_request_success"]["metrics"]: 
+            if loaded_models["labels"]["model"] == model:
+                assert loaded_models["value"] > 0
 
         # triton infer -m model
         # output = triton metrics
