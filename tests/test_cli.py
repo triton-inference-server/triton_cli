@@ -209,7 +209,9 @@ class TestRepo:
         with io.StringIO() as buf, redirect_stdout(buf):
             self._config(model)
             output = buf.getvalue()
-        
-        output = eval(output) # Evaluates str and converts to dictionary
+
+        output = repr(output)
+        print(output)
+        output = json.loads(output) # Evaluates str and converts to dictionary
         
         assert output["name"] == model
