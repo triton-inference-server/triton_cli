@@ -89,7 +89,7 @@ class TestRepo:
         args = ["config", "-m", model]
         run(args)
 
-    def _status(self, model):
+    def _status(self):
         args = ["status"]
         run(args)
 
@@ -242,7 +242,7 @@ class TestRepo:
         output = ""
         # Redirect stdout to a buffer to capture the output of the command.
         with io.StringIO() as buf, redirect_stdout(buf):
-            self._status(model)
+            self._status()
             output = buf.getvalue()
         
         print(f"Status: {output}")
