@@ -142,6 +142,8 @@ class TestRepo:
 
     @pytest.mark.parametrize("model", ["mock_llm"])
     def test_triton_metrics(self, model):
+        print("Passed Here!!!!!!!")
+        pass
         # triton infer -m model
         # output = triton metrics
         # result = json.loads(output) 
