@@ -409,7 +409,7 @@ def handle_config(args: argparse.Namespace):
     config = client.get_model_config(args.model)
     if config:
         # TODO: Table
-        rich_print(config)
+        rich_print(json.dumps(config))
 
 
 def handle_status(args: argparse.Namespace):
@@ -422,7 +422,7 @@ def handle_status(args: argparse.Namespace):
 
     health = client.get_server_health()
     if health:
-        print(json.dumps(health))
+        rich_print(json.dumps(health))
 
 
 # Optional argv used for testing - will default to sys.argv if None.

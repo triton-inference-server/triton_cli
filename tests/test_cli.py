@@ -26,8 +26,10 @@
 
 import os
 import pytest
-from triton_cli.main import run
+from triton_cli.main import run, run_and_capture_stdout
 from triton_cli.parser import KNOWN_MODEL_SOURCES, parse_args
+import utils
+import json
 
 KNOWN_MODELS = KNOWN_MODEL_SOURCES.keys()
 KNOWN_SOURCES = KNOWN_MODEL_SOURCES.values()
@@ -39,6 +41,12 @@ CUSTOM_TRTLLM_MODEL_SOURCES = [("trtllm-model", "hf:gpt2")]
 
 # TODO: Add public NGC model for testing
 CUSTOM_NGC_MODEL_SOURCES = [("my-llm", "ngc:does-not-exist")]
+
+
+PROMPT = "machine learning is"
+
+TEST_DIR = os.path.dirname(os.path.realpath(__file__))
+MODEL_REPO = os.path.join(TEST_DIR, "test_models")
 
 
 class TestRepo:
@@ -62,11 +70,54 @@ class TestRepo:
             args += ["--backend", backend]
         run(args)
 
+    def _infer(self, model, prompt=None, protocol=None):
+        args = ["infer", "-m", model]
+        if prompt:
+            args += ["--prompt", prompt]
+        if protocol:
+            args += ["-i", protocol]
+        run(args)
+
+    def _metrics(self):
+        args = ["metrics"]
+        output = run_and_capture_stdout(args)
+        return json.loads(output)
+
+    def _config(self, model):
+        args = ["config", "-m", model]
+        output = run_and_capture_stdout(args)
+        return json.loads(output)
+
+    def _status(self):
+        args = ["status"]
+        output = run_and_capture_stdout(args)
+        return json.loads(output)
+
     def _remove(self, model, repo=None):
         args = ["remove", "-m", model]
         if repo:
             args += ["--repo", repo]
         run(args)
+
+    class KillServerByPid:
+        def __init__(self):
+            self.pid = None
+
+        def kill_server(self):
+            if self.pid is not None:
+                utils.kill_server(self.pid)
+
+    @pytest.fixture
+    def setup_and_teardown(self):
+        # Setup before the test case is run.
+        kill_server = self.KillServerByPid()
+        self._clear()
+
+        yield kill_server
+
+        # Teardown after the test case is done.
+        kill_server.kill_server()
+        self._clear()
 
     @pytest.mark.parametrize("repo", TEST_REPOS)
     def test_clear(self, repo):
@@ -139,3 +190,50 @@ class TestRepo:
         args = parse_args()
         args.func(args)
         mock_run.assert_called_once_with(["genai-perf", "-m", "add_sub"], check=True)
+
+    @pytest.mark.parametrize("model", ["mock_llm"])
+    def test_triton_metrics(self, model, setup_and_teardown):
+        # Import the Model Repo
+        pid = utils.run_server(repo=MODEL_REPO)
+        setup_and_teardown.pid = pid
+        utils.wait_for_server_ready()
+
+        metrics_before = self._metrics()
+
+        # Before Inference, Verifying Inference Count == 0
+        for loaded_models in metrics_before["nv_inference_request_success"]["metrics"]:
+            if loaded_models["labels"]["model"] == model:  # If mock_llm
+                assert loaded_models["value"] == 0
+
+        # Model Inference
+        self._infer(model, prompt=PROMPT)
+
+        metrics_after = self._metrics()
+
+        # After Inference, Verifying Inference Count == 0
+        for loaded_models in metrics_after["nv_inference_request_success"]["metrics"]:
+            if loaded_models["labels"]["model"] == model:  # If mock_llm
+                assert loaded_models["value"] == 1
+
+    @pytest.mark.parametrize("model", ["mock_llm"])
+    def test_triton_config(self, model, setup_and_teardown):
+        # Import the Model
+        pid = utils.run_server(repo=MODEL_REPO)
+        setup_and_teardown.pid = pid
+        utils.wait_for_server_ready()
+
+        config = self._config(model)
+
+        # Checks if correct model is loaded
+        assert config["name"] == model
+
+    @pytest.mark.parametrize("model", ["mock_llm"])
+    def test_triton_status(self, model, setup_and_teardown):
+        pid = utils.run_server(repo=MODEL_REPO)  # Import the Model
+        setup_and_teardown.pid = pid
+        utils.wait_for_server_ready()
+
+        status = self._status()
+
+        # Checks if model(s) are live and ready
+        assert status["live"] and status["ready"]
