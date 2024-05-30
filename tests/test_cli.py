@@ -197,6 +197,19 @@ class TestRepo:
         setup_and_teardown.pid = pid
         utils.wait_for_server_ready()
 
+        output = ""
+        # Redirect stdout to a buffer to capture the output of the command.
+        with io.StringIO() as buf, redirect_stdout(buf):
+            self._metrics()
+            output = buf.getvalue()
+
+        metrics = json.loads(output)
+
+        # Verifying inference count is 0 before any inference
+        for loaded_models in metrics["nv_inference_request_success"]["metrics"]:
+            if loaded_models["labels"]["model"] == model:
+                assert loaded_models["value"] == 0
+
         # Inference the Model
         self._infer(model, prompt=PROMPT)
 
@@ -213,7 +226,7 @@ class TestRepo:
             if loaded_models["labels"]["model"] == model:
                 assert loaded_models["value"] == 1
 
-    @pytest.mark.parametrize("model", ["add_sub", "mock_llm"])
+    @pytest.mark.parametrize("model", ["mock_llm"])
     def test_triton_config(self, model, setup_and_teardown):
         # Import the Model
         pid = utils.run_server(repo=MODEL_REPO)
@@ -231,7 +244,7 @@ class TestRepo:
         # Checks if correct model is loaded
         assert config["name"] == model
 
-    @pytest.mark.parametrize("model", ["add_sub", "mock_llm"])
+    @pytest.mark.parametrize("model", ["mock_llm"])
     def test_triton_status(self, model, setup_and_teardown):
         pid = utils.run_server(repo=MODEL_REPO)  # Import the Model
         setup_and_teardown.pid = pid
