@@ -26,11 +26,9 @@
 
 import os
 import pytest
-from triton_cli.main import run
+from triton_cli.main import run, run_and_capture_stdout
 from triton_cli.parser import KNOWN_MODEL_SOURCES, parse_args
 import utils
-import io
-from contextlib import redirect_stdout
 import json
 
 KNOWN_MODELS = KNOWN_MODEL_SOURCES.keys()
@@ -82,15 +80,18 @@ class TestRepo:
 
     def _metrics(self):
         args = ["metrics"]
-        run(args)
+        output = run_and_capture_stdout(args)
+        return json.loads(output)
 
     def _config(self, model):
         args = ["config", "-m", model]
-        run(args)
+        output = run_and_capture_stdout(args)
+        return json.loads(output)
 
     def _status(self):
         args = ["status"]
-        run(args)
+        output = run_and_capture_stdout(args)
+        return json.loads(output)
 
     def _remove(self, model, repo=None):
         args = ["remove", "-m", model]
@@ -197,33 +198,21 @@ class TestRepo:
         setup_and_teardown.pid = pid
         utils.wait_for_server_ready()
 
-        output = ""
-        # Redirect stdout to a buffer to capture the output of the command.
-        with io.StringIO() as buf, redirect_stdout(buf):
-            self._metrics()
-            output = buf.getvalue()
+        metrics_before = self._metrics()
 
-        metrics = json.loads(output)
-
-        # Verifying inference count is 0 before any inference
-        for loaded_models in metrics["nv_inference_request_success"]["metrics"]:
-            if loaded_models["labels"]["model"] == model:
+        # Before Inference, Verifying Inference Count == 0
+        for loaded_models in metrics_before["nv_inference_request_success"]["metrics"]:
+            if loaded_models["labels"]["model"] == model:  # If mock_llm
                 assert loaded_models["value"] == 0
 
-        # Inference the Model
+        # Model Inference
         self._infer(model, prompt=PROMPT)
 
-        output = ""
-        # Redirect stdout to a buffer to capture the output of the command.
-        with io.StringIO() as buf, redirect_stdout(buf):
-            self._metrics()
-            output = buf.getvalue()
+        metrics_after = self._metrics()
 
-        metrics = json.loads(output)
-
-        # Loop through all loaded models and check for successful inference
-        for loaded_models in metrics["nv_inference_request_success"]["metrics"]:
-            if loaded_models["labels"]["model"] == model:
+        # After Inference, Verifying Inference Count == 0
+        for loaded_models in metrics_after["nv_inference_request_success"]["metrics"]:
+            if loaded_models["labels"]["model"] == model:  # If mock_llm
                 assert loaded_models["value"] == 1
 
     @pytest.mark.parametrize("model", ["mock_llm"])
@@ -233,13 +222,7 @@ class TestRepo:
         setup_and_teardown.pid = pid
         utils.wait_for_server_ready()
 
-        output = ""
-        # Redirect stdout to a buffer to capture the output of the command.
-        with io.StringIO() as buf, redirect_stdout(buf):
-            self._config(model)
-            output = buf.getvalue()
-
-        config = json.loads(output)
+        config = self._config(model)
 
         # Checks if correct model is loaded
         assert config["name"] == model
@@ -250,14 +233,7 @@ class TestRepo:
         setup_and_teardown.pid = pid
         utils.wait_for_server_ready()
 
-        output = ""
-        # Redirect stdout to a buffer to capture the output of the command.
-        with io.StringIO() as buf, redirect_stdout(buf):
-            self._status()
-            output = buf.getvalue()
-
-        print(f"Status: {output}")
-        status = json.loads(output)
+        status = self._status()
 
         # Checks if model(s) are live and ready
         assert status["live"] and status["ready"]
