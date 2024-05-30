@@ -211,7 +211,7 @@ class TestRepo:
         # Loop through all loaded models and check for successful inference
         for loaded_models in metrics["nv_inference_request_success"]["metrics"]:
             if loaded_models["labels"]["model"] == model:
-                assert loaded_models["value"] > 0
+                assert loaded_models["value"] == 1
 
     @pytest.mark.parametrize("model", ["add_sub", "mock_llm"])
     def test_triton_config(self, model, setup_and_teardown):
