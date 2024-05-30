@@ -30,9 +30,17 @@ from triton_cli import parser
 
 import sys
 import logging
+import io
+from contextlib import redirect_stdout
 
 logging.basicConfig(level=logging.INFO, format="%(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger("triton")
+
+
+def run_and_capture_stdout(args):
+    with io.StringIO() as buf, redirect_stdout(buf):
+        run(args)
+        return buf.getvalue()
 
 
 # Separate function that can raise exceptions used for testing
