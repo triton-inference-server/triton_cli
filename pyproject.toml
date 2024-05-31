@@ -58,7 +58,11 @@ dependencies = [
     "psutil >= 5.9.5", # may remove later
     "rich == 13.5.2",
     # TODO: Test on cpu-only machine if [cuda] dependency is an issue
+<<<<<<< kprashanth-dependency-fix
     "tritonclient[all] >= 2.46",
+=======
+    "tritonclient[all] == 2.45.0",
+>>>>>>> main
     "huggingface-hub >= 0.19.4",
     # Testing
     "pytest >= 8.1.1", # may remove later
