@@ -99,26 +99,6 @@ class TestRepo:
             args += ["--repo", repo]
         run(args)
 
-    class KillServerByPid:
-        def __init__(self):
-            self.pid = None
-
-        def kill_server(self):
-            if self.pid is not None:
-                utils.kill_server(self.pid)
-
-    @pytest.fixture
-    def setup_and_teardown(self):
-        # Setup before the test case is run.
-        kill_server = self.KillServerByPid()
-        self._clear()
-
-        yield kill_server
-
-        # Teardown after the test case is done.
-        kill_server.kill_server()
-        self._clear()
-
     @pytest.mark.parametrize("repo", TEST_REPOS)
     def test_clear(self, repo):
         self._clear(repo)
@@ -192,9 +172,9 @@ class TestRepo:
         mock_run.assert_called_once_with(["genai-perf", "-m", "add_sub"], check=True)
 
     @pytest.mark.parametrize("model", ["mock_llm"])
-    def test_triton_metrics(self, model, setup_and_teardown):
+    def test_triton_metrics(self, model):
         # Import the Model Repo
-        with utils.MockServer(model) as _:
+        with utils.MockServer(MODEL_REPO) as _:
             metrics_before = self._metrics()
 
             # Before Inference, Verifying Inference Count == 0
@@ -217,24 +197,17 @@ class TestRepo:
                     assert loaded_models["value"] == 1
 
     @pytest.mark.parametrize("model", ["mock_llm"])
-    def test_triton_config(self, model, setup_and_teardown):
+    def test_triton_config(self, model):
         # Import the Model
-        pid = utils.run_server(repo=MODEL_REPO)
-        setup_and_teardown.pid = pid
-        utils.wait_for_server_ready()
-
-        config = self._config(model)
-
-        # Checks if correct model is loaded
-        assert config["name"] == model
+        with utils.MockServer(MODEL_REPO) as _:
+            config = self._config(model)
+            # Checks if correct model is loaded
+            assert config["name"] == model
 
     @pytest.mark.parametrize("model", ["mock_llm"])
-    def test_triton_status(self, model, setup_and_teardown):
-        pid = utils.run_server(repo=MODEL_REPO)  # Import the Model
-        setup_and_teardown.pid = pid
-        utils.wait_for_server_ready()
-
-        status = self._status()
-
-        # Checks if model(s) are live and ready
-        assert status["live"] and status["ready"]
+    def test_triton_status(self, model):
+        # Import the Model
+        with utils.MockServer(MODEL_REPO) as _:
+            status = self._status()
+            # Checks if model(s) are live and ready
+            assert status["live"] and status["ready"]

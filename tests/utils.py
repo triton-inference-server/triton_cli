@@ -97,10 +97,10 @@ class MockServer:
 
     def __enter__(self):
         self.pid = run_server(self.repo, self.mode)
-        wait_for_server_ready()
-        self._clear()
+        wait_for_server_ready()  # Polling
+        run(["remove", "-m", "all"])
 
-    def __exit__(self):
-        self._clear()
+    def __exit__(self, type, value, traceback):
+        run(["remove", "-m", "all"])
         kill_server(self.pid)
         self.repo, self.mode = None, None
