@@ -250,6 +250,14 @@ def parse_args_repo(parser):
         help="Tensor parallelism involves sharding (horizontally) individual layers of the model into smaller, independent blocks of computation that can be executed on different devices."
         "Attention blocks and multi-layer perceptron (MLP) layers are major components of transformers that can take advantage of tensor parallelism."
         "In multi-head attention blocks, each head or group of heads can be assigned to a different device so they can be computed independently and in parallel.")
+    repo_import.add_argument(
+        "--disable-custom-all-reduce",
+        action="count",
+        default=0,
+        help="Disables the use of the custom all reduce functionality."
+        "Required for multi-node use."
+        "Recommended optimization for multi-gpu, single-node use cases.",
+    )
 
     repo_remove = parser.add_parser("remove", help="Remove model from model repository")
     repo_remove.set_defaults(func=handle_repo_remove)
@@ -271,10 +279,8 @@ def parse_args_repo(parser):
 
 def handle_repo_import(args: argparse.Namespace):
     repo = ModelRepository(
-        args.model_repository,
-        args.data_type,
-        args.pipeline_parallelism,
-        args.tensor_parallelism)
+        args.model_repository, args.data_type, args.pipeline_parallelism, args.tensor_parallelism, (args.disable_custom_all_reduce == 0)
+    )
 
     # Handle common models for convenience
     if not args.source:

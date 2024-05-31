@@ -48,7 +48,16 @@ CHECKPOINT_MODULE_MAP = {
 
 class TRTLLMBuilder:
 
-    def __init__(self, huggingface_id: str, hf_download_path: str, engine_output_path: str, data_type: str, pp_size: int, tp_size: int):
+    def __init__(
+        self,
+        huggingface_id: str,
+        hf_download_path: str,
+        engine_output_path: str,
+        data_type: str,
+        pp_size: int,
+        tp_size: int,
+        use_custom_all_reduce: bool = True,
+    ):
 
         if data_type not in ["bfloat16", "float16", "float32", "int8"]:
             raise ValueError('Value of argument `data_type` must be one of the following: "bfloat16", "float16", "float32", or "int8".')
@@ -64,6 +73,7 @@ class TRTLLMBuilder:
         self.data_type = data_type
         self.pp_size = pp_size
         self.tp_size = tp_size
+        self.use_custom_all_reduce = use_custom_all_reduce
 
     # TODO: User should be able to specify a what parameters they want to use to build a
     # TRT LLM engine. A input JSON should be suitable for this goal.
@@ -113,6 +123,13 @@ class TRTLLMBuilder:
             f"--gpt_attention_plugin={self.data_type}",
             f"--gemm_plugin={self.data_type}",
         ]
+
+        if self.pp_size > 1 or self.tp_size > 1:
+            build_args += ["--pp_size", f"{self.pp_size}", "--tp_size", f"{self.tp_size}", "--gpus_per_node=1"]
+
+        if not self.use_custom_all_reduce:
+            # When multi-node we need to add `--use_custom_all_reduce disable`
+            build_args += ["--use_custom_all_reduce", "disable"]
 
         cmd = ["trtllm-build"] + build_args
         cmd_str = " ".join(cmd)

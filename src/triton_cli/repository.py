@@ -169,7 +169,7 @@ class NGCWrapper:
 class ModelRepository:
 
     def __init__(
-        self, path: str = None, data_type: str = "float16", pipeline_parallelism: int = 1, tensor_parallelism: int = 1
+        self, path: str = None, data_type: str = "float16", pipeline_parallelism: int = 1, tensor_parallelism: int = 1, use_custom_all_reduce: bool = True
     ):
         self.repo = DEFAULT_MODEL_REPO
         if path:
@@ -187,6 +187,7 @@ class ModelRepository:
         self.__data_type = data_type
         self.__pipeline_parallelism = pipeline_parallelism
         self.__tensor_parallelism = tensor_parallelism
+        self.__use_custom_all_reduce = use_custom_all_reduce
 
         # OK if model repo already exists, support adding multiple models
         try:
@@ -411,6 +412,7 @@ class ModelRepository:
             data_type=self.__data_type,
             pp_size=self.__pipeline_parallelism,
             tp_size=self.__tensor_parallelism,
+            use_custom_all_reduce=self.__use_custom_all_reduce,
         )
         console = Console()
         with console.status(f"Building TRT-LLM engine for {huggingface_id}..."):

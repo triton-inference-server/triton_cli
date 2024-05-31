@@ -51,6 +51,7 @@ def main():
         import traceback      # can move this to top
         traceback.print_exc() # print full traceback to improve debuggability
         logger.error(f"{e}")
+        exit(-1)
 
 
 if __name__ == "__main__":

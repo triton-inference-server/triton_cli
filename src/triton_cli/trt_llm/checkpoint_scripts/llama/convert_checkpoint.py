@@ -205,6 +205,68 @@ def parse_arguments(args=None):
     # changing the default to be consistent as the cli help said.
     if args.moe_num_experts and args.moe_top_k == 0:
         args.moe_top_k = 1
+
+    if args.model_dir is not None:
+        print(f'model_dir="{args.model_dir}"', flush=True)
+    if args.meta_ckpt_dir is not None:
+        print(f'meta_ckpt_dir="{args.meta_ckpt_dir}\"')
+    if args.tp_size is not None:
+        print(f"tp_size={args.tp_size}")
+    if args.pp_size is not None:
+        print(f'pp_size={args.pp_size}')
+    if args.dtype is not None:
+        print(f'dtype="{args.dtype}"')
+    if args.vocab_size is not None:
+        print(f"vocab_size={args.vocab_size}")
+    if args.n_positions is not None:
+        print(f"n_positions={args.n_positions}")
+    if args.n_layer is not None:
+        print(f"n_layer={args.n_layer}")
+    if args.n_head is not None:
+        print(f"n_head={args.n_head}")
+    if args.n_kv_head is not None:
+        print(f"n_kv_head={args.n_kv_head}")
+    if args.n_embd is not None:
+        print(f"n_embd={args.n_embd}")
+    if args.inter_size is not None:
+        print(f"inter_size={args.inter_size}")
+    if args.rms_norm_eps is not None:
+        print(f"rms_norm_eps={args.rms_norm_eps}")
+    if args.group_size is not None:
+        print(f"group_size={args.group_size}")
+    if args.load_by_shard is not None:
+        print(f"load_by_shard={args.load_by_shard}")
+    if args.use_weight_only is not None:
+        print(f"use_weight_only={args.use_weight_only}")
+    if args.weight_only_precision is not None:
+        print(f'weight_only_precision="{args.weight_only_precision}"')
+    if args.per_channel is not None:
+        print(f"per_channel={args.per_channel}")
+    if args.per_token is not None:
+        print(f"per_token={args.per_token}")
+    if args.output_dir is not None:
+        print(f'output_dir="{args.output_dir}"')
+    if args.workers is not None:
+        print(f"workers={args.workers}")
+    if args.moe_tp_mode is not None:
+        print(f"moe_tp_mode={args.moe_tp_mode}")
+    if args.save_config_only is not None:
+        print(f"save_config_only={args.save_config_only}")
+    if args.group_size is not None:
+        print(f"group_size={args.group_size}")
+    if args.load_model_on_cpu is not None:
+        print(f"load_model_on_cpu={args.load_model_on_cpu}")
+    if args.moe_num_experts is not None:
+        print(f"moe_num_experts={args.moe_num_experts}")
+    if args.moe_top_k is not None:
+        print(f"moe_top_k={args.moe_top_k}")
+    if args.moe_tp_mode is not None:
+        print(f"moe_tp_mode={args.moe_tp_mode}")
+    if args.moe_renorm_mode is not None:
+        print(f"moe_renorm_mode={args.moe_renorm_mode}")
+    if args.rotary_base is not None:
+        print(f"rotary_base={args.rotary_base}")
+
     return args
 
 
