@@ -94,8 +94,11 @@ class MockServer:
     def __init__(self):
         pass
 
-    def __enter__(self):
-        pass
+    def __enter__(self, repo, mode="local"):
+        self.pid = run_server(repo, mode)
+        wait_for_server_ready()
+        self._clear()
 
     def __exit__(self):
-        pass
+        self._clear()
+        kill_server(self.pid)
