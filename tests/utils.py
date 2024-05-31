@@ -87,3 +87,15 @@ def check_server_ready(protocol="grpc"):
         output = buf.getvalue()
     output = json.loads(output)
     return output["ready"]
+
+
+# Context Manager to start and kill a mock server running in background and used by testing functions
+class MockServer:
+    def __init__(self):
+        pass
+
+    def __enter__(self):
+        pass
+
+    def __exit__(self):
+        pass
