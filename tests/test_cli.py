@@ -189,7 +189,7 @@ class TestRepo:
 
             metrics_after = self._metrics()
 
-            # After Inference, Verifying Inference Count == 0
+            # After Inference, Verifying Inference Count == 1
             for loaded_models in metrics_after["nv_inference_request_success"][
                 "metrics"
             ]:
