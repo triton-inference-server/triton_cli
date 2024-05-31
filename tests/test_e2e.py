@@ -80,13 +80,13 @@ class TestE2E:
         ],
     )
     @pytest.mark.timeout(600)
-    def test_tensorrtllm_e2e(self, protocol, setup_and_teardown):
+    def test_tensorrtllm_e2e(self, protocol):
         # NOTE: TRTLLM test models will be passed by the testing infrastructure.
         # Only a single model will be passed per test to enable tests to run concurrently.
         model = os.environ.get("TRTLLM_MODEL")
         assert model is not None, "TRTLLM_MODEL env var must be set!"
         self._import(model, backend="tensorrtllm")
-        with utils.MockServer() as _:
+        with utils.ScopedTritonServer() as _:
             self._infer(model, prompt=PROMPT, protocol=protocol)
             self._profile(model, backend="tensorrtllm")
 
@@ -113,7 +113,7 @@ class TestE2E:
         model = os.environ.get("VLLM_MODEL")
         assert model is not None, "VLLM_MODEL env var must be set!"
         self._import(model)
-        with utils.MockServer(timeout=600) as _:
+        with utils.ScopedTritonServer(timeout=600):
             # vLLM will download the model on the fly, so give it a big timeout
             # TODO: Consider one of the following
             # (a) Pre-download and mount larger models in test environment
@@ -126,7 +126,7 @@ class TestE2E:
     def test_non_llm(self, protocol):
         # This test runs on the default Triton image, as well as on both TRT-LLM and VLLM images.
         # Use the existing models.
-        with utils.MockServer(repo=MODEL_REPO) as _:
+        with utils.ScopedTritonServer(repo=MODEL_REPO):
             model = "add_sub"
             # infer should work without a prompt for non-LLM models
             self._infer(model, protocol=protocol)
@@ -135,7 +135,7 @@ class TestE2E:
     def test_mock_llm(self, protocol):
         # This test runs on the default Triton image, as well as on both TRT-LLM and VLLM images.
         # Use the existing models.
-        with utils.MockServer(repo=MODEL_REPO) as _:
+        with utils.ScopedTritonServer(repo=MODEL_REPO):
             model = "mock_llm"
             # infer should work with a prompt for LLM models
             self._infer(model, prompt=PROMPT, protocol=protocol)

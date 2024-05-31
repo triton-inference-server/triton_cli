@@ -90,7 +90,7 @@ def check_server_ready(protocol="grpc"):
 
 
 # Context Manager to start and kill a mock server running in background and used by testing functions
-class MockServer:
+class ScopedTritonServer:
     def __init__(self, repo=None, mode="local", timeout=60):
         self.repo = repo
         self.mode = mode
@@ -99,7 +99,7 @@ class MockServer:
     def __enter__(self):
         run(["remove", "-m", "all"])
         self.pid = run_server(self.repo, self.mode)
-        wait_for_server_ready()  # Polling
+        wait_for_server_ready(timeout=self.timeout)  # Polling
 
     def __exit__(self, type, value, traceback):
         kill_server(self.pid)

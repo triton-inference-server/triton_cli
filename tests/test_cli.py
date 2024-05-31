@@ -174,7 +174,7 @@ class TestRepo:
     @pytest.mark.parametrize("model", ["mock_llm"])
     def test_triton_metrics(self, model):
         # Import the Model Repo
-        with utils.MockServer(repo=MODEL_REPO) as _:
+        with utils.ScopedTritonServer(repo=MODEL_REPO):
             metrics_before = self._metrics()
 
             # Before Inference, Verifying Inference Count == 0
@@ -199,7 +199,7 @@ class TestRepo:
     @pytest.mark.parametrize("model", ["mock_llm"])
     def test_triton_config(self, model):
         # Import the Model
-        with utils.MockServer(repo=MODEL_REPO) as _:
+        with utils.ScopedTritonServer(repo=MODEL_REPO):
             config = self._config(model)
             # Checks if correct model is loaded
             assert config["name"] == model
@@ -207,7 +207,7 @@ class TestRepo:
     @pytest.mark.parametrize("model", ["mock_llm"])
     def test_triton_status(self, model):
         # Import the Model
-        with utils.MockServer(repo=MODEL_REPO) as _:
+        with utils.ScopedTritonServer(repo=MODEL_REPO):
             status = self._status()
             # Checks if model(s) are live and ready
             assert status["live"] and status["ready"]
