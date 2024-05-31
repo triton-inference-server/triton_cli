@@ -29,12 +29,17 @@ import psutil
 import io
 import json
 from contextlib import redirect_stdout
-from triton_cli.main import run, run_and_capture_stdout
+from triton_cli.main import run
 from subprocess import Popen
 from triton_cli.client.client import InferenceServerException
 
 
 class TritonCommands:
+    def run_and_capture_stdout(args):
+        with io.StringIO() as buf, redirect_stdout(buf):
+            run(args)
+            return buf.getvalue()
+
     def _import(model, source=None, repo=None, backend=None):
         args = ["import", "-m", model]
         if source:
@@ -73,17 +78,17 @@ class TritonCommands:
 
     def _metrics():
         args = ["metrics"]
-        output = run_and_capture_stdout(args)
+        output = TritonCommands.run_and_capture_stdout(args)
         return json.loads(output)
 
     def _config(model):
         args = ["config", "-m", model]
-        output = run_and_capture_stdout(args)
+        output = TritonCommands.run_and_capture_stdout(args)
         return json.loads(output)
 
     def _status(protocol="grpc"):
         args = ["status", "-i", protocol]
-        output = run_and_capture_stdout(args)
+        output = TritonCommands.run_and_capture_stdout(args)
         return json.loads(output)
 
     def _clear(repo=None):
@@ -93,6 +98,19 @@ class TritonCommands:
 
 # Context Manager to start and kill a server running in background and used by testing functions
 class ScopedTritonServer:
+    def __init__(self, repo=None, mode="local", timeout=60):
+        self.repo = repo
+        self.mode = mode
+        self.timeout = timeout
+
+    def __enter__(self):
+        self.pid = self.run_server(self.repo, self.mode)
+        self.wait_for_server_ready(timeout=self.timeout)  # Polling
+
+    def __exit__(self, type, value, traceback):
+        self.kill_server(self.pid)
+        self.repo, self.mode = None, None
+
     def run_server(self, repo=None, mode="local"):
         args = ["triton", "start"]
         if repo:
@@ -135,26 +153,5 @@ class ScopedTritonServer:
             print(e)
 
     def check_server_ready(self, protocol="grpc"):
-        args = ["status", "-i", protocol]
-        output = ""
-        # Redirect stdout to a buffer to capture the output of the command.
-        with io.StringIO() as buf, redirect_stdout(buf):
-            run(args)
-            output = buf.getvalue()
-        output = json.loads(output)
-        return output["ready"]
-
-    def __init__(self, repo=None, mode="local", timeout=60):
-        self.repo = repo
-        self.mode = mode
-        self.timeout = timeout
-
-    def __enter__(self):
-        self.pid = self.run_server(self.repo, self.mode)
-        # TritonCommands._clear()
-        self.wait_for_server_ready(timeout=self.timeout)  # Polling
-
-    def __exit__(self, type, value, traceback):
-        self.kill_server(self.pid)
-        # TritonCommands._clear()
-        self.repo, self.mode = None, None
+        status = TritonCommands._status(protocol)
+        return status["ready"]
