@@ -194,26 +194,27 @@ class TestRepo:
     @pytest.mark.parametrize("model", ["mock_llm"])
     def test_triton_metrics(self, model, setup_and_teardown):
         # Import the Model Repo
-        pid = utils.run_server(repo=MODEL_REPO)
-        setup_and_teardown.pid = pid
-        utils.wait_for_server_ready()
+        with utils.MockServer(model) as _:
+            metrics_before = self._metrics()
 
-        metrics_before = self._metrics()
+            # Before Inference, Verifying Inference Count == 0
+            for loaded_models in metrics_before["nv_inference_request_success"][
+                "metrics"
+            ]:
+                if loaded_models["labels"]["model"] == model:  # If mock_llm
+                    assert loaded_models["value"] == 0
 
-        # Before Inference, Verifying Inference Count == 0
-        for loaded_models in metrics_before["nv_inference_request_success"]["metrics"]:
-            if loaded_models["labels"]["model"] == model:  # If mock_llm
-                assert loaded_models["value"] == 0
+            # Model Inference
+            self._infer(model, prompt=PROMPT)
 
-        # Model Inference
-        self._infer(model, prompt=PROMPT)
+            metrics_after = self._metrics()
 
-        metrics_after = self._metrics()
-
-        # After Inference, Verifying Inference Count == 0
-        for loaded_models in metrics_after["nv_inference_request_success"]["metrics"]:
-            if loaded_models["labels"]["model"] == model:  # If mock_llm
-                assert loaded_models["value"] == 1
+            # After Inference, Verifying Inference Count == 0
+            for loaded_models in metrics_after["nv_inference_request_success"][
+                "metrics"
+            ]:
+                if loaded_models["labels"]["model"] == model:  # If mock_llm
+                    assert loaded_models["value"] == 1
 
     @pytest.mark.parametrize("model", ["mock_llm"])
     def test_triton_config(self, model, setup_and_teardown):
