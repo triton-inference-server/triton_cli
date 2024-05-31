@@ -29,79 +29,132 @@ import psutil
 import io
 import json
 from contextlib import redirect_stdout
-from triton_cli.main import run
+from triton_cli.main import run, run_and_capture_stdout
 from subprocess import Popen
 from triton_cli.client.client import InferenceServerException
 
 
-def run_server(repo=None, mode="local"):
-    args = ["triton", "start"]
-    if repo:
-        args += ["--repo", repo]
-    if mode:
-        args += ["--mode", mode]
-    # Use Popen to run the server in the background as a separate process.
-    p = Popen(args)
-    return p.pid
-
-
-def wait_for_server_ready(timeout: int = 60):
-    start = time.time()
-    while time.time() - start < timeout:
-        print(
-            "Waiting for server to be ready ",
-            round(timeout - (time.time() - start)),
-            flush=True,
-        )
-        time.sleep(1)
-        try:
-            # For simplicity in testing, make sure both HTTP and GRPC endpoints
-            # are ready before marking server ready.
-            if check_server_ready(protocol="http") and check_server_ready(
-                protocol="grpc"
-            ):
-                return
-        except ConnectionRefusedError as e:
-            # Dump to log for testing transparency
-            print(e)
-        except InferenceServerException:
-            pass
-    raise Exception(f"=== Timeout {timeout} secs. Server not ready. ===")
-
-
-def kill_server(pid: int, sig: int = 2):
-    try:
-        proc = psutil.Process(pid)
-        proc.send_signal(sig)
-        proc.wait()
-    except psutil.NoSuchProcess as e:
-        print(e)
-
-
-def check_server_ready(protocol="grpc"):
-    args = ["status", "-i", protocol]
-    output = ""
-    # Redirect stdout to a buffer to capture the output of the command.
-    with io.StringIO() as buf, redirect_stdout(buf):
+class TritonCommands:
+    def _import(model, source=None, repo=None, backend=None):
+        args = ["import", "-m", model]
+        if source:
+            args += ["--source", source]
+        if repo:
+            args += ["--repo", repo]
+        if backend:
+            args += ["--backend", backend]
         run(args)
-        output = buf.getvalue()
-    output = json.loads(output)
-    return output["ready"]
+
+    def _remove(model, repo=None):
+        args = ["remove", "-m", model]
+        if repo:
+            args += ["--repo", repo]
+        run(args)
+
+    def _list(repo=None):
+        args = ["list"]
+        if repo:
+            args += ["--repo", repo]
+        run(args)
+
+    # Start Functionality is contained in ScopedTritonServer
+
+    def _infer(model, prompt=None, protocol=None):
+        args = ["infer", "-m", model]
+        if prompt:
+            args += ["--prompt", prompt]
+        if protocol:
+            args += ["-i", protocol]
+        run(args)
+
+    def _profile(model, backend):
+        args = ["profile", "-m", model, "--backend", backend]
+        run(args)
+
+    def _metrics():
+        args = ["metrics"]
+        output = run_and_capture_stdout(args)
+        return json.loads(output)
+
+    def _config(model):
+        args = ["config", "-m", model]
+        output = run_and_capture_stdout(args)
+        return json.loads(output)
+
+    def _status(protocol="grpc"):
+        args = ["status", "-i", protocol]
+        output = run_and_capture_stdout(args)
+        return json.loads(output)
+
+    def _clear(repo=None):
+        args = ["remove", "-m", "all"]
+        run(args)
 
 
-# Context Manager to start and kill a mock server running in background and used by testing functions
+# Context Manager to start and kill a server running in background and used by testing functions
 class ScopedTritonServer:
+    def run_server(self, repo=None, mode="local"):
+        args = ["triton", "start"]
+        if repo:
+            args += ["--repo", repo]
+        if mode:
+            args += ["--mode", mode]
+        # Use Popen to run the server in the background as a separate process.
+        p = Popen(args)
+        return p.pid
+
+    def wait_for_server_ready(self, timeout: int = 60):
+        start = time.time()
+        while time.time() - start < timeout:
+            print(
+                "Waiting for server to be ready ",
+                round(timeout - (time.time() - start)),
+                flush=True,
+            )
+            time.sleep(1)
+            try:
+                # For simplicity in testing, make sure both HTTP and GRPC endpoints
+                # are ready before marking server ready.
+                if self.check_server_ready(protocol="http") and self.check_server_ready(
+                    protocol="grpc"
+                ):
+                    return
+            except ConnectionRefusedError as e:
+                # Dump to log for testing transparency
+                print(e)
+            except InferenceServerException:
+                pass
+        raise Exception(f"=== Timeout {timeout} secs. Server not ready. ===")
+
+    def kill_server(self, pid: int, sig: int = 2):
+        try:
+            proc = psutil.Process(pid)
+            proc.send_signal(sig)
+            proc.wait()
+        except psutil.NoSuchProcess as e:
+            print(e)
+
+    def check_server_ready(self, protocol="grpc"):
+        args = ["status", "-i", protocol]
+        output = ""
+        # Redirect stdout to a buffer to capture the output of the command.
+        with io.StringIO() as buf, redirect_stdout(buf):
+            run(args)
+            output = buf.getvalue()
+        output = json.loads(output)
+        return output["ready"]
+
     def __init__(self, repo=None, mode="local", timeout=60):
         self.repo = repo
         self.mode = mode
         self.timeout = timeout
 
     def __enter__(self):
-        run(["remove", "-m", "all"])
-        self.pid = run_server(self.repo, self.mode)
-        wait_for_server_ready(timeout=self.timeout)  # Polling
+        self.pid = self.run_server(self.repo, self.mode)
+        # TritonCommands._clear()
+        self.wait_for_server_ready(timeout=self.timeout)  # Polling
 
     def __exit__(self, type, value, traceback):
-        kill_server(self.pid)
-        run(["remove", "-m", "all"])
+        self.kill_server(self.pid)
+        # TritonCommands._clear()
         self.repo, self.mode = None, None
