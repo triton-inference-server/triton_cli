@@ -86,7 +86,7 @@ class TestE2E:
         model = os.environ.get("TRTLLM_MODEL")
         assert model is not None, "TRTLLM_MODEL env var must be set!"
         self._import(model, backend="tensorrtllm")
-        with utils.ScopedTritonServer() as _:
+        with utils.ScopedTritonServer():
             self._infer(model, prompt=PROMPT, protocol=protocol)
             self._profile(model, backend="tensorrtllm")
 
