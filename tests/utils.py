@@ -91,9 +91,10 @@ def check_server_ready(protocol="grpc"):
 
 # Context Manager to start and kill a mock server running in background and used by testing functions
 class MockServer:
-    def __init__(self, repo, mode="local"):
+    def __init__(self, repo=None, mode="local", timeout=60):
         self.repo = repo
         self.mode = mode
+        self.timeout = timeout
 
     def __enter__(self):
         run(["remove", "-m", "all"])
