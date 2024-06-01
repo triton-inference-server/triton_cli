@@ -34,9 +34,9 @@ import tritonclient.http
 import tritonclient.grpc
 from tritonclient.utils import triton_to_np_dtype, InferenceServerException
 
-from triton_cli.constants import LOGGER_NAME
+from triton_cli.common import TritonCLIException
+from triton_cli.common import LOGGER_NAME
 
-# TODO: May make sense to give components unique logger names for debugging
 logger = logging.getLogger(LOGGER_NAME)
 
 
@@ -59,7 +59,9 @@ class TritonClient:
             self.client = tritonclient.http.InferenceServerClient(self.url)
             self.kwargs = {}
         else:
-            raise Exception(f"Unsupported protocol: '{protocol}'")
+            raise TritonCLIException(
+                f"Unsupported protocol passed to TritonClient: '{protocol}'"
+            )
 
     def get_model_config(self, model: str):
         if self.protocol == "grpc":
@@ -123,7 +125,7 @@ class TritonClient:
     def __generate_llm_data(self, name, shape, np_dtype):
         if name.lower() in ["prompt", "text", "text_input"]:
             if not self.prompt:
-                raise Exception(
+                raise TritonCLIException(
                     f"LLM input '{name}' detected, but no prompt provided. Please pass '--prompt' to specify this input."
                 )
             data = np.full(shape, self.prompt, dtype=np_dtype)
@@ -164,7 +166,7 @@ class TritonClient:
             triton_dtype = dtype.replace("TYPE_", "").replace("STRING", "BYTES")
             np_dtype = triton_to_np_dtype(triton_dtype)
             if not np_dtype:
-                raise Exception(
+                raise TritonCLIException(
                     f"Failed to convert {triton_dtype=} to numpy equivalent"
                 )
 
@@ -188,7 +190,9 @@ class TritonClient:
                 elif data_mode == "scalar":
                     data = self.__generate_scalar_data(shape, np_dtype)
                 else:
-                    raise Exception(f"Unsupported data mode for infer: {data_mode}")
+                    raise TritonCLIException(
+                        f"Unsupported data mode for infer: {data_mode}"
+                    )
 
             # Form tritonclient input
             infer_inputs.append(

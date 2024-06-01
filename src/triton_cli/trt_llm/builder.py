@@ -28,9 +28,7 @@ import logging
 import subprocess
 from pathlib import Path
 
-from triton_cli.constants import LOGGER_NAME
-
-logger = logging.getLogger(LOGGER_NAME)
+logger = logging.getLogger(__file__)
 
 CHECKPOINT_MODULE_MAP = {
     "meta-llama/Llama-2-7b-hf": "llama",

@@ -28,6 +28,7 @@ import os
 import pytest
 from triton_cli.main import run, run_and_capture_stdout
 from triton_cli.parser import KNOWN_MODEL_SOURCES, parse_args
+from triton_cli.common import TritonCLIException
 import utils
 import json
 
@@ -171,10 +172,8 @@ class TestRepo:
         self._import("gpt2", source="hf:gpt2")
         self._remove("gpt2")
 
-    # TODO: Find a way to raise well-typed errors for testing purposes, without
-    # always dumping traceback to user-facing output.
     def test_remove_nonexistent(self):
-        with pytest.raises(FileNotFoundError, match="No model folder exists"):
+        with pytest.raises(TritonCLIException, match="No model folder exists"):
             self._remove("does-not-exist")
 
     @pytest.mark.parametrize("repo", TEST_REPOS)

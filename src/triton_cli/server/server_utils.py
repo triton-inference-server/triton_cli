@@ -23,7 +23,8 @@ import tritonclient.grpc.model_config_pb2 as mc
 from google.protobuf import json_format, text_format
 
 from .server_config import TritonServerConfig
-from triton_cli.constants import LOGGER_NAME
+
+from triton_cli.common import LOGGER_NAME
 
 logger = logging.getLogger(LOGGER_NAME)
 

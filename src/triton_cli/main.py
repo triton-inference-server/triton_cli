@@ -27,14 +27,17 @@
 
 
 from triton_cli import parser
+from triton_cli.common import TritonCLIException
+from triton_cli.common import LOGGER_NAME
 
 import sys
 import logging
 import io
+import traceback
 from contextlib import redirect_stdout
 
 logging.basicConfig(level=logging.INFO, format="%(name)s - %(levelname)s - %(message)s")
-logger = logging.getLogger("triton")
+logger = logging.getLogger(LOGGER_NAME)
 
 
 def run_and_capture_stdout(args):
@@ -55,8 +58,12 @@ def main():
     # Interactive use will catch exceptions and log formatted errors rather than tracebacks.
     try:
         run()
+    # Custom exceptions are thrown by us and should give clear messages
+    except TritonCLIException as e:
+        logger.error(f"{e}")
     except Exception as e:
         logger.error(f"{e}")
+        logger.error(f"Unexpected error:\n{traceback.format_exc()}")
 
 
 if __name__ == "__main__":
