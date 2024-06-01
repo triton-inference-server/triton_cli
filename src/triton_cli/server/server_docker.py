@@ -25,9 +25,9 @@ from triton_cli.common import (
     HF_CACHE,
     DEFAULT_TRITONSERVER_PATH,
     DEFAULT_TRITONSERVER_IMAGE,
+    LOGGER_NAME,
 )
 
-from triton_cli.common import LOGGER_NAME
 
 logger = logging.getLogger(LOGGER_NAME)
 
