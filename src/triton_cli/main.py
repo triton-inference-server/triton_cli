@@ -27,8 +27,7 @@
 
 
 from triton_cli import parser
-from triton_cli.common import TritonCLIException
-from triton_cli.common import LOGGER_NAME
+from triton_cli.common import TritonCLIException, LOGGER_NAME
 
 import sys
 import logging

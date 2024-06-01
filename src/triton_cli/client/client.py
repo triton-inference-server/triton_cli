@@ -34,8 +34,7 @@ import tritonclient.http
 import tritonclient.grpc
 from tritonclient.utils import triton_to_np_dtype, InferenceServerException
 
-from triton_cli.common import TritonCLIException
-from triton_cli.common import LOGGER_NAME
+from triton_cli.common import TritonCLIException, LOGGER_NAME
 
 logger = logging.getLogger(LOGGER_NAME)
 

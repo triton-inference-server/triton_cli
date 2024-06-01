@@ -39,6 +39,8 @@ from rich.progress import Progress
 from triton_cli.common import (
     DEFAULT_MODEL_REPO,
     DEFAULT_TRITONSERVER_IMAGE,
+    LOGGER_NAME,
+    TritonCLIException,
 )
 from triton_cli.client.client import InferenceServerException, TritonClient
 from triton_cli.metrics import MetricsClient
@@ -46,8 +48,6 @@ from triton_cli.profile import add_unknown_args_to_args, build_command
 from triton_cli.repository import ModelRepository
 from triton_cli.server.server_factory import TritonServerFactory
 
-from triton_cli.common import TritonCLIException
-from triton_cli.common import LOGGER_NAME
 
 logger = logging.getLogger(LOGGER_NAME)
 

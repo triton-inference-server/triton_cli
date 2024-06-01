@@ -24,10 +24,10 @@ from .server_config import TritonServerConfig
 from triton_cli.common import (
     DEFAULT_SHM_SIZE,
     DEFAULT_TRITONSERVER_PATH,
+    LOGGER_NAME,
+    TritonCLIException,
 )
 
-from triton_cli.common import TritonCLIException
-from triton_cli.common import LOGGER_NAME
 
 logger = logging.getLogger(LOGGER_NAME)
 
