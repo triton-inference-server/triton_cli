@@ -35,7 +35,7 @@ from triton_cli.client.client import InferenceServerException
 
 
 class TritonCommands:
-    def run_and_capture_stdout(args):
+    def _run_and_capture_stdout(args):
         with io.StringIO() as buf, redirect_stdout(buf):
             run(args)
             return buf.getvalue()
@@ -78,21 +78,23 @@ class TritonCommands:
 
     def _metrics():
         args = ["metrics"]
-        output = TritonCommands.run_and_capture_stdout(args)
+        output = TritonCommands._run_and_capture_stdout(args)
         return json.loads(output)
 
     def _config(model):
         args = ["config", "-m", model]
-        output = TritonCommands.run_and_capture_stdout(args)
+        output = TritonCommands._run_and_capture_stdout(args)
         return json.loads(output)
 
     def _status(protocol="grpc"):
         args = ["status", "-i", protocol]
-        output = TritonCommands.run_and_capture_stdout(args)
+        output = TritonCommands._run_and_capture_stdout(args)
         return json.loads(output)
 
     def _clear(repo=None):
         args = ["remove", "-m", "all"]
+        if repo:
+            args += ["--repo", repo]
         run(args)
 
 
