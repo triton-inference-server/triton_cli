@@ -133,12 +133,6 @@ class ScopedTritonServer:
             )
             time.sleep(1)
             try:
-                # TODO: Need to check the process for any potential error
-                #       If error:
-                #           Prempt the Polling Process and return appropriate error
-                proc = psutil.Process(self.pid)
-                status = proc.status()
-                print(f"Status:: {status}")
                 # For simplicity in testing, make sure both HTTP and GRPC endpoints
                 # are ready before marking server ready.
                 if self.check_server_ready(protocol="http") and self.check_server_ready(
