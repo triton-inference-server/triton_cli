@@ -64,6 +64,7 @@ dependencies = [
     "pytest >= 8.1.1", # may remove later
     "pytest-timeout", # may remove later
     "pytest-mock >= 3.13.0", # may remove later
+    "PyYAML === 6.0.1"
 ]
 
 # CLI Entrypoint
