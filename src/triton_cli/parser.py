@@ -227,6 +227,16 @@ def parse_args_repo(parser):
         help="Local model path or model identifier. Use prefix 'hf:' to specify a HuggingFace model ID. "
         "NOTE: HuggingFace model support is currently limited to Transformer models through the vLLM backend.",
     )
+    repo_import.add_argument(
+        "-c",
+        "--config",
+        type=str,
+        required=False,
+        # TODO: Add url to example json in here.
+        help="Path to configuration file (json Format). For TensorRT models,"
+        "this config file will pass along custom arguments instead of having to pass them through the command line"
+        "Sample format: [url]",
+    )
 
     repo_remove = parser.add_parser("remove", help="Remove model from model repository")
     repo_remove.set_defaults(func=handle_repo_remove)
