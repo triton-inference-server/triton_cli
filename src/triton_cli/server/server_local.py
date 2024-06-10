@@ -20,7 +20,8 @@ from subprocess import STDOUT, PIPE, Popen, TimeoutExpired
 from .server_utils import TritonServerUtils
 
 from .server import TritonServer
-from triton_cli.constants import LOGGER_NAME
+
+from triton_cli.common import LOGGER_NAME
 
 logger = logging.getLogger(LOGGER_NAME)
 SERVER_OUTPUT_TIMEOUT_SECS = 30

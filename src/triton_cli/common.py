@@ -29,6 +29,11 @@
 import os
 from pathlib import Path
 
+
+class TritonCLIException(Exception):
+    pass
+
+
 LOGGER_NAME: str = "triton"
 
 # Server

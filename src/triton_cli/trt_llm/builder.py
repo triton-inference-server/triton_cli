@@ -28,7 +28,7 @@ import logging
 import subprocess
 from pathlib import Path
 
-from triton_cli.constants import LOGGER_NAME
+from triton_cli.common import LOGGER_NAME
 
 logger = logging.getLogger(LOGGER_NAME)
 

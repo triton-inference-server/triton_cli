@@ -34,16 +34,18 @@ from rich.console import Console
 
 from directory_tree import display_tree
 
-from triton_cli.constants import (
+from triton_cli.common import (
     DEFAULT_MODEL_REPO,
-    LOGGER_NAME,
     SUPPORTED_BACKENDS,
+    LOGGER_NAME,
+    TritonCLIException,
 )
 from triton_cli.trt_llm.engine_config_parser import parse_and_substitute
+from triton_cli.trt_llm.builder import TRTLLMBuilder
+
 from huggingface_hub import snapshot_download
 from huggingface_hub import utils as hf_utils
 
-from triton_cli.trt_llm.builder import TRTLLMBuilder
 
 logger = logging.getLogger(LOGGER_NAME)
 
@@ -147,7 +149,7 @@ class NGCWrapper:
         output = subprocess.run(cmd.split())
         if output.returncode:
             err = output.stderr.decode("utf-8")
-            raise Exception(f"Failed to download {model} from NGC:\n{err}")
+            raise TritonCLIException(f"Failed to download {model} from NGC:\n{err}")
 
 
 # Can eventually be an interface and have implementations
@@ -178,10 +180,10 @@ class ModelRepository:
         verbose=True,
     ):
         if not source:
-            raise ValueError("Non-empty model source must be provided")
+            raise TritonCLIException("Non-empty model source must be provided")
 
         if backend and backend not in SUPPORTED_BACKENDS:
-            raise NotImplementedError(
+            raise TritonCLIException(
                 f"The specified backend is not currently supported. Please choose from the following backends {SUPPORTED_BACKENDS}"
             )
 
@@ -201,7 +203,7 @@ class ModelRepository:
             source_type = "local"
             model_path = Path(source)
             if not model_path.exists():
-                raise FileNotFoundError(f"{model_path} does not exist")
+                raise TritonCLIException(f"{model_path} does not exist")
 
         model_dir, version_dir = self.__create_model_repository(name, version, backend)
 
@@ -243,7 +245,7 @@ class ModelRepository:
 
         model_dir = self.repo / name
         if not model_dir.exists():
-            raise FileNotFoundError(f"No model folder exists at {model_dir}")
+            raise TritonCLIException(f"No model folder exists at {model_dir}")
         logger.info(f"Removing model {name} at {model_dir}...")
         shutil.rmtree(model_dir)
         if verbose:
@@ -258,9 +260,9 @@ class ModelRepository:
         backend: str,
     ):
         if not model_dir or not model_dir.exists():
-            raise ValueError("Model directory must be provided and exist")
+            raise TritonCLIException("Model directory must be provided and exist")
         if not huggingface_id:
-            raise ValueError("HuggingFace ID must be non-empty")
+            raise TritonCLIException("HuggingFace ID must be non-empty")
 
         if backend == "tensorrtllm":
             # TODO: Refactor the cleanup flow, move it to a higher level
@@ -272,6 +274,7 @@ class ModelRepository:
                 logger.warning(f"TRT-LLM model creation failed: {e}. Cleaning up...")
                 for model in [name, "preprocessing", "tensorrt_llm", "postprocessing"]:
                     self.remove(model, verbose=False)
+                # Let detailed traceback be reported for TRT-LLM errors for debugging
                 raise e
         else:
             # TODO: Add generic support for HuggingFace models with HF API.
@@ -302,7 +305,7 @@ class ModelRepository:
             )
         except hf_utils.GatedRepoError:
             if not HF_TOKEN_PATH.exists():
-                raise Exception(
+                raise TritonCLIException(
                     "Please authenticate using 'huggingface-cli login' to download this model"
                 )
             snapshot_download(
@@ -335,7 +338,7 @@ class ModelRepository:
     def __generate_trtllm_model(self, name, huggingface_id):
         builder_info = SUPPORTED_TRT_LLM_BUILDERS.get(huggingface_id)
         if not builder_info:
-            raise NotImplementedError(
+            raise TritonCLIException(
                 f"Building a TRT LLM engine for {huggingface_id} is not currently supported."
             )
 
@@ -394,7 +397,7 @@ class ModelRepository:
             if backend == "tensorrtllm":
                 # Don't allow existing files for TRT-LLM for now in case we delete large engine files
                 if model_dir.exists():
-                    raise ValueError(
+                    raise TritonCLIException(
                         f"Found existing model at {version_dir}, skipping repo add."
                     )
 
