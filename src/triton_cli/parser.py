@@ -44,7 +44,7 @@ from triton_cli.constants import (
 from triton_cli.client.client import InferenceServerException, TritonClient
 from triton_cli.metrics import MetricsClient
 from triton_cli.profile import add_unknown_args_to_args, build_command
-from triton_cli.repository import ModelRepository
+from triton_cli.repository import ModelRepository, ImportConfig
 from triton_cli.server.server_factory import TritonServerFactory
 
 logger = logging.getLogger(LOGGER_NAME)
@@ -234,7 +234,7 @@ def parse_args_repo(parser):
         required=False,
         # TODO: Add url to example json in here.
         help="Path to configuration file (json Format). For TensorRT models,"
-        "this config file will pass along custom arguments instead of having to pass them through the command line"
+        "this config file will pass along custom arguments to the TensorRT backend"
         "Sample format: [url]",
     )
 
@@ -262,11 +262,15 @@ def handle_repo_import(args: argparse.Namespace):
     if not args.source:
         args.source = check_known_sources(args.model)
 
+    # TODO: Add override arguments
+    config = ImportConfig(args.config, None)
+
     repo.add(
         args.model,
         version=1,
         source=args.source,
         backend=args.backend,
+        config=config,
     )
 
 

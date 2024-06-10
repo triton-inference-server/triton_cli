@@ -49,6 +49,11 @@ class TRTLLMBuilder:
         self.converted_weights_path = self.hf_download_path + "/converted_weights"
         self.engine_output_path = engine_output_path
 
+        # config_path = Path(__file__).resolve().parent / "params.json"
+
+        # with open(config_path, "r") as f:
+        #     self.config = json.loads(f.read())
+
     # TODO: User should be able to specify a what parameters they want to use to build a
     # TRT LLM engine. A input JSON should be suitable for this goal.
     def build(self):
@@ -67,8 +72,10 @@ class TRTLLMBuilder:
             self.hf_download_path,
             "--output_dir",
             self.converted_weights_path,
-            "--dtype=float16",
-        ]
+        ] + self.config["tensorrtllm"]["convert_checkpoint_args"]
+
+        # Alternatively, could do:
+        # weight_conversion_args.extend(self.config["convert_checkpoint_args"])
 
         # Need to specify gpt variant for gpt models
         if self.checkpoint_id in ["gpt2"]:
@@ -90,9 +97,12 @@ class TRTLLMBuilder:
         build_args = [
             f"--checkpoint_dir={self.converted_weights_path}",
             f"--output_dir={self.engine_output_path}",
-            "--gpt_attention_plugin=float16",
-            "--gemm_plugin=float16",
-        ]
+        ] + self.config["tensorrtllm"]["trtllm_build_args"]
+
+        print(f"B: {build_args}")
+
+        # Alternatively, could do:
+        # build_args.extend(self.config["trtllm_build_args"])
 
         cmd = ["trtllm-build"] + build_args
         cmd_str = " ".join(cmd)

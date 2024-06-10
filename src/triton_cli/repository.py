@@ -96,6 +96,24 @@ SUPPORTED_TRT_LLM_BUILDERS = {
 }
 
 
+class ImportConfig:
+    def __init__(self, filename, override_args=None):
+        self.config_filename = filename  # Config File Name
+        self.override_args = override_args
+        self.config = {}
+        self.base_config()
+        self.override_config()
+
+    def base_config(self):
+        pass
+
+    def override(self):
+        pass
+
+    def get_trtllm_config(self):
+        return self.config["TRTLLM"]
+
+
 # NOTE: Thin wrapper around NGC CLI is a WAR for now.
 # TODO: Move out to generic files/interface for remote model stores
 class NGCWrapper:
@@ -175,6 +193,7 @@ class ModelRepository:
         version: int = 1,
         source: str = None,
         backend: str = None,
+        config: str = None,
         verbose=True,
     ):
         if not source:
