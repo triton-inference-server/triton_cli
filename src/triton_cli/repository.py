@@ -122,7 +122,7 @@ class ImportConfig:
                     arg_name, arg_val = arg.lstrip("-").split("=")
                     base[arg_group][arg_name] = arg_val
                 else:  # Boolean Argument Format: "--arg"
-                    arg_name = arg.listrip("-")
+                    arg_name = arg.lstrip("-")
                     base[arg_group][arg_name] = None
 
         self.config["tensorrtllm"] = dict(base)
