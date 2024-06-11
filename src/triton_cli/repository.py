@@ -117,6 +117,8 @@ class ImportConfig:
         print(entire_config)
 
         for arg_group in entire_config["tensorrtllm"]:
+            if not isinstance(entire_config["tensorrtllm"][arg_group], list):
+                continue
             for arg in entire_config["tensorrtllm"][arg_group]:
                 if "=" in arg:  # Argument Format: "--arg=val"
                     arg_name, arg_val = arg.lstrip("-").split("=")
