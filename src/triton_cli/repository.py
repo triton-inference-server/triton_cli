@@ -96,6 +96,8 @@ SUPPORTED_TRT_LLM_BUILDERS = {
     },
 }
 
+MODEL_TYPE_PREFIX = {"huggingface": "hf", "ngc": "ngc"}
+
 
 class ImportConfig:
     def __init__(self, filename, override_args=None):
@@ -105,13 +107,17 @@ class ImportConfig:
         self.base_config()
         self.override_config()
 
+        for key, val in self.config.items():
+            print(f"{key}: {val}")
+
+    def __getitem__(self, key):
+        return self.config[key]
+
     # Loads and Stores the options in config file into self.config
     def base_config(self):
-        print("Starting File Read")
         print("open is assigned to %r" % open)
         with open(self.config_filename) as f:
             entire_config = yaml.safe_load(f.read())
-        print("Loaded the yaml")
 
         base = defaultdict(dict)
         print(entire_config)
@@ -214,56 +220,69 @@ class ModelRepository:
         self,
         name: str,
         version: int = 1,
-        source: str = None,
-        backend: str = None,
-        config: str = None,
+        # source: str = None,
+        # backend: str = None,
+        config: ImportConfig = None,
         verbose=True,
     ):
-        if not source:
+        # print(f"Trying config[source]: {a}")
+        if not config["source"]:
             raise ValueError("Non-empty model source must be provided")
 
-        if backend and backend not in SUPPORTED_BACKENDS:
+        if config["backend"] and config["backend"] not in SUPPORTED_BACKENDS:
             raise NotImplementedError(
                 f"The specified backend is not currently supported. Please choose from the following backends {SUPPORTED_BACKENDS}"
             )
 
         # HuggingFace models
-        if source.startswith(SOURCE_PREFIX_HUGGINGFACE):
+        if config["source"]["type"] == "huggingface":
             logger.debug("HuggingFace prefix detected, parsing HuggingFace ID")
-            source_type = "huggingface"
+            # source_type = "huggingface"
         # NGC models
         # TODO: Improve backend detection/assumption for NGC models in future
-        elif source.startswith(SOURCE_PREFIX_NGC):
+        elif config["source"]["type"] == "ngc":
             logger.debug("NGC prefix detected, parsing NGC ID")
-            source_type = "ngc"
-            backend = "tensorrtllm"
+            # source_type = "ngc"
         # Local model path
         else:
             logger.debug("No supported prefix detected, assuming local path")
-            source_type = "local"
-            model_path = Path(source)
+            # source_type = "local"
+            model_path = Path(config["source"]["id"])  # Path(source)
             if not model_path.exists():
                 raise FileNotFoundError(f"{model_path} does not exist")
 
-        model_dir, version_dir = self.__create_model_repository(name, version, backend)
+        model_dir, version_dir = self.__create_model_repository(
+            name, version, config["backend"]
+        )
 
         # Note it's a bit redundant right now, but we check prefix above first
         # to avoid creating model repository files in case that local source
         # path is invalid. This should be cleaned up.
-        if source_type == "huggingface":
-            hf_id = source.split(":")[1]
+        if config["source"]["type"] == "huggingface":
+            # hf_id = source.split(":")[1]
             self.__add_huggingface_model(
-                model_dir, version_dir, hf_id, name, backend, config
+                model_dir,
+                version_dir,
+                config["source"]["id"],
+                name,
+                config["backend"],
+                config,
             )
-        elif source_type == "ngc":
+        elif config["source"]["type"] == "ngc":
             # NOTE: NGC models likely to contain colons
-            ngc_id = source.replace(SOURCE_PREFIX_NGC, "")
+            # ngc_id = source.replace(SOURCE_PREFIX_NGC, "")
             ngc = NGCWrapper()
             # NOTE: Assuming that `llama2_13b_trt_a100:0.1` from source
             #       transforms into llama2_13b_trt_a100_v0.1 folder when
             #       downloaded from NGC CLI.
-            ngc_model_name = source.split("/")[-1].replace(":", "_v")
-            ngc.download_model(ngc_id, ngc_model_name, dest=ENGINE_DEST_PATH)
+            ngc_model_name = (
+                (config["source"]["type"] + "/" + config["source"]["id"])
+                .split("/")[-1]
+                .replace(":", "_v")
+            )
+            ngc.download_model(
+                config["source"]["id"], ngc_model_name, dest=ENGINE_DEST_PATH
+            )
             # TODO: grab downloaded config files,
             #       point to downloaded engines, etc.
             self.__generate_ngc_model(name, ngc_model_name)
@@ -322,9 +341,9 @@ class ModelRepository:
             # TODO: Add generic support for HuggingFace models with HF API.
             # For now, use vLLM as a means of deploying HuggingFace Transformers
             # NOTE: Only transformer models are supported at this time.
-            config, files = self.__generate_vllm_model(huggingface_id)
+            config_contents, files = self.__generate_vllm_model(huggingface_id)
             config_file = model_dir / "config.pbtxt"
-            config_file.write_text(config)
+            config_file.write_text(config_contents)
             for file, contents in files.items():
                 model_file = version_dir / file
                 model_file.write_text(contents)

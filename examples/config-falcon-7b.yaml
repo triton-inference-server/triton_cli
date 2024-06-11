@@ -1,18 +1,5 @@
-backend: tensorrtllm
+backend: vllm
 
 source:
   type: huggingface
-  id: gpt2
-
-tensorrtllm:
-  convert_checkpoint_type: "gpt"
-
-  convert_checkpoint_args:
-    - "--dtype=float16"
-
-  trtllm_build_args:
-    - "--gemm_plugin=float16"
-    - "--gpt_attention_plugin=float16"
-    - "--max_batch_size=128"
-    - "--max_input_len=1024"
-    - "--max_output_len=1024"
+  id: tiiuae/falcon-7b

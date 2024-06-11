@@ -65,7 +65,21 @@ KNOWN_MODEL_SOURCES = {
     "falcon-7b": "hf:tiiuae/falcon-7b",
 }
 
+KNOWN_MODEL_CONFIGS = {
+    # Require authentication
+    "llama-2-7b": "config-llama-2-7b.yaml",
+    "llama-2-7b-chat": "config-llama-2-7b-chat.yaml",
+    "llama-3-8b": "config-llama-3-8b.yaml",
+    "llama-3-8b-instruct": "config-llama-3-8b-instruct.yaml",
+    # Public
+    "gpt2": "config-gpt2.yaml",
+    "opt125m": "config-opt125m.yaml",
+    "mistral-7b": "config-mistral-7b.yaml",
+    "falcon-7b": "config-falcon-7b.yaml",
+}
 
+
+# TODO: Get rid of once config logic is working
 def check_known_sources(model: str):
     if model in KNOWN_MODEL_SOURCES:
         source = KNOWN_MODEL_SOURCES[model]
@@ -77,6 +91,19 @@ def check_known_sources(model: str):
         raise Exception("Please use a known model, or provide a --source.")
 
     return source
+
+
+def check_known_config(model: str):
+    if model in KNOWN_MODEL_CONFIGS:
+        config = KNOWN_MODEL_CONFIGS[model]
+        logger.info(f"Known model config found for '{model}': '{config}'")
+    else:
+        logger.error(
+            f"No known config for model: '{model}'. Known configs: {list(KNOWN_MODEL_CONFIGS.keys())}"
+        )
+        raise Exception("Please use a known model, or provide a --config.")
+
+    return config
 
 
 # TODO: Move out of parser
@@ -259,21 +286,19 @@ def parse_args_repo(parser):
 def handle_repo_import(args: argparse.Namespace):
     repo = ModelRepository(args.model_repository)
     # Handle common models for convenience
-    if not args.source:
-        args.source = check_known_sources(args.model)
+    if not args.config:
+        args.config = check_known_sources(args.config)
 
     # TODO: Add override arguments
     if args.config:
         print(f"args.config: {args.config}")
         config = ImportConfig(args.config, None)
-    else:
-        config = None
 
     repo.add(
         args.model,
         version=1,
-        source=args.source,
-        backend=args.backend,
+        # source=args.source,
+        # backend=args.backend,
         config=config,
     )
 
