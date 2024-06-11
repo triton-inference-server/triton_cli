@@ -2,7 +2,7 @@ backend: tensorrtllm
 
 source:
   type: huggingface
-  id: mistralai/Mistral-7B-v0.3
+  id: mistralai/Mistral-7B-v0.1
 
 tensorrtllm:
   convert_checkpoint_type: "llama"
