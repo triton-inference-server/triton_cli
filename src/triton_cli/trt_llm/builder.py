@@ -30,6 +30,7 @@ from pathlib import Path
 
 from triton_cli.constants import LOGGER_NAME
 
+
 logger = logging.getLogger(LOGGER_NAME)
 
 CHECKPOINT_MODULE_MAP = {
@@ -43,16 +44,23 @@ CHECKPOINT_MODULE_MAP = {
 
 
 class TRTLLMBuilder:
-    def __init__(self, huggingface_id, hf_download_path, engine_output_path):
+    def __init__(self, huggingface_id, hf_download_path, engine_output_path, config):
         self.checkpoint_id = CHECKPOINT_MODULE_MAP[huggingface_id]
         self.hf_download_path = hf_download_path
         self.converted_weights_path = self.hf_download_path + "/converted_weights"
         self.engine_output_path = engine_output_path
+        self.config = config
 
         # config_path = Path(__file__).resolve().parent / "params.json"
 
         # with open(config_path, "r") as f:
         #     self.config = json.loads(f.read())
+
+    def _make_arg(self, arg_name, arg_value):
+        if arg_value is None:  # Boolean Argument
+            return f"--{arg_name}"
+        else:
+            return f"--{arg_name}={arg_value}"
 
     # TODO: User should be able to specify a what parameters they want to use to build a
     # TRT LLM engine. A input JSON should be suitable for this goal.
@@ -72,7 +80,15 @@ class TRTLLMBuilder:
             self.hf_download_path,
             "--output_dir",
             self.converted_weights_path,
-        ] + self.config["tensorrtllm"]["convert_checkpoint_args"]
+        ]
+
+        if self.config:
+            weight_conversion_args += [
+                self._make_arg(arg_name, arg_value)
+                for arg_name, arg_value in self.config["tensorrtllm"][
+                    "convert_checkpoint_args"
+                ].items()
+            ]
 
         # Alternatively, could do:
         # weight_conversion_args.extend(self.config["convert_checkpoint_args"])
@@ -97,7 +113,15 @@ class TRTLLMBuilder:
         build_args = [
             f"--checkpoint_dir={self.converted_weights_path}",
             f"--output_dir={self.engine_output_path}",
-        ] + self.config["tensorrtllm"]["trtllm_build_args"]
+        ]
+
+        if self.config:
+            build_args += [
+                self._make_arg(arg_name, arg_value)
+                for arg_name, arg_value in self.config["tensorrtllm"][
+                    "trtllm_build_args"
+                ].items()
+            ]
 
         print(f"B: {build_args}")
 

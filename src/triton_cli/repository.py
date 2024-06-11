@@ -31,7 +31,8 @@ import logging
 import subprocess
 from pathlib import Path
 from rich.console import Console
-
+import yaml
+from collections import defaultdict
 from directory_tree import display_tree
 
 from triton_cli.constants import (
@@ -104,14 +105,34 @@ class ImportConfig:
         self.base_config()
         self.override_config()
 
+    # Loads and Stores the options in config file into self.config
     def base_config(self):
-        pass
+        print("Starting File Read")
+        print("open is assigned to %r" % open)
+        with open(self.config_filename) as f:
+            entire_config = yaml.safe_load(f.read())
+        print("Loaded the yaml")
 
-    def override(self):
+        base = defaultdict(dict)
+        print(entire_config)
+
+        for arg_group in entire_config["tensorrtllm"]:
+            for arg in entire_config["tensorrtllm"][arg_group]:
+                if "=" in arg:  # Argument Format: "--arg=val"
+                    arg_name, arg_val = arg.lstrip("-").split("=")
+                    base[arg_group][arg_name] = arg_val
+                else:  # Boolean Argument Format: "--arg"
+                    arg_name = arg.listrip("-")
+                    base[arg_group][arg_name] = None
+
+        self.config["tensorrtllm"] = dict(base)
+
+    # TODO: Override user args with --set flag
+    def override_config(self):
         pass
 
     def get_trtllm_config(self):
-        return self.config["TRTLLM"]
+        return self.config
 
 
 # NOTE: Thin wrapper around NGC CLI is a WAR for now.
@@ -229,7 +250,9 @@ class ModelRepository:
         # path is invalid. This should be cleaned up.
         if source_type == "huggingface":
             hf_id = source.split(":")[1]
-            self.__add_huggingface_model(model_dir, version_dir, hf_id, name, backend)
+            self.__add_huggingface_model(
+                model_dir, version_dir, hf_id, name, backend, config
+            )
         elif source_type == "ngc":
             # NOTE: NGC models likely to contain colons
             ngc_id = source.replace(SOURCE_PREFIX_NGC, "")
@@ -275,6 +298,7 @@ class ModelRepository:
         huggingface_id: str,
         name: str,
         backend: str,
+        config: ImportConfig | None,
     ):
         if not model_dir or not model_dir.exists():
             raise ValueError("Model directory must be provided and exist")
@@ -284,7 +308,7 @@ class ModelRepository:
         if backend == "tensorrtllm":
             # TODO: Refactor the cleanup flow, move it to a higher level
             try:
-                self.__generate_trtllm_model(name, huggingface_id)
+                self.__generate_trtllm_model(name, huggingface_id, config)
             except Exception as e:
                 # If generating TRLTLM model fails, clean up the draft models
                 # added to the model repository.
@@ -351,7 +375,9 @@ class ModelRepository:
             str(self.repo), name, engines_path, engines_path, "auto", dry_run=False
         )
 
-    def __generate_trtllm_model(self, name, huggingface_id):
+    def __generate_trtllm_model(
+        self, name, huggingface_id, config: ImportConfig | None
+    ):
         builder_info = SUPPORTED_TRT_LLM_BUILDERS.get(huggingface_id)
         if not builder_info:
             raise NotImplementedError(
@@ -367,7 +393,11 @@ class ModelRepository:
                 f"Found existing engine(s) at {engines_path}, skipping build."
             )
         else:
-            self.__build_trtllm_engine(huggingface_id, hf_download_path, engines_path)
+            trtllm_config = None if config is None else config.get_trtllm_config()
+            print(f"_generate_trtllm_model: config = {trtllm_config}")
+            self.__build_trtllm_engine(
+                huggingface_id, hf_download_path, engines_path, trtllm_config
+            )
 
         # NOTE: In every case, the TRT LLM template should be filled in with values.
         # If the model exists, the CLI will raise an exception when creating the model repo.
@@ -382,7 +412,13 @@ class ModelRepository:
             dry_run=False,
         )
 
-    def __build_trtllm_engine(self, huggingface_id, hf_download_path, engines_path):
+    def __build_trtllm_engine(
+        self,
+        huggingface_id,
+        hf_download_path,
+        engines_path,
+        config: ImportConfig | None,
+    ):
         builder_info = SUPPORTED_TRT_LLM_BUILDERS.get(huggingface_id)
         hf_allow_patterns = builder_info["hf_allow_patterns"]
         hf_ignore_patterns = builder_info.get("hf_ignore_patterns", None)
@@ -392,14 +428,17 @@ class ModelRepository:
             allow_patterns=hf_allow_patterns,
             ignore_patterns=hf_ignore_patterns,
         )
-
+        print("Calling the builder")
         builder = TRTLLMBuilder(
             huggingface_id=huggingface_id,
             hf_download_path=hf_download_path,
             engine_output_path=engines_path,
+            config=config,
         )
+        print("Builder Instantiated...")
         console = Console()
         with console.status(f"Building TRT-LLM engine for {huggingface_id}..."):
+            print("Calling builder.build()")
             builder.build()
 
     def __create_model_repository(

@@ -263,7 +263,11 @@ def handle_repo_import(args: argparse.Namespace):
         args.source = check_known_sources(args.model)
 
     # TODO: Add override arguments
-    config = ImportConfig(args.config, None)
+    if args.config:
+        print(f"args.config: {args.config}")
+        config = ImportConfig(args.config, None)
+    else:
+        config = None
 
     repo.add(
         args.model,

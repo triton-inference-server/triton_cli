@@ -1,0 +1,6 @@
+convert_checkpoint_type: "llama"
+tensorrtllm:
+  convert_checkpoint_args:
+    - "--dtype=float16"
+  trtllm_build_args:
+    - "--gemm_plugin=float16"
