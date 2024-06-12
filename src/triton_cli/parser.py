@@ -287,7 +287,7 @@ def handle_repo_import(args: argparse.Namespace):
     repo = ModelRepository(args.model_repository)
     # Handle common models for convenience
     if not args.config:
-        args.config = check_known_sources(args.config)
+        args.config = check_known_config(args.config)
 
     # TODO: Add override arguments
     if args.config:
