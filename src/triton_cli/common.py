@@ -29,6 +29,11 @@
 import os
 from pathlib import Path
 
+
+class TritonCLIException(Exception):
+    pass
+
+
 LOGGER_NAME: str = "triton"
 # Top-Level Directory of triton-cli
 TRITON_CLI_ROOT: Path = Path(__file__).parent.parent.parent

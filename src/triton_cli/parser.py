@@ -36,16 +36,18 @@ from pathlib import Path
 from rich import print as rich_print
 from rich.progress import Progress
 
-from triton_cli.constants import (
+from triton_cli.common import (
     DEFAULT_MODEL_REPO,
     DEFAULT_TRITONSERVER_IMAGE,
     LOGGER_NAME,
+    TritonCLIException,
 )
 from triton_cli.client.client import InferenceServerException, TritonClient
 from triton_cli.metrics import MetricsClient
 from triton_cli.profile import add_unknown_args_to_args, build_command
 from triton_cli.repository import ModelRepository, ImportConfig
 from triton_cli.server.server_factory import TritonServerFactory
+
 
 logger = logging.getLogger(LOGGER_NAME)
 
@@ -88,7 +90,7 @@ def check_known_sources(model: str):
         logger.error(
             f"No known source for model: '{model}'. Known sources: {list(KNOWN_MODEL_SOURCES.keys())}"
         )
-        raise Exception("Please use a known model, or provide a --source.")
+        raise TritonCLIException("Please use a known model, or provide a --source.")
 
     return source
 
@@ -126,7 +128,7 @@ def wait_for_ready(timeout, server, client):
             # Server health will throw exception if error occurs on server side
             server.health()
             time.sleep(1)
-        raise TimeoutError(
+        raise TritonCLIException(
             f"Timed out waiting {timeout} seconds for server to startup. Try increasing --server-timeout."
         )
 
@@ -362,11 +364,11 @@ def start_server_with_fallback(args: argparse.Namespace, blocking=True):
     if not server:
         # Give nicely formatted errors for each case.
         if len(errors) > 1:
-            raise Exception(f"Failed to start server. Errors: {errors}")
+            raise TritonCLIException(f"Failed to start server. Errors: {errors}")
         elif len(errors) == 1:
-            raise Exception(f"{errors[0]}")
+            raise TritonCLIException(f"{errors[0]}")
         else:
-            raise Exception("Failed to start server, unknown error.")
+            raise TritonCLIException("Failed to start server, unknown error.")
 
     return server
 

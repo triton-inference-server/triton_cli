@@ -21,11 +21,13 @@ import shutil
 from .server_local import TritonServerLocal
 from .server_docker import TritonServerDocker
 from .server_config import TritonServerConfig
-from triton_cli.constants import (
-    LOGGER_NAME,
+from triton_cli.common import (
     DEFAULT_SHM_SIZE,
     DEFAULT_TRITONSERVER_PATH,
+    LOGGER_NAME,
+    TritonCLIException,
 )
+
 
 logger = logging.getLogger(LOGGER_NAME)
 
@@ -122,7 +124,7 @@ class TritonServerFactory:
         elif config.mode == "docker":
             server = TritonServerFactory._get_docker_server_handle(config, gpus)
         else:
-            raise Exception(f"Unsupported triton-launch-mode : {config.mode}")
+            raise TritonCLIException(f"Unsupported triton-launch-mode : {config.mode}")
 
         return server
 
@@ -169,6 +171,6 @@ class TritonServerFactory:
         """
         # Determine if the binary is valid and executable
         if not shutil.which(tritonserver_path):
-            raise Exception(
+            raise TritonCLIException(
                 f"Either the binary {tritonserver_path} is invalid, not on the PATH, or does not have the correct permissions."
             )

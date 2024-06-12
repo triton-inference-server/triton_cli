@@ -27,12 +27,14 @@
 
 
 from triton_cli import parser
+from triton_cli.common import TritonCLIException, LOGGER_NAME
 
 import sys
 import logging
+import traceback
 
 logging.basicConfig(level=logging.INFO, format="%(name)s - %(levelname)s - %(message)s")
-logger = logging.getLogger("triton")
+logger = logging.getLogger(LOGGER_NAME)
 
 
 # Separate function that can raise exceptions used for testing
@@ -47,8 +49,12 @@ def main():
     # Interactive use will catch exceptions and log formatted errors rather than tracebacks.
     try:
         run()
+    # Custom exceptions are thrown by us and should give clear messages
+    except TritonCLIException as e:
+        logger.error(f"{e}")
     except Exception as e:
         logger.error(f"{e}")
+        logger.error(f"Unexpected error:\n{traceback.format_exc()}")
 
 
 if __name__ == "__main__":

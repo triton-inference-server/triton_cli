@@ -32,9 +32,8 @@ from rich.table import Table, Column
 from rich.console import Console
 from prometheus_client.parser import text_string_to_metric_families
 
-from triton_cli.constants import LOGGER_NAME
+from triton_cli.common import LOGGER_NAME
 
-# TODO: May make sense to give components unique logger names for debugging
 logger = logging.getLogger(LOGGER_NAME)
 
 
