@@ -94,6 +94,7 @@ def check_known_sources(model: str):
 
 
 def check_known_config(model: str):
+    print(f"-------{model}--------")
     if model in KNOWN_MODEL_CONFIGS:
         config = KNOWN_MODEL_CONFIGS[model]
         logger.info(f"Known model config found for '{model}': '{config}'")
@@ -285,14 +286,22 @@ def parse_args_repo(parser):
 
 def handle_repo_import(args: argparse.Namespace):
     repo = ModelRepository(args.model_repository)
+
+    config_filepath = None
     # Handle common models for convenience
-    if not args.config:
-        args.config = check_known_config(args.config)
+    if args.model and not args.config:
+        config_filename = check_known_config(args.model)
+        # TODO: Fix with correct/easier file pathing scheme
+        config_filepath = (
+            Path(__file__).parent.parent.parent / "examples" / config_filename
+        )
 
     # TODO: Add override arguments
     if args.config:
+        config_filepath = args.config
         print(f"args.config: {args.config}")
-        config = ImportConfig(args.config, None)
+
+    config = ImportConfig(config_filepath, None)
 
     repo.add(
         args.model,

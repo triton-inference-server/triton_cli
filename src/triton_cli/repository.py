@@ -115,7 +115,6 @@ class ImportConfig:
 
     # Loads and Stores the options in config file into self.config
     def base_config(self):
-        print("open is assigned to %r" % open)
         with open(self.config_filename) as f:
             entire_config = yaml.safe_load(f.read())
 
@@ -134,12 +133,14 @@ class ImportConfig:
                     base[arg_group][arg_name] = None
 
         self.config["tensorrtllm"] = dict(base)
+        self.config["source"] = entire_config["source"]
+        self.config["backend"] = entire_config["backend"]
 
     # TODO: Override user args with --set flag
     def override_config(self):
         pass
 
-    def get_trtllm_config(self):
+    def get_config(self):
         return self.config
 
 
@@ -414,10 +415,9 @@ class ModelRepository:
                 f"Found existing engine(s) at {engines_path}, skipping build."
             )
         else:
-            trtllm_config = None if config is None else config.get_trtllm_config()
-            print(f"_generate_trtllm_model: config = {trtllm_config}")
+            print(f"_generate_trtllm_model: config = {config}")
             self.__build_trtllm_engine(
-                huggingface_id, hf_download_path, engines_path, trtllm_config
+                huggingface_id, hf_download_path, engines_path, config
             )
 
         # NOTE: In every case, the TRT LLM template should be filled in with values.
