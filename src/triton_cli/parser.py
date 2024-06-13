@@ -40,6 +40,7 @@ from triton_cli.common import (
     DEFAULT_MODEL_REPO,
     DEFAULT_TRITONSERVER_IMAGE,
     LOGGER_NAME,
+    TRITON_CLI_ROOT,
     TritonCLIException,
 )
 from triton_cli.client.client import InferenceServerException, TritonClient
@@ -78,7 +79,7 @@ KNOWN_MODEL_CONFIGS = {
     "opt125m": "config-opt125m.yaml",
     "mistral-7b": "config-mistral-7b.yaml",
     "falcon-7b": "config-falcon-7b.yaml",
-    "phi-3-mini-4k-instruct": "config-phi-3-mini-4k-instruct.yaml",
+    # "phi-3-mini-4k-instruct": "config-phi-3-mini-4k-instruct.yaml",
     "phi-2": "config-phi-2.yaml",
 }
 
@@ -296,9 +297,7 @@ def handle_repo_import(args: argparse.Namespace):
     if args.model and not args.config:
         config_filename = check_known_config(args.model)
         # TODO: Fix with correct/easier file pathing scheme
-        config_filepath = (
-            Path(__file__).parent.parent.parent / "examples" / config_filename
-        )
+        config_filepath = TRITON_CLI_ROOT / "examples" / config_filename
 
     # TODO: Add override arguments
     if args.config:
