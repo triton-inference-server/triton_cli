@@ -78,6 +78,8 @@ KNOWN_MODEL_CONFIGS = {
     "opt125m": "config-opt125m.yaml",
     "mistral-7b": "config-mistral-7b.yaml",
     "falcon-7b": "config-falcon-7b.yaml",
+    "phi-3-mini-4k-instruct": "config-phi-3-mini-4k-instruct.yaml",
+    "phi-2": "config-phi-2.yaml",
 }
 
 

@@ -33,19 +33,10 @@ from triton_cli.common import LOGGER_NAME
 
 logger = logging.getLogger(LOGGER_NAME)
 
-CHECKPOINT_MODULE_MAP = {
-    "meta-llama/Llama-2-7b-hf": "llama",
-    "meta-llama/Llama-2-7b-chat-hf": "llama",
-    "meta-llama/Meta-Llama-3-8B": "llama",
-    "meta-llama/Meta-Llama-3-8B-Instruct": "llama",
-    "facebook/opt-125m": "opt",
-    "gpt2": "gpt2",
-}
-
 
 class TRTLLMBuilder:
     def __init__(self, huggingface_id, hf_download_path, engine_output_path, config):
-        self.checkpoint_id = CHECKPOINT_MODULE_MAP[huggingface_id]
+        self.checkpoint_id = config["tensorrtllm"]["convert_checkpoint_type"]
         self.hf_download_path = hf_download_path
         self.converted_weights_path = self.hf_download_path + "/converted_weights"
         self.engine_output_path = engine_output_path
@@ -82,7 +73,9 @@ class TRTLLMBuilder:
             self.converted_weights_path,
         ]
 
-        if self.config:
+        if self.config and isinstance(
+            self.config["tensorrtllm"]["convert_checkpoint_args"], dict
+        ):
             weight_conversion_args += [
                 self._make_arg(arg_name, arg_value)
                 for arg_name, arg_value in self.config["tensorrtllm"][
@@ -115,7 +108,9 @@ class TRTLLMBuilder:
             f"--output_dir={self.engine_output_path}",
         ]
 
-        if self.config:
+        if self.config and isinstance(
+            self.config["tensorrtllm"]["trtllm_build_args"], dict
+        ):
             build_args += [
                 self._make_arg(arg_name, arg_value)
                 for arg_name, arg_value in self.config["tensorrtllm"][

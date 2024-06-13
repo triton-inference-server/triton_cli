@@ -31,6 +31,7 @@ import logging
 import subprocess
 from pathlib import Path
 from rich.console import Console
+from rich import print as rich_print
 import yaml
 from collections import defaultdict
 from directory_tree import display_tree
@@ -80,6 +81,9 @@ SUPPORTED_TRT_LLM_BUILDERS = {
     "facebook/opt-125m": {
         "hf_allow_patterns": ["*.bin", "*.json", "*.txt"],
     },
+    "mistralai/Mistral-7B-v0.1": {
+        "hf_allow_patterns": ["*.safetensors", "*.json"],
+    },
     "meta-llama/Llama-2-7b-hf": {
         "hf_allow_patterns": ["*.safetensors", "*.json"],
     },
@@ -95,6 +99,18 @@ SUPPORTED_TRT_LLM_BUILDERS = {
     "gpt2": {
         "hf_allow_patterns": ["*.safetensors", "*.json"],
         "hf_ignore_patterns": ["onnx/*"],
+    },
+    "microsoft/Phi-3-mini-4k-instruct": {
+        "hf_allow_patterns": [
+            "*.safetensors",
+            "*.json",
+            "*.py",
+            "*.model",
+        ],  # Not working
+        # "hf_ignore_patterns": ["onnx/*"],
+    },
+    "microsoft/phi-2": {
+        "hf_allow_patterns": ["*.safetensors", "*.json"],
     },
 }
 
@@ -120,23 +136,27 @@ class ImportConfig:
         with open(self.config_filename) as f:
             entire_config = yaml.safe_load(f.read())
 
-        base = defaultdict(dict)
-        print(entire_config)
-
-        for arg_group in entire_config["tensorrtllm"]:
-            if not isinstance(entire_config["tensorrtllm"][arg_group], list):
-                continue
-            for arg in entire_config["tensorrtllm"][arg_group]:
-                if "=" in arg:  # Argument Format: "--arg=val"
-                    arg_name, arg_val = arg.lstrip("-").split("=")
-                    base[arg_group][arg_name] = arg_val
-                else:  # Boolean Argument Format: "--arg"
-                    arg_name = arg.lstrip("-")
-                    base[arg_group][arg_name] = None
-
-        self.config["tensorrtllm"] = dict(base)
         self.config["source"] = entire_config["source"]
         self.config["backend"] = entire_config["backend"]
+
+        if self.config["backend"] == "tensorrtllm":
+            base = defaultdict(dict)
+            for arg_group in entire_config["tensorrtllm"]:
+                if not isinstance(entire_config["tensorrtllm"][arg_group], list):
+                    base[arg_group] = entire_config["tensorrtllm"][arg_group]
+                    continue
+                for arg in entire_config["tensorrtllm"][arg_group]:
+                    if "=" in arg:  # Argument Format: "--arg=val"
+                        arg_name, arg_val = arg.lstrip("-").split("=")
+                        base[arg_group][arg_name] = arg_val
+                    else:  # Boolean Argument Format: "--arg"
+                        arg_name = arg.lstrip("-")
+                        base[arg_group][arg_name] = None
+
+            self.config["tensorrtllm"] = dict(base)
+
+        print("Config:")
+        rich_print(self.config)
 
     # TODO: Override user args with --set flag
     def override_config(self):

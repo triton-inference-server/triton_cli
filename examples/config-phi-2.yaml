@@ -1,0 +1,12 @@
+backend: tensorrtllm
+
+source:
+  type: huggingface
+  id: microsoft/phi-2
+
+tensorrtllm:
+  convert_checkpoint_type: phi
+
+  convert_checkpoint_args:
+
+  trtllm_build_args:
