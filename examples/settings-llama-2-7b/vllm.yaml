@@ -1,0 +1,5 @@
+backend: vllm
+
+source:
+  type: huggingface
+  id: meta-llama/Llama-2-7b-hf

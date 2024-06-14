@@ -2,10 +2,10 @@ backend: tensorrtllm
 
 source:
   type: huggingface
-  id: microsoft/Phi-3-mini-4k-instruct
+  id: gpt2
 
 tensorrtllm:
-  convert_checkpoint_type: phi
+  convert_checkpoint_type: "gpt2"
 
   convert_checkpoint_args:
 

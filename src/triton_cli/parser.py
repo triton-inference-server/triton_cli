@@ -55,47 +55,21 @@ logger = logging.getLogger(LOGGER_NAME)
 # TODO: Move to config file approach?
 # TODO: Per-GPU mappings for TRT LLM models
 # TODO: Ordered list of supported backends for models with multi-backend support
-KNOWN_MODEL_SOURCES = {
-    # Require authentication
-    "llama-2-7b": "hf:meta-llama/Llama-2-7b-hf",
-    "llama-2-7b-chat": "hf:meta-llama/Llama-2-7b-chat-hf",
-    "llama-3-8b": "hf:meta-llama/Meta-Llama-3-8B",
-    "llama-3-8b-instruct": "hf:meta-llama/Meta-Llama-3-8B-Instruct",
-    # Public
-    "gpt2": "hf:gpt2",
-    "opt125m": "hf:facebook/opt-125m",
-    "mistral-7b": "hf:mistralai/Mistral-7B-v0.1",
-    "falcon-7b": "hf:tiiuae/falcon-7b",
-}
 
 KNOWN_MODEL_CONFIGS = {
     # Require authentication
-    "llama-2-7b": "config-llama-2-7b.yaml",
-    "llama-2-7b-chat": "config-llama-2-7b-chat.yaml",
-    "llama-3-8b": "config-llama-3-8b.yaml",
-    "llama-3-8b-instruct": "config-llama-3-8b-instruct.yaml",
+    "llama-2-7b": "config-llama-2-7b",
+    "llama-2-7b-chat": "config-llama-2-7b-chat",
+    "llama-3-8b": "config-llama-3-8b",
+    "llama-3-8b-instruct": "config-llama-3-8b-instruct",
     # Public
-    "gpt2": "config-gpt2.yaml",
-    "opt125m": "config-opt125m.yaml",
-    "mistral-7b": "config-mistral-7b.yaml",
-    "falcon-7b": "config-falcon-7b.yaml",
+    "gpt2": "config-gpt2",
+    "opt125m": "config-opt125m",
+    "mistral-7b": "config-mistral-7b",
+    "falcon-7b": "config-falcon-7b",
     # "phi-3-mini-4k-instruct": "config-phi-3-mini-4k-instruct.yaml",
-    "phi-2": "config-phi-2.yaml",
+    "phi-2": "config-phi-2",
 }
-
-
-# TODO: Get rid of once config logic is working
-def check_known_sources(model: str):
-    if model in KNOWN_MODEL_SOURCES:
-        source = KNOWN_MODEL_SOURCES[model]
-        logger.info(f"Known model source found for '{model}': '{source}'")
-    else:
-        logger.error(
-            f"No known source for model: '{model}'. Known sources: {list(KNOWN_MODEL_SOURCES.keys())}"
-        )
-        raise TritonCLIException("Please use a known model, or provide a --source.")
-
-    return source
 
 
 def check_known_config(model: str):

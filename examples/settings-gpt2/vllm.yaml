@@ -1,0 +1,5 @@
+backend: vllm
+
+source:
+  type: huggingface
+  id: gpt2
