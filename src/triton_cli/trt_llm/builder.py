@@ -30,22 +30,26 @@ from pathlib import Path
 
 from triton_cli.common import LOGGER_NAME
 
+from triton_cli.common import TritonCLIException
+
+from pkg_resources import get_distribution
 
 logger = logging.getLogger(LOGGER_NAME)
 
 
 class TRTLLMBuilder:
     def __init__(self, huggingface_id, hf_download_path, engine_output_path, config):
+        trtllm_version = get_distribution("__tensorrt_llm__").version
+        if trtllm_version != "0.9.0":
+            raise TritonCLIException(
+                f"tensorrt_llm version {trtllm_version} not supported by triton_cli."
+                "Please use tensorrt_llm version 0.9.0."
+            )
         self.checkpoint_id = config["tensorrtllm"]["convert_checkpoint_type"]
         self.hf_download_path = hf_download_path
         self.converted_weights_path = self.hf_download_path + "/converted_weights"
         self.engine_output_path = engine_output_path
         self.config = config
-
-        # config_path = Path(__file__).resolve().parent / "params.json"
-
-        # with open(config_path, "r") as f:
-        #     self.config = json.loads(f.read())
 
     def _make_arg(self, arg_name, arg_value):
         if arg_value is None:  # Boolean Argument
