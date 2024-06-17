@@ -1,0 +1,54 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "type": "object",
+    "properties": {
+        "backend": {
+            "type": "string",
+            "enum": [
+                "tensorrtllm",
+                "vllm"
+            ]
+        },
+        "source": {
+            "type": "object",
+            "properties": {
+                "type": {
+                    "type": "string",
+                    "enum": [
+                        "ngc",
+                        "huggingface"
+                    ]
+                },
+                "id": {
+                    "type": "string"
+                }
+            },
+            "required": [
+                "type",
+                "id"
+            ]
+        }
+    },
+    "tensorrtllm": {
+        "type": "object",
+        "properties": {
+            "covert_checkpoint_type": {
+                "type": "string"
+            },
+            "convert_checkpoint_args": {
+                "type": "array",
+                "items": {
+                    "type": "string"
+                }
+            },
+            "trtllm_build_args": {
+                "type": "array",
+                "items": {
+                    "type": "string"
+                }
+            }
+        },
+        "required":["convert_checkpoint_type"]
+    },
+    "required": ["backend", "source"]
+}
