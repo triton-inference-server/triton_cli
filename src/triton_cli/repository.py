@@ -31,7 +31,6 @@ import logging
 import subprocess
 from pathlib import Path
 from rich.console import Console
-from rich import print as rich_print
 import yaml
 from collections import defaultdict
 from directory_tree import display_tree
@@ -116,9 +115,6 @@ class ImportSettings:
         self.base_settings()
         self.override_settings()
 
-        for key, val in self.settings.items():
-            print(f"{key}: {val}")
-
     def __getitem__(self, key):
         return self.settings[key]
 
@@ -145,9 +141,6 @@ class ImportSettings:
                         base[arg_group][arg_name] = None
 
             self.settings["tensorrtllm"] = dict(base)
-
-        print("settings:")
-        rich_print(self.settings)
 
     # TODO: Override user args with --set flag
     def override_settings(self):
@@ -237,7 +230,6 @@ class ModelRepository:
         version: int = 1,
         verbose=True,
     ):
-        # print(f"Trying config[source]: {a}")
         if not settings["source"]:
             raise TritonCLIException("Non-empty model source must be provided")
 
@@ -427,7 +419,6 @@ class ModelRepository:
                 f"Found existing engine(s) at {engines_path}, skipping build."
             )
         else:
-            print(f"_generate_trtllm_model: settings = {settings}")
             self.__build_trtllm_engine(
                 huggingface_id, hf_download_path, engines_path, settings
             )
@@ -461,17 +452,14 @@ class ModelRepository:
             allow_patterns=hf_allow_patterns,
             ignore_patterns=hf_ignore_patterns,
         )
-        print("Calling the builder")
         builder = TRTLLMBuilder(
             huggingface_id=huggingface_id,
             hf_download_path=hf_download_path,
             engine_output_path=engines_path,
             settings=settings,
         )
-        print("Builder Instantiated...")
         console = Console()
         with console.status(f"Building TRT-LLM engine for {huggingface_id}..."):
-            print("Calling builder.build()")
             builder.build()
 
     def __create_model_repository(

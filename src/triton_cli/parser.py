@@ -80,7 +80,6 @@ KNOWN_MODEL_SETTINGS = {
 
 
 def check_known_settings(model: str):
-    print(f"-------{model}--------")
     if model in KNOWN_MODEL_SETTINGS:
         settings = KNOWN_MODEL_SETTINGS[model]
         logger.info(f"Known model settings found for '{model}': '{settings}'")
