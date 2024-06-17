@@ -87,9 +87,6 @@ class TRTLLMBuilder:
                 ].items()
             ]
 
-        # Alternatively, could do:
-        # weight_conversion_args.extend(self.config["convert_checkpoint_args"])
-
         # Need to specify gpt variant for gpt models
         if self.checkpoint_id in ["gpt2"]:
             weight_conversion_args += ["--gpt_variant", self.checkpoint_id]
@@ -121,11 +118,6 @@ class TRTLLMBuilder:
                     "trtllm_build_args"
                 ].items()
             ]
-
-        print(f"B: {build_args}")
-
-        # Alternatively, could do:
-        # build_args.extend(self.config["trtllm_build_args"])
 
         cmd = ["trtllm-build"] + build_args
         cmd_str = " ".join(cmd)

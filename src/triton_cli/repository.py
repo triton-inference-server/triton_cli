@@ -346,9 +346,9 @@ class ModelRepository:
             # TODO: Add generic support for HuggingFace models with HF API.
             # For now, use vLLM as a means of deploying HuggingFace Transformers
             # NOTE: Only transformer models are supported at this time.
-            config_contents, files = self.__generate_vllm_model(huggingface_id)
+            config, files = self.__generate_vllm_model(huggingface_id)
             config_file = model_dir / "config.pbtxt"
-            config_file.write_text(config_contents)
+            config_file.write_text(config)
             for file, contents in files.items():
                 model_file = version_dir / file
                 model_file.write_text(contents)

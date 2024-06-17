@@ -42,15 +42,11 @@ class TritonCommands:
 
     def _import(model, source=None, repo=None, backend=None, settings=None):
         args = ["import", "-m", model]
-        if source:
-            args += ["--source", source]
-        if repo:
-            args += ["--repo", repo]
-        if backend:
-            args += ["--backend", backend]
         if settings:
             args += ["--setting", settings]
-        print(f"Import Arg: {args}")
+        if repo:
+            args += ["--repo", repo]
+
         run(args)
 
     def _remove(model, repo=None):
