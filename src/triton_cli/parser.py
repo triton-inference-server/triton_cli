@@ -46,44 +46,51 @@ from triton_cli.common import (
 from triton_cli.client.client import InferenceServerException, TritonClient
 from triton_cli.metrics import MetricsClient
 from triton_cli.profile import add_unknown_args_to_args, build_command
-from triton_cli.repository import ModelRepository, ImportConfig
+from triton_cli.repository import ModelRepository, ImportSettings
 from triton_cli.server.server_factory import TritonServerFactory
-
+import os
 
 logger = logging.getLogger(LOGGER_NAME)
 
-# TODO: Move to config file approach?
 # TODO: Per-GPU mappings for TRT LLM models
 # TODO: Ordered list of supported backends for models with multi-backend support
 
-KNOWN_MODEL_CONFIGS = {
+# IMAGE_KIND = {'TRTLLM', 'VLLM'} is a variable set by Docker Container
+# Backend can be inferred from environment variable.
+IMAGE_KIND = os.environ.get("IMAGE_KIND", None)
+if IMAGE_KIND:
+    DEFAULT_BACKEND = IMAGE_KIND.lower()
+else:
+    DEFAULT_BACKEND = "vllm"
+
+KNOWN_MODEL_SETTINGS = {
     # Require authentication
-    "llama-2-7b": "config-llama-2-7b",
-    "llama-2-7b-chat": "config-llama-2-7b-chat",
-    "llama-3-8b": "config-llama-3-8b",
-    "llama-3-8b-instruct": "config-llama-3-8b-instruct",
+    "llama-2-7b": f"settings-llama-2-7b//{DEFAULT_BACKEND}.yaml",
+    "llama-2-7b-chat": f"settings-llama-2-7b-chat//{DEFAULT_BACKEND}.yaml",
+    "llama-3-8b": f"settings-llama-3-8b//{DEFAULT_BACKEND}.yaml",
+    "llama-3-8b-instruct": f"settings-llama-3-8b-instruct//{DEFAULT_BACKEND}.yaml",
     # Public
-    "gpt2": "config-gpt2",
-    "opt125m": "config-opt125m",
-    "mistral-7b": "config-mistral-7b",
-    "falcon-7b": "config-falcon-7b",
-    # "phi-3-mini-4k-instruct": "config-phi-3-mini-4k-instruct.yaml",
-    "phi-2": "config-phi-2",
+    "gpt2": f"settings-gpt2//{DEFAULT_BACKEND}.yaml",
+    "opt125m": f"settings-opt125m//{DEFAULT_BACKEND}.yaml",
+    "mistral-7b": f"settings-mistral-7b//{DEFAULT_BACKEND}.yaml",
+    "falcon-7b": "settings-falcon-7b//vllm.yaml",
+    # "phi-3-mini-4k-instruct": f"settings-phi-3-mini-4k-instruct.yaml//{DEFAULT_BACKEND}.yaml",
+    "phi-2": f"settings-phi-2//{DEFAULT_BACKEND}.yaml",
 }
 
 
-def check_known_config(model: str):
+def check_known_settings(model: str):
     print(f"-------{model}--------")
-    if model in KNOWN_MODEL_CONFIGS:
-        config = KNOWN_MODEL_CONFIGS[model]
-        logger.info(f"Known model config found for '{model}': '{config}'")
+    if model in KNOWN_MODEL_SETTINGS:
+        settings = KNOWN_MODEL_SETTINGS[model]
+        logger.info(f"Known model settings found for '{model}': '{settings}'")
     else:
         logger.error(
-            f"No known config for model: '{model}'. Known configs: {list(KNOWN_MODEL_CONFIGS.keys())}"
+            f"No known settings for model: '{model}'. Known settings: {list(KNOWN_MODEL_SETTINGS.keys())}"
         )
-        raise Exception("Please use a known model, or provide a --config.")
+        raise Exception("Please use a known model, or provide a --setting.")
 
-    return config
+    return settings
 
 
 # TODO: Move out of parser
@@ -227,21 +234,12 @@ def parse_args_repo(parser):
         help="Name to assign to model in repository",
     )
     repo_import.add_argument(
-        "-s",
-        "--source",
-        type=str,
-        required=False,
-        help="Local model path or model identifier. Use prefix 'hf:' to specify a HuggingFace model ID. "
-        "NOTE: HuggingFace model support is currently limited to Transformer models through the vLLM backend.",
-    )
-    repo_import.add_argument(
-        "-c",
-        "--config",
+        "--setting",
         type=str,
         required=False,
         # TODO: Add url to example json in here.
-        help="Path to configuration file (json Format). For TensorRT models,"
-        "this config file will pass along custom arguments to the TensorRT backend"
+        help="Path to setting file (json Format). For TensorRT models,"
+        "this setting file will pass along custom arguments to the TensorRT backend"
         "Sample format: [url]",
     )
 
@@ -266,26 +264,24 @@ def parse_args_repo(parser):
 def handle_repo_import(args: argparse.Namespace):
     repo = ModelRepository(args.model_repository)
 
-    config_filepath = None
+    settings_filepath = None
     # Handle common models for convenience
-    if args.model and not args.config:
-        config_filename = check_known_config(args.model)
+    if args.model and not args.setting:
+        settings_filename = check_known_settings(args.model)
         # TODO: Fix with correct/easier file pathing scheme
-        config_filepath = TRITON_CLI_ROOT / "examples" / config_filename
+        settings_filepath = TRITON_CLI_ROOT / "examples" / settings_filename
 
     # TODO: Add override arguments
-    if args.config:
-        config_filepath = args.config
-        print(f"args.config: {args.config}")
+    if args.setting:
+        settings_filepath = args.setting
+        print(f"args.settings: {args.setting}")
 
-    config = ImportConfig(config_filepath, None)
+    settings = ImportSettings(settings_filepath, None)
 
     repo.add(
         args.model,
+        settings=settings,
         version=1,
-        # source=args.source,
-        # backend=args.backend,
-        config=config,
     )
 
 

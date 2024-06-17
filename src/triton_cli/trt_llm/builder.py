@@ -32,17 +32,17 @@ from triton_cli.common import LOGGER_NAME
 
 from triton_cli.common import TritonCLIException
 
-from pkg_resources import get_distribution
 
 logger = logging.getLogger(LOGGER_NAME)
 
 
 class TRTLLMBuilder:
     def __init__(self, huggingface_id, hf_download_path, engine_output_path, config):
-        trtllm_version = get_distribution("__tensorrt_llm__").version
-        if trtllm_version != "0.9.0":
+        import tensorrt_llm
+
+        if tensorrt_llm.__version__ != "0.9.0":
             raise TritonCLIException(
-                f"tensorrt_llm version {trtllm_version} not supported by triton_cli."
+                f"tensorrt_llm version {tensorrt_llm.__version__} not supported by triton_cli."
                 "Please use tensorrt_llm version 0.9.0."
             )
         self.checkpoint_id = config["tensorrtllm"]["convert_checkpoint_type"]

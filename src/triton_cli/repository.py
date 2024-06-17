@@ -100,52 +100,43 @@ SUPPORTED_TRT_LLM_BUILDERS = {
         "hf_allow_patterns": ["*.safetensors", "*.json"],
         "hf_ignore_patterns": ["onnx/*"],
     },
-    "microsoft/Phi-3-mini-4k-instruct": {
-        "hf_allow_patterns": [
-            "*.safetensors",
-            "*.json",
-            "*.py",
-            "*.model",
-        ],  # Not working
-        # "hf_ignore_patterns": ["onnx/*"],
-    },
     "microsoft/phi-2": {
         "hf_allow_patterns": ["*.safetensors", "*.json"],
     },
 }
 
-MODEL_TYPE_PREFIX = {"huggingface": "hf", "ngc": "ngc"}
+# MODEL_TYPE_PREFIX = {"huggingface": "hf", "ngc": "ngc"}
 
 
-class ImportConfig:
+class ImportSettings:
     def __init__(self, filename, override_args=None):
-        self.config_filename = filename  # Config File Name
+        self.settings_filename = filename  # Config File Name
         self.override_args = override_args
-        self.config = {}
-        self.base_config()
-        self.override_config()
+        self.settings = {}
+        self.base_settings()
+        self.override_settings()
 
-        for key, val in self.config.items():
+        for key, val in self.settings.items():
             print(f"{key}: {val}")
 
     def __getitem__(self, key):
-        return self.config[key]
+        return self.settings[key]
 
-    # Loads and Stores the options in config file into self.config
-    def base_config(self):
-        with open(self.config_filename) as f:
-            entire_config = yaml.safe_load(f.read())
+    # Loads and Stores the options in settings file into self.settings
+    def base_settings(self):
+        with open(self.settings_filename) as f:
+            entire_settings = yaml.safe_load(f.read())
 
-        self.config["source"] = entire_config["source"]
-        self.config["backend"] = entire_config["backend"]
+        self.settings["source"] = entire_settings["source"]
+        self.settings["backend"] = entire_settings["backend"]
 
-        if self.config["backend"] == "tensorrtllm":
+        if self.settings["backend"] == "tensorrtllm":
             base = defaultdict(dict)
-            for arg_group in entire_config["tensorrtllm"]:
-                if not isinstance(entire_config["tensorrtllm"][arg_group], list):
-                    base[arg_group] = entire_config["tensorrtllm"][arg_group]
+            for arg_group in entire_settings["tensorrtllm"]:
+                if not isinstance(entire_settings["tensorrtllm"][arg_group], list):
+                    base[arg_group] = entire_settings["tensorrtllm"][arg_group]
                     continue
-                for arg in entire_config["tensorrtllm"][arg_group]:
+                for arg in entire_settings["tensorrtllm"][arg_group]:
                     if "=" in arg:  # Argument Format: "--arg=val"
                         arg_name, arg_val = arg.lstrip("-").split("=")
                         base[arg_group][arg_name] = arg_val
@@ -153,17 +144,17 @@ class ImportConfig:
                         arg_name = arg.lstrip("-")
                         base[arg_group][arg_name] = None
 
-            self.config["tensorrtllm"] = dict(base)
+            self.settings["tensorrtllm"] = dict(base)
 
-        print("Config:")
-        rich_print(self.config)
+        print("settings:")
+        rich_print(self.settings)
 
     # TODO: Override user args with --set flag
-    def override_config(self):
+    def override_settings(self):
         pass
 
-    def get_config(self):
-        return self.config
+    def get_settings(self):
+        return self.settings
 
 
 # NOTE: Thin wrapper around NGC CLI is a WAR for now.
@@ -242,56 +233,54 @@ class ModelRepository:
     def add(
         self,
         name: str,
+        settings: ImportSettings | None,
         version: int = 1,
-        # source: str = None,
-        # backend: str = None,
-        config: ImportConfig = None,
         verbose=True,
     ):
         # print(f"Trying config[source]: {a}")
-        if not config["source"]:
+        if not settings["source"]:
             raise TritonCLIException("Non-empty model source must be provided")
 
-        if config["backend"] and config["backend"] not in SUPPORTED_BACKENDS:
+        if settings["backend"] and settings["backend"] not in SUPPORTED_BACKENDS:
             raise TritonCLIException(
                 f"The specified backend is not currently supported. Please choose from the following backends {SUPPORTED_BACKENDS}"
             )
 
         # HuggingFace models
-        if config["source"]["type"] == "huggingface":
+        if settings["source"]["type"] == "huggingface":
             logger.debug("HuggingFace prefix detected, parsing HuggingFace ID")
             # source_type = "huggingface"
         # NGC models
         # TODO: Improve backend detection/assumption for NGC models in future
-        elif config["source"]["type"] == "ngc":
+        elif settings["source"]["type"] == "ngc":
             logger.debug("NGC prefix detected, parsing NGC ID")
             # source_type = "ngc"
         # Local model path
         else:
             logger.debug("No supported prefix detected, assuming local path")
             # source_type = "local"
-            model_path = Path(config["source"]["id"])  # Path(source)
+            model_path = Path(settings["source"]["id"])  # Path(source)
             if not model_path.exists():
                 raise TritonCLIException(f"{model_path} does not exist")
 
         model_dir, version_dir = self.__create_model_repository(
-            name, version, config["backend"]
+            name, version, settings["backend"]
         )
 
         # Note it's a bit redundant right now, but we check prefix above first
         # to avoid creating model repository files in case that local source
         # path is invalid. This should be cleaned up.
-        if config["source"]["type"] == "huggingface":
+        if settings["source"]["type"] == "huggingface":
             # hf_id = source.split(":")[1]
             self.__add_huggingface_model(
                 model_dir,
                 version_dir,
-                config["source"]["id"],
+                settings["source"]["id"],
                 name,
-                config["backend"],
-                config,
+                settings["backend"],
+                settings,
             )
-        elif config["source"]["type"] == "ngc":
+        elif settings["source"]["type"] == "ngc":
             # NOTE: NGC models likely to contain colons
             # ngc_id = source.replace(SOURCE_PREFIX_NGC, "")
             ngc = NGCWrapper()
@@ -299,14 +288,14 @@ class ModelRepository:
             #       transforms into llama2_13b_trt_a100_v0.1 folder when
             #       downloaded from NGC CLI.
             ngc_model_name = (
-                (config["source"]["type"] + "/" + config["source"]["id"])
+                (settings["source"]["type"] + "/" + settings["source"]["id"])
                 .split("/")[-1]
                 .replace(":", "_v")
             )
             ngc.download_model(
-                config["source"]["id"], ngc_model_name, dest=ENGINE_DEST_PATH
+                settings["source"]["id"], ngc_model_name, dest=ENGINE_DEST_PATH
             )
-            # TODO: grab downloaded config files,
+            # TODO: grab downloaded settings files,
             #       point to downloaded engines, etc.
             self.__generate_ngc_model(name, ngc_model_name)
         else:
@@ -342,7 +331,7 @@ class ModelRepository:
         huggingface_id: str,
         name: str,
         backend: str,
-        config: ImportConfig | None,
+        settings: ImportSettings | None,
     ):
         if not model_dir or not model_dir.exists():
             raise TritonCLIException("Model directory must be provided and exist")
@@ -352,7 +341,7 @@ class ModelRepository:
         if backend == "tensorrtllm":
             # TODO: Refactor the cleanup flow, move it to a higher level
             try:
-                self.__generate_trtllm_model(name, huggingface_id, config)
+                self.__generate_trtllm_model(name, huggingface_id, settings)
             except Exception as e:
                 # If generating TRLTLM model fails, clean up the draft models
                 # added to the model repository.
@@ -421,7 +410,7 @@ class ModelRepository:
         )
 
     def __generate_trtllm_model(
-        self, name, huggingface_id, config: ImportConfig | None
+        self, name, huggingface_id, settings: ImportSettings | None
     ):
         builder_info = SUPPORTED_TRT_LLM_BUILDERS.get(huggingface_id)
         if not builder_info:
@@ -438,9 +427,9 @@ class ModelRepository:
                 f"Found existing engine(s) at {engines_path}, skipping build."
             )
         else:
-            print(f"_generate_trtllm_model: config = {config}")
+            print(f"_generate_trtllm_model: settings = {settings}")
             self.__build_trtllm_engine(
-                huggingface_id, hf_download_path, engines_path, config
+                huggingface_id, hf_download_path, engines_path, settings
             )
 
         # NOTE: In every case, the TRT LLM template should be filled in with values.
@@ -461,7 +450,7 @@ class ModelRepository:
         huggingface_id,
         hf_download_path,
         engines_path,
-        config: ImportConfig | None,
+        settings: ImportSettings | None,
     ):
         builder_info = SUPPORTED_TRT_LLM_BUILDERS.get(huggingface_id)
         hf_allow_patterns = builder_info["hf_allow_patterns"]
@@ -477,7 +466,7 @@ class ModelRepository:
             huggingface_id=huggingface_id,
             hf_download_path=hf_download_path,
             engine_output_path=engines_path,
-            config=config,
+            settings=settings,
         )
         print("Builder Instantiated...")
         console = Console()

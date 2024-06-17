@@ -40,7 +40,7 @@ class TritonCommands:
             run(args)
             return buf.getvalue()
 
-    def _import(model, source=None, repo=None, backend=None, config=None):
+    def _import(model, source=None, repo=None, backend=None, settings=None):
         args = ["import", "-m", model]
         if source:
             args += ["--source", source]
@@ -48,8 +48,9 @@ class TritonCommands:
             args += ["--repo", repo]
         if backend:
             args += ["--backend", backend]
-        if config:
-            args += ["--config", config]
+        if settings:
+            args += ["--setting", settings]
+        print(f"Import Arg: {args}")
         run(args)
 
     def _remove(model, repo=None):
