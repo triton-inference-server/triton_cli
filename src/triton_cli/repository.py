@@ -31,6 +31,7 @@ import logging
 import subprocess
 from pathlib import Path
 from rich.console import Console
+from rich import print as rich_print
 import yaml
 from collections import defaultdict
 from directory_tree import display_tree
@@ -108,12 +109,13 @@ SUPPORTED_TRT_LLM_BUILDERS = {
 
 
 class ImportSettings:
-    def __init__(self, filename, override_args=None):
+    def __init__(self, filename, override_args):
         self.settings_filename = filename  # Config File Name
         self.override_args = override_args
         self.settings = {}
         self.base_settings()
         self.override_settings()
+        rich_print(self.settings)
 
     def __getitem__(self, key):
         return self.settings[key]
@@ -129,9 +131,11 @@ class ImportSettings:
         if self.settings["backend"] == "tensorrtllm":
             base = defaultdict(dict)
             for arg_group in entire_settings["tensorrtllm"]:
+                # If single parameter, assign directly
                 if not isinstance(entire_settings["tensorrtllm"][arg_group], list):
                     base[arg_group] = entire_settings["tensorrtllm"][arg_group]
                     continue
+                # If arguments are a list, break down setting file's args
                 for arg in entire_settings["tensorrtllm"][arg_group]:
                     if "=" in arg:  # Argument Format: "--arg=val"
                         arg_name, arg_val = arg.lstrip("-").split("=")
@@ -142,12 +146,35 @@ class ImportSettings:
 
             self.settings["tensorrtllm"] = dict(base)
 
+    def _update_nested_settings(self, arg_level, arg_value):
+        # Iterate through the levels of arg_level and assign arg_value
+        curr = self.settings
+        for level in arg_level[:-1]:
+            if level not in curr:
+                curr[level] = {}
+            curr = curr[level]
+
+        curr[arg_level[-1]] = arg_value
+
     # TODO: Override user args with --set flag
     def override_settings(self):
-        pass
-
-    def get_settings(self):
-        return self.settings
+        if self.override_args is None:
+            return
+        for arg in self.override_args:
+            # 1. Processing arguments given to parser
+            arg_levels, arg_value = None, None
+            # args format: "L1.L2. ... .Ln=argval"
+            if "=" in arg:
+                arg_levels, arg_value = arg.split("=")
+                arg_levels = arg_levels.split(".")
+            else:
+                arg_levels = arg.split(".")
+                arg_value = None
+            # After Step 1, processed arguments look like:
+            # arg_levels = ["L1","l2",...,"Ln"]
+            # arg_value = arg_val
+            # 2. Add/Overwrite current settings
+            self._update_nested_settings(arg_levels, arg_value)
 
 
 # NOTE: Thin wrapper around NGC CLI is a WAR for now.

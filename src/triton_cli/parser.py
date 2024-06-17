@@ -242,6 +242,10 @@ def parse_args_repo(parser):
         "Sample format: [url]",
     )
 
+    repo_import.add_argument(
+        "--set", type=str, action="append", required=False, help=""
+    )
+
     repo_remove = parser.add_parser("remove", help="Remove model from model repository")
     repo_remove.set_defaults(func=handle_repo_remove)
     repo_remove.add_argument(
@@ -263,7 +267,7 @@ def parse_args_repo(parser):
 def handle_repo_import(args: argparse.Namespace):
     repo = ModelRepository(args.model_repository)
 
-    settings_filepath = None
+    settings_filepath, override_args = None, None
     # Handle common models for convenience
     if args.model and not args.setting:
         settings_filename = check_known_settings(args.model)
@@ -273,9 +277,12 @@ def handle_repo_import(args: argparse.Namespace):
     # TODO: Add override arguments
     if args.setting:
         settings_filepath = args.setting
-        print(f"args.settings: {args.setting}")
 
-    settings = ImportSettings(settings_filepath, None)
+    if args.set:
+        print(f"args.set: {args.set}")
+        override_args = args.set
+
+    settings = ImportSettings(settings_filepath, override_args)
 
     repo.add(
         args.model,
