@@ -31,7 +31,7 @@ source:
   id: facebook/opt-125m
 
 tensorrtllm:
-  convert_checkpoint_type: "opt"
+  convert_checkpoint_type: opt
 
   convert_checkpoint_args:
     - "--dtype=float16"

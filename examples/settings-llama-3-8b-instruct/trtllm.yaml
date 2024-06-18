@@ -31,7 +31,7 @@ source:
   id: meta-llama/Meta-Llama-3-8B-Instruct
 
 tensorrtllm:
-  convert_checkpoint_type: "llama"
+  convert_checkpoint_type: llama
 
   convert_checkpoint_args:
     - "--dtype=float16"

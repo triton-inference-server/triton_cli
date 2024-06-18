@@ -31,7 +31,7 @@ source:
   id: meta-llama/Llama-2-7b-chat-hf
 
 tensorrtllm:
-  convert_checkpoint_type: "llama"
+  convert_checkpoint_type: llama
 
   convert_checkpoint_args:
     - "--dtype=float16"
