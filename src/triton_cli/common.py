@@ -36,7 +36,7 @@ class TritonCLIException(Exception):
 
 LOGGER_NAME: str = "triton"
 # Top-Level Directory of triton-cli
-TRITON_CLI_ROOT: Path = Path(__file__).parent.parent.parent
+TRITON_CLI_ROOT: Path = Path(__file__).parent.parent.parent.resolve()
 
 # Server
 DEFAULT_TRITONSERVER_PATH: str = "tritonserver"
