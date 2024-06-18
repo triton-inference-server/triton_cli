@@ -37,7 +37,7 @@ logger = logging.getLogger(LOGGER_NAME)
 
 
 class TRTLLMBuilder:
-    def __init__(self, huggingface_id, hf_download_path, engine_output_path, config):
+    def __init__(self, huggingface_id, hf_download_path, engine_output_path, settings):
         import tensorrt_llm
 
         if tensorrt_llm.__version__ != "0.9.0":
@@ -45,11 +45,11 @@ class TRTLLMBuilder:
                 f"tensorrt_llm version {tensorrt_llm.__version__} not supported by triton_cli."
                 "Please use tensorrt_llm version 0.9.0."
             )
-        self.checkpoint_id = config["tensorrtllm"]["convert_checkpoint_type"]
+        self.checkpoint_id = settings["tensorrtllm"]["convert_checkpoint_type"]
         self.hf_download_path = hf_download_path
         self.converted_weights_path = self.hf_download_path + "/converted_weights"
         self.engine_output_path = engine_output_path
-        self.config = config
+        self.settings = settings
 
     def _make_arg(self, arg_name, arg_value):
         if arg_value is None:  # Boolean Argument
@@ -77,12 +77,12 @@ class TRTLLMBuilder:
             self.converted_weights_path,
         ]
 
-        if self.config and isinstance(
-            self.config["tensorrtllm"]["convert_checkpoint_args"], dict
+        if self.settings and isinstance(
+            self.settings["tensorrtllm"]["convert_checkpoint_args"], dict
         ):
             weight_conversion_args += [
                 self._make_arg(arg_name, arg_value)
-                for arg_name, arg_value in self.config["tensorrtllm"][
+                for arg_name, arg_value in self.settings["tensorrtllm"][
                     "convert_checkpoint_args"
                 ].items()
             ]
@@ -103,18 +103,17 @@ class TRTLLMBuilder:
         subprocess.run(cmd, check=True)
 
     def _trtllm_build(self):
-        # TODO: Move towards config-driven build args per-model
         build_args = [
             f"--checkpoint_dir={self.converted_weights_path}",
             f"--output_dir={self.engine_output_path}",
         ]
 
-        if self.config and isinstance(
-            self.config["tensorrtllm"]["trtllm_build_args"], dict
+        if self.settings and isinstance(
+            self.settings["tensorrtllm"]["trtllm_build_args"], dict
         ):
             build_args += [
                 self._make_arg(arg_name, arg_value)
-                for arg_name, arg_value in self.config["tensorrtllm"][
+                for arg_name, arg_value in self.settings["tensorrtllm"][
                     "trtllm_build_args"
                 ].items()
             ]
