@@ -16,7 +16,7 @@ from tensorrt_llm.models.modeling_utils import QuantConfig
 from tensorrt_llm.quantization import QuantAlgo
 
 
-def parse_arguments():
+def parse_arguments(args=None):
     parser = argparse.ArgumentParser()
     parser.add_argument('--model_dir', type=str, default=None)
     parser.add_argument('--meta_ckpt_dir', type=str, default=None)
