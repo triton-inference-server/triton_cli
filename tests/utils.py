@@ -74,6 +74,9 @@ class TritonCommands:
 
     def _profile(model, backend):
         args = ["profile", "-m", model, "--backend", backend]
+        # NOTE: With default parameters, genai-perf may take upwards of 1m30s or 2m to run,
+        # so limit the genai-perf run with --request-count to reduce time for testing purposes.
+        args += ["--", "--request-count", "10"]
         run(args)
 
     def _metrics():
