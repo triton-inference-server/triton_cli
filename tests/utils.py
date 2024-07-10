@@ -178,11 +178,13 @@ class ScopedTritonServer:
                 pass
         raise Exception(f"=== Timeout {timeout} secs. Server not ready. ===")
 
-    def kill_server(self, pid: int, sig: int = 2):
+    def kill_server(self, pid: int, sig: int = 2, timeout: int = 30):
         try:
             proc = psutil.Process(pid)
             proc.send_signal(sig)
-            proc.wait()
+            # Add wait timeout to avoid hanging if process can't be cleanly
+            # stopped for some reason.
+            proc.wait(timeout=timeout)
         except psutil.NoSuchProcess as e:
             print(e)
 
