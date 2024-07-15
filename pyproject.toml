@@ -55,7 +55,7 @@ dependencies = [
     "numpy >=1.21,<2",
     "protobuf>=3.7.0",
     "prometheus-client == 0.19.0",
-    "psutil < 6", # psutil 6.x may be causing some hangs
+    "psutil >= 5.9.5", # may remove later
     "rich == 13.5.2",
     # TODO: Test on cpu-only machine if [cuda] dependency is an issue,
     # Use explicit client version matching genai-perf version for tagged release
