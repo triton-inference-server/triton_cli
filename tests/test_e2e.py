@@ -123,5 +123,8 @@ class TestE2E:
             # infer should fail without a prompt for LLM models
             with pytest.raises(Exception):
                 TritonCommands._infer(model, protocol=protocol)
-            # profile should work without a prompt for LLM models
-            TritonCommands._profile(model, backend="tensorrtllm")
+
+            # profile for triton endpoints only supports grpc protocol currently
+            if protocol == "grpc":
+                # profile should work without a prompt for LLM models
+                TritonCommands._profile(model, backend="tensorrtllm")

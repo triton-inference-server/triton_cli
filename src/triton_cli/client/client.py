@@ -256,7 +256,7 @@ class TritonClient:
         try:
             while completed_requests != num_requests:
                 result = user_data._completed_requests.get()
-                if type(result) == InferenceServerException:
+                if isinstance(result, InferenceServerException):
                     if result.status() == "StatusCode.CANCELLED":
                         is_final_response = True
                         logger.warning(

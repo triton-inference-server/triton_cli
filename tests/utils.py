@@ -74,6 +74,9 @@ class TritonCommands:
 
     def _profile(model, backend):
         args = ["profile", "-m", model, "--backend", backend]
+        # NOTE: With default parameters, genai-perf may take upwards of 1m30s or 2m to run,
+        # so limit the genai-perf run with --request-count to reduce time for testing purposes.
+        args += ["--", "--request-count", "10"]
         run(args)
 
     def _metrics():
@@ -123,21 +126,50 @@ class ScopedTritonServer:
         p = Popen(args)
         return p.pid
 
+    def check_pid(self):
+        """Check the 'triton start' PID and raise an exception if the process is unhealthy"""
+        # Check if the PID exists, an exception is raised if not
+        self.check_pid_with_signal()
+        # If the PID exists, check the status of the process. Raise an exception
+        # for a bad status.
+        self.check_pid_status()
+
+    def check_pid_with_signal(self):
+        """Check for the existence of a PID by sending signal 0"""
+        try:
+            proc = psutil.Process(self.pid)
+            proc.send_signal(0)
+        except psutil.NoSuchProcess as e:
+            # PID doesn't exist, passthrough the exception
+            raise e
+
+    def check_pid_status(self):
+        """Check the status of the 'triton start' process based on its PID"""
+        process = psutil.Process(self.pid)
+        # NOTE: May need to check other statuses in the future, but zombie was observed
+        # in some local test cases.
+        if process.status() == psutil.STATUS_ZOMBIE:
+            raise Exception(f"'triton start' PID {self.pid} was in a zombie state.")
+
     def wait_for_server_ready(self, timeout: int = 60):
         start = time.time()
         while time.time() - start < timeout:
             print(
-                "Waiting for server to be ready ",
+                "[DEBUG] Waiting for server to be ready ",
                 round(timeout - (time.time() - start)),
                 flush=True,
             )
             time.sleep(1)
             try:
+                print(f"[DEBUG] Checking status of 'triton start' PID {self.pid}...")
+                self.check_pid()
+
                 # For simplicity in testing, make sure both HTTP and GRPC endpoints
                 # are ready before marking server ready.
                 if self.check_server_ready(protocol="http") and self.check_server_ready(
                     protocol="grpc"
                 ):
+                    print("[DEBUG] Server is ready!")
                     return
             except ConnectionRefusedError as e:
                 # Dump to log for testing transparency
@@ -146,11 +178,13 @@ class ScopedTritonServer:
                 pass
         raise Exception(f"=== Timeout {timeout} secs. Server not ready. ===")
 
-    def kill_server(self, pid: int, sig: int = 2):
+    def kill_server(self, pid: int, sig: int = 2, timeout: int = 30):
         try:
             proc = psutil.Process(pid)
             proc.send_signal(sig)
-            proc.wait()
+            # Add wait timeout to avoid hanging if process can't be cleanly
+            # stopped for some reason.
+            proc.wait(timeout=timeout)
         except psutil.NoSuchProcess as e:
             print(e)
 
