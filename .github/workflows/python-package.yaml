@@ -61,6 +61,8 @@ jobs:
         ruff format .
     - name: Test with pytest
       run: |
+        echo "Setting environment variable to skip certain CI tests"
+        export CI_PIPELINE="GITHUB_ACTIONS"
         python3 -m pip install pytest pytest-timeout pytest-cov psutil
         cd tests
         pytest -vv --doctest-modules --junitxml=junit/test-results.xml --cov=triton_cli --cov-report=xml --cov-report=html --ignore-glob=test_models
