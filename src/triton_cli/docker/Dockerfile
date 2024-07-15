@@ -1,5 +1,5 @@
 # TRT-LLM image contains engine building and runtime dependencies
-FROM nvcr.io/nvidia/tritonserver:24.05-trtllm-python-py3
+FROM nvcr.io/nvidia/tritonserver:24.06-trtllm-python-py3
 
 # Setup vLLM Triton backend
 RUN mkdir -p /opt/tritonserver/backends/vllm && \
