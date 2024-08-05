@@ -24,6 +24,7 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+name: "postprocessing"
 backend: "python"
 max_batch_size: ${triton_max_batch_size}
 input [
@@ -100,7 +101,7 @@ parameters {
 parameters {
   key: "skip_special_tokens"
   value: {
-    string_value: "True"
+    string_value: "${skip_special_tokens}"
   }
 }
 

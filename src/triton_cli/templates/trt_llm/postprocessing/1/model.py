@@ -52,22 +52,46 @@ class TritonPythonModel:
           * model_name: Model name
         """
         # Parse model configs
-        model_config = json.loads(args["model_config"])
-        tokenizer_dir = model_config["parameters"]["tokenizer_dir"]["string_value"]
-        self.skip_special_tokens = model_config["parameters"].get(
-            "skip_special_tokens", {"string_value": "true"}
-        )["string_value"].lower() in ["true", "1", "t", "y", "yes"]
+        model_config = json.loads(args['model_config'])
+        tokenizer_dir = model_config['parameters']['tokenizer_dir'][
+            'string_value']
 
-        self.tokenizer = AutoTokenizer.from_pretrained(
-            tokenizer_dir, legacy=False, padding_side="left", trust_remote_code=True
-        )
-        self.tokenizer.pad_token = self.tokenizer.eos_token
+        skip_special_tokens = model_config['parameters'].get(
+            'skip_special_tokens')
+        if skip_special_tokens is not None:
+            skip_special_tokens_str = skip_special_tokens[
+                'string_value'].lower()
+            if skip_special_tokens_str in [
+                    'true', 'false', '1', '0', 't', 'f', 'y', 'n', 'yes', 'no'
+            ]:
+                self.skip_special_tokens = skip_special_tokens_str in [
+                    'true', '1', 't', 'y', 'yes'
+                ]
+            else:
+                print(
+                    f"[TensorRT-LLM][WARNING] Don't setup 'skip_special_tokens' correctly (set value is {skip_special_tokens['string_value']}). Set it as True by default."
+                )
+                self.skip_special_tokens = True
+        else:
+            print(
+                f"[TensorRT-LLM][WARNING] Don't setup 'skip_special_tokens'. Set it as True by default."
+            )
+            self.skip_special_tokens = True
+
+        self.tokenizer = AutoTokenizer.from_pretrained(tokenizer_dir,
+                                                       legacy=False,
+                                                       padding_side='left',
+                                                       trust_remote_code=True)
+        if not self.tokenizer.pad_token:
+            self.tokenizer.pad_token = self.tokenizer.eos_token
 
         # Parse model output configs
-        output_config = pb_utils.get_output_config_by_name(model_config, "OUTPUT")
+        output_config = pb_utils.get_output_config_by_name(
+            model_config, "OUTPUT")
 
         # Convert Triton types to numpy types
-        self.output_dtype = pb_utils.triton_string_to_numpy(output_config["data_type"])
+        self.output_dtype = pb_utils.triton_string_to_numpy(
+            output_config['data_type'])
 
     def execute(self, requests):
         """`execute` must be implemented in every Python model. `execute`
@@ -96,31 +120,27 @@ class TritonPythonModel:
         for idx, request in enumerate(requests):
             # Get input tensors
             tokens_batch = pb_utils.get_input_tensor_by_name(
-                request, "TOKENS_BATCH"
-            ).as_numpy()
+                request, 'TOKENS_BATCH').as_numpy()
 
             # Get sequence length
             sequence_lengths = pb_utils.get_input_tensor_by_name(
-                request, "SEQUENCE_LENGTH"
-            ).as_numpy()
+                request, 'SEQUENCE_LENGTH').as_numpy()
 
             # Get cum log probs
-            cum_log_probs = pb_utils.get_input_tensor_by_name(request, "CUM_LOG_PROBS")
+            cum_log_probs = pb_utils.get_input_tensor_by_name(
+                request, 'CUM_LOG_PROBS')
 
             # Get sequence length
             output_log_probs = pb_utils.get_input_tensor_by_name(
-                request, "OUTPUT_LOG_PROBS"
-            )
+                request, 'OUTPUT_LOG_PROBS')
 
             # Get context logits
             context_logits = pb_utils.get_input_tensor_by_name(
-                request, "CONTEXT_LOGITS"
-            )
+                request, 'CONTEXT_LOGITS')
 
             # Get generation logits
             generation_logits = pb_utils.get_input_tensor_by_name(
-                request, "GENERATION_LOGITS"
-            )
+                request, 'GENERATION_LOGITS')
 
             # Reshape Input
             # tokens_batch = tokens_batch.reshape([-1, tokens_batch.shape[0]])
@@ -132,54 +152,49 @@ class TritonPythonModel:
             # Create output tensors. You need pb_utils.Tensor
             # objects to create pb_utils.InferenceResponse.
             output_tensor = pb_utils.Tensor(
-                "OUTPUT", np.array(outputs).astype(self.output_dtype)
-            )
+                'OUTPUT',
+                np.array(outputs).astype(self.output_dtype))
 
             outputs = []
             outputs.append(output_tensor)
 
             if cum_log_probs:
-                out_cum_log_probs = pb_utils.Tensor(
-                    "OUT_CUM_LOG_PROBS", cum_log_probs.as_numpy()
-                )
+                out_cum_log_probs = pb_utils.Tensor('OUT_CUM_LOG_PROBS',
+                                                    cum_log_probs.as_numpy())
                 outputs.append(out_cum_log_probs)
             else:
                 out_cum_log_probs = pb_utils.Tensor(
-                    "OUT_CUM_LOG_PROBS", np.array([[0.0]], dtype=np.float32)
-                )
+                    'OUT_CUM_LOG_PROBS', np.array([[0.0]], dtype=np.float32))
                 outputs.append(out_cum_log_probs)
 
             if output_log_probs:
                 out_output_log_probs = pb_utils.Tensor(
-                    "OUT_OUTPUT_LOG_PROBS", output_log_probs.as_numpy()
-                )
+                    'OUT_OUTPUT_LOG_PROBS', output_log_probs.as_numpy())
                 outputs.append(out_output_log_probs)
             else:
                 out_output_log_probs = pb_utils.Tensor(
-                    "OUT_OUTPUT_LOG_PROBS", np.array([[[0.0]]], dtype=np.float32)
-                )
+                    'OUT_OUTPUT_LOG_PROBS',
+                    np.array([[[0.0]]], dtype=np.float32))
                 outputs.append(out_output_log_probs)
 
             if context_logits:
-                out_context_logits = pb_utils.Tensor(
-                    "OUT_CONTEXT_LOGITS", context_logits.as_numpy()
-                )
+                out_context_logits = pb_utils.Tensor('OUT_CONTEXT_LOGITS',
+                                                     context_logits.as_numpy())
                 outputs.append(out_context_logits)
             else:
                 out_context_logits = pb_utils.Tensor(
-                    "OUT_CONTEXT_LOGITS", np.array([[[0.0]]], dtype=np.float32)
-                )
+                    'OUT_CONTEXT_LOGITS', np.array([[[0.0]]],
+                                                   dtype=np.float32))
                 outputs.append(out_context_logits)
 
             if generation_logits:
                 out_generation_logits = pb_utils.Tensor(
-                    "OUT_GENERATION_LOGITS", generation_logits.as_numpy()
-                )
+                    'OUT_GENERATION_LOGITS', generation_logits.as_numpy())
                 outputs.append(out_generation_logits)
             else:
                 out_generation_logits = pb_utils.Tensor(
-                    "OUT_GENERATION_LOGITS", np.array([[[[0.0]]]], dtype=np.float32)
-                )
+                    'OUT_GENERATION_LOGITS',
+                    np.array([[[[0.0]]]], dtype=np.float32))
                 outputs.append(out_generation_logits)
 
             # Create InferenceResponse. You can set an error here in case
@@ -189,7 +204,8 @@ class TritonPythonModel:
             #
             # pb_utils.InferenceResponse(
             #    output_tensors=..., TritonError("An error occurred"))
-            inference_response = pb_utils.InferenceResponse(output_tensors=outputs)
+            inference_response = pb_utils.InferenceResponse(
+                output_tensors=outputs)
             responses.append(inference_response)
 
         # You should return a list of pb_utils.InferenceResponse. Length
@@ -201,7 +217,7 @@ class TritonPythonModel:
         Implementing `finalize` function is optional. This function allows
         the model to perform any necessary clean ups before exit.
         """
-        print("Cleaning up...")
+        print('Cleaning up...')
 
     def _postprocessing(self, tokens_batch, sequence_lengths):
         outputs = []
@@ -209,7 +225,7 @@ class TritonPythonModel:
             for beam_idx, tokens in enumerate(beam_tokens):
                 seq_len = sequence_lengths[batch_idx][beam_idx]
                 output = self.tokenizer.decode(
-                    tokens[:seq_len], skip_special_tokens=self.skip_special_tokens
-                )
-                outputs.append(output.encode("utf8"))
+                    tokens[:seq_len],
+                    skip_special_tokens=self.skip_special_tokens)
+                outputs.append(output.encode('utf8'))
         return outputs
