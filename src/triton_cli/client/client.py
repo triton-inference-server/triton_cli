@@ -197,6 +197,13 @@ class TritonClient:
             infer_inputs.append(
                 self.__create_triton_input(name, shape, triton_dtype, data)
             )
+            json_input = {
+                "name": name,
+                "shape": str(data.shape),
+                "dtype": triton_dtype,
+                "value": np.array_str(data),
+            }
+            logger.info(f"Input:\n{json.dumps(json_input, indent=4)}")
 
         return infer_inputs
 
@@ -294,17 +301,18 @@ class TritonClient:
             for output in response["outputs"]:
                 name = output["name"]
                 # TODO: Need special logic for string/bytes type
-                np_data = result.as_numpy(name)
+                data = result.as_numpy(name)
                 # WAR for LLMs
-                if np_data.dtype == np.object_:
+                if data.dtype == np.object_:
                     # Assume 2D-output (batch_size, texts)
-                    texts = np_data.flatten()
-                    np_data = np.array([text.decode("utf-8") for text in texts])
+                    texts = data.flatten()
+                    data = np.array([text.decode("utf-8") for text in texts])
 
-                output_data_str = np.array_str(np_data)
+                output_data_str = np.array_str(data)
                 json_output = {
                     "name": name,
-                    "shape": str(np_data.shape),
+                    "shape": str(data.shape),
+                    "dtype": output["datatype"],
                     "value": output_data_str,
                 }
                 logger.info(f"Output:\n{json.dumps(json_output, indent=4)}")
