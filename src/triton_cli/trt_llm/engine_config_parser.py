@@ -39,6 +39,17 @@ def parse_and_substitute(
         config_file = json.load(j)
 
     config_dict = {}
+    # These fields will cause parsing issues when parsing model config if not
+    # replaced, so replace with sensible defaults.
+    config_dict["triton_backend"] = "tensorrtllm"  # or python
+    config_dict["decoupled_mode"] = "True"
+    config_dict["max_queue_size"] = 0  # disable queueing by default
+    config_dict["batching_strategy"] = "inflight_fused_batching"  # "gpt_model_type"
+    config_dict["tensorrt_llm_model_name"] = "tensorrt_llm"
+    # Draft model unused by default, can be configured with speculative decoding
+    config_dict["tensorrt_llm_draft_model_name"] = ""
+
+    # Configured based on imported model flow
     config_dict["engine_dir"] = engine_dir
     config_dict["tokenizer_dir"] = token_dir
     config_dict["tokenizer_type"] = token_type
