@@ -7,16 +7,23 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import safetensors
 import torch
-from transformers import AutoModelForCausalLM
+from transformers import AutoModelForCausalLM, Blip2ForConditionalGeneration
 
 import tensorrt_llm
 from tensorrt_llm._utils import pad_vocab_size
 from tensorrt_llm.quantization import QuantAlgo
 
 
-def parse_arguments(args=None):
+def parse_arguments():
     parser = argparse.ArgumentParser()
     parser.add_argument('--model_dir', type=str, default=None)
+    parser.add_argument(
+        '--model_type',
+        type=str,
+        default='opt',
+        choices=['opt', 'blip2'],
+        help=
+        'Multimodal type when this script is used for multimodal conversion.')
     parser.add_argument('--tp_size',
                         type=int,
                         default=1,
@@ -302,7 +309,7 @@ def convert_hf_opt(hf_model,
     return weights
 
 
-def main():
+if __name__ == '__main__':
     # TODO(qijun): Currently, the convert script depends on a torch op:
     # torch.ops.trtllm.symmetric_quantize_last_axis_of_batched_matrix,
     # which is included in tensorrt_llm Python package. Otherwise, the convert
@@ -318,8 +325,13 @@ def main():
     if not os.path.exists(args.output_dir):
         os.makedirs(args.output_dir)
 
-    hf_model = AutoModelForCausalLM.from_pretrained(args.model_dir,
-                                                    torch_dtype="auto")
+    if args.model_type == 'opt':
+        hf_model = AutoModelForCausalLM.from_pretrained(args.model_dir,
+                                                        torch_dtype="auto")
+    elif args.model_type == 'blip2':
+        hf_model = Blip2ForConditionalGeneration.from_pretrained(
+            args.model_dir, torch_dtype="auto").language_model
+
     hf_config = hf_model.config
     if hf_config.hidden_size != hf_config.word_embed_proj_dim:
         args.use_embedding_sharing = False
@@ -397,6 +409,3 @@ def main():
     tok = time.time()
     t = time.strftime('%H:%M:%S', time.gmtime(tok - tik))
     print(f'Total time of converting checkpoints: {t}')
-
-if __name__ == "__main__":
-    main()

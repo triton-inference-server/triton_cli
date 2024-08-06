@@ -28,7 +28,7 @@ backend: "python"
 max_batch_size: ${triton_max_batch_size}
 
 model_transaction_policy {
-  decoupled: true
+  decoupled: ${decoupled_mode}
 }
 
 input [
@@ -36,6 +36,12 @@ input [
     name: "text_input"
     data_type: TYPE_STRING
     dims: [ -1 ]
+  },
+  {
+    name: "decoder_text_input"
+    data_type: TYPE_STRING
+    dims: [ -1 ]
+    optional: true
   },
   {
     name: "max_tokens"
@@ -223,6 +229,18 @@ parameters: {
   key: "accumulate_tokens"
   value: {
     string_value: "${accumulate_tokens}"
+  }
+}
+parameters: {
+  key: "tensorrt_llm_model_name"
+  value: {
+    string_value: "${tensorrt_llm_model_name}"
+  }
+}
+parameters: {
+  key: "tensorrt_llm_draft_model_name"
+  value: {
+    string_value: "${tensorrt_llm_draft_model_name}"
   }
 }
 
