@@ -60,6 +60,8 @@ KNOWN_MODEL_SOURCES = {
     "llama-2-7b-chat": "hf:meta-llama/Llama-2-7b-chat-hf",
     "llama-3-8b": "hf:meta-llama/Meta-Llama-3-8B",
     "llama-3-8b-instruct": "hf:meta-llama/Meta-Llama-3-8B-Instruct",
+    "llama-3.1-8b": "hf:meta-llama/Meta-Llama-3.1-8B",
+    "llama-3.1-8b-instruct": "hf:meta-llama/Meta-Llama-3.1-8B-Instruct",
     # Public
     "gpt2": "hf:gpt2",
     "opt125m": "hf:facebook/opt-125m",
