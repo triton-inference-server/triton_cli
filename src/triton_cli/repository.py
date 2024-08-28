@@ -92,6 +92,12 @@ SUPPORTED_TRT_LLM_BUILDERS = {
     "meta-llama/Meta-Llama-3-8B-Instruct": {
         "hf_allow_patterns": ["*.safetensors", "*.json"],
     },
+    "meta-llama/Meta-Llama-3.1-8B": {
+        "hf_allow_patterns": ["*.safetensors", "*.json"],
+    },
+    "meta-llama/Meta-Llama-3.1-8B-Instruct": {
+        "hf_allow_patterns": ["*.safetensors", "*.json"],
+    },
     "gpt2": {
         "hf_allow_patterns": ["*.safetensors", "*.json"],
         "hf_ignore_patterns": ["onnx/*"],

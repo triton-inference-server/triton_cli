@@ -136,6 +136,8 @@ The following models have currently been tested for vLLM through the CLI:
 - `llama-2-7b-chat`
 - `llama-3-8b`
 - `llama-3-8b-instruct`
+- `llama-3.1-8b`
+- `llama-3.1-8b-instruct`
 
 
 #### Example
@@ -194,10 +196,14 @@ engine builds through the CLI:
 - `llama-2-7b-chat`
 - `llama-3-8b`
 - `llama-3-8b-instruct`
+- `llama-3.1-8b`
+- `llama-3.1-8b-instruct`
 
 > [!NOTE]
-> Building a TRT-LLM engine for Llama-2-7B or Llama-3-8B models
-> may require system RAM of at least 48GB of RAM.
+> 1. Building a TRT-LLM engine for Llama-2-7B, Llama-3-8B, or Llama-3.1-8B
+>    models may require system RAM of at least 48GB of RAM.
+>
+> 2. Llama 3.1 may require `pip install transformers>=4.43.1`
 
 
 #### Example

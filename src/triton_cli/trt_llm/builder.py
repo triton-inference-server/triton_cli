@@ -37,6 +37,8 @@ CHECKPOINT_MODULE_MAP = {
     "meta-llama/Llama-2-7b-chat-hf": "llama",
     "meta-llama/Meta-Llama-3-8B": "llama",
     "meta-llama/Meta-Llama-3-8B-Instruct": "llama",
+    "meta-llama/Meta-Llama-3.1-8B": "llama",
+    "meta-llama/Meta-Llama-3.1-8B-Instruct": "llama",
     "facebook/opt-125m": "opt",
     "gpt2": "gpt2",
 }
