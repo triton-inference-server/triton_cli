@@ -24,6 +24,7 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+name: "postprocessing"
 backend: "python"
 max_batch_size: ${triton_max_batch_size}
 input [
@@ -60,6 +61,12 @@ input [
     data_type: TYPE_FP32
     dims: [ -1, -1, -1 ]
     optional: true
+  },
+  {
+    name: "BATCH_INDEX"
+    data_type: TYPE_INT32
+    dims: [ 1 ]
+    optional: true
   }
 ]
 output [
@@ -87,6 +94,11 @@ output [
     name: "OUT_GENERATION_LOGITS"
     data_type: TYPE_FP32
     dims: [ -1, -1, -1 ]
+  },
+  {
+    name: "OUT_BATCH_INDEX"
+    data_type: TYPE_INT32
+    dims: [ 1 ]
   }
 ]
 
@@ -100,7 +112,7 @@ parameters {
 parameters {
   key: "skip_special_tokens"
   value: {
-    string_value: "True"
+    string_value: "${skip_special_tokens}"
   }
 }
 

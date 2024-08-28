@@ -31,36 +31,41 @@ import triton_python_backend_utils as pb_utils
 from lib.triton_decoder import TritonDecoder
 
 
+def get_valid_param_value(param, default_value=''):
+    value = param.get('string_value', '')
+    return default_value if value.startswith('${') or value == '' else value
+
+
 class TritonPythonModel:
+
     def initialize(self, args):
+
         # Parse model configs
-        model_config = json.loads(args["model_config"])
+        model_config = json.loads(args['model_config'])
 
-        params = model_config["parameters"]
+        params = model_config['parameters']
 
-        accumulate_tokens_str = ""
-        if "accumulate_tokens" in params:
-            accumulate_tokens_str = params["accumulate_tokens"]["string_value"]
-
+        accumulate_tokens_str = get_valid_param_value(
+            params.get('accumulate_tokens', {}))
         self.accumulate_tokens = accumulate_tokens_str.lower() in [
-            "true",
-            "yes",
-            "1",
-            "t",
+            'true', 'yes', '1', 't'
         ]
 
-        self.decoupled = pb_utils.using_decoupled_model_transaction_policy(model_config)
+        self.decoupled = pb_utils.using_decoupled_model_transaction_policy(
+            model_config)
 
         self.logger = pb_utils.Logger
 
-        self.llm_model_name = "tensorrt_llm"
-        if "tensorrt_llm_model_name" in params:
-            self.llm_model_name = params["tensorrt_llm_model_name"]["string_value"]
-        self.draft_llm_model_name = None
-        if "tensorrt_llm_draft_model_name" in params:
-            self.draft_llm_model_name = params["tensorrt_llm_draft_model_name"][
-                "string_value"
-            ]
+        default_tensorrt_llm_model_name = 'tensorrt_llm'
+        self.llm_model_name = get_valid_param_value(
+            params.get('tensorrt_llm_model_name', {}),
+            default_tensorrt_llm_model_name)
+
+        self.draft_llm_model_name = get_valid_param_value(
+            params.get('tensorrt_llm_draft_model_name', {}), None)
+
+        self.multimodal_encoders_name = get_valid_param_value(
+            params.get('multimodal_encoders_name', {}), None)
 
         self.decoder = TritonDecoder(
             streaming=self.decoupled,
@@ -69,29 +74,36 @@ class TritonPythonModel:
             postproc_model_name="postprocessing",
             llm_model_name=self.llm_model_name,
             draft_llm_model_name=self.draft_llm_model_name,
-        )
+            multimodal_encoders_name=self.multimodal_encoders_name)
 
     def execute(self, requests):
+
         responses = []
 
         for request in requests:
             if self.decoupled:
                 response_sender = request.get_response_sender()
             try:
+
                 req = self.decoder.convert_triton_request(request)
                 req.validate()
-                speculative_decode = (
-                    req.num_draft_tokens is not None and req.num_draft_tokens[0][0] > 0
-                )
-                if speculative_decode and (
-                    self.draft_llm_model_name is None or self.draft_llm_model_name == ""
-                ):
+                speculative_decode = (req.num_draft_tokens is not None
+                                      and req.num_draft_tokens[0][0] > 0)
+                if speculative_decode and (self.draft_llm_model_name is None
+                                           or self.draft_llm_model_name == ""):
                     raise Exception(
                         "cannot perform speculative decoding without draft model"
                     )
+                is_multimodal = req.image_input is not None
+
+                if speculative_decode and is_multimodal:
+                    raise Exception(
+                        "Multimodal and speculative decoding is not currently supported"
+                    )
                 res_gen = self.decoder.decode(
-                    req, speculative_decoding=speculative_decode
-                )
+                    req,
+                    speculative_decoding=speculative_decode,
+                    is_multimodal=is_multimodal)
 
                 for res in res_gen:
                     triton_response = self.decoder.create_triton_response(res)
@@ -102,22 +114,19 @@ class TritonPythonModel:
 
                 if self.decoupled:
                     response_sender.send(
-                        flags=pb_utils.TRITONSERVER_RESPONSE_COMPLETE_FINAL
-                    )
+                        flags=pb_utils.TRITONSERVER_RESPONSE_COMPLETE_FINAL)
 
             except Exception:
                 self.logger.log_error(traceback.format_exc())
                 # If encountering an error, send a response with err msg
                 error_response = pb_utils.InferenceResponse(
                     output_tensors=[],
-                    error=pb_utils.TritonError(traceback.format_exc()),
-                )
+                    error=pb_utils.TritonError(traceback.format_exc()))
 
                 if self.decoupled:
                     response_sender.send(error_response)
                     response_sender.send(
-                        flags=pb_utils.TRITONSERVER_RESPONSE_COMPLETE_FINAL
-                    )
+                        flags=pb_utils.TRITONSERVER_RESPONSE_COMPLETE_FINAL)
                 else:
                     responses.append(error_response)
 
@@ -133,4 +142,4 @@ class TritonPythonModel:
         Implementing `finalize` function is optional. This function allows
         the model to perform any necessary clean ups before exit.
         """
-        print("Cleaning up...")
+        print('Cleaning up...')

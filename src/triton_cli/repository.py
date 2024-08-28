@@ -53,6 +53,7 @@ logger = logging.getLogger(LOGGER_NAME)
 # that can be fully autocompleted for a simple deployment.
 MODEL_CONFIG_TEMPLATE = """
 backend: "{backend}"
+instance_group {instance_group}
 """
 
 NGC_CONFIG_TEMPLATE = """
@@ -318,7 +319,10 @@ class ModelRepository:
 
     def __generate_vllm_model(self, huggingface_id: str):
         backend = "vllm"
-        model_config = MODEL_CONFIG_TEMPLATE.format(backend=backend)
+        instance_group = "[{kind: KIND_MODEL}]"
+        model_config = MODEL_CONFIG_TEMPLATE.format(
+            backend=backend, instance_group=instance_group
+        ).strip()
         model_contents = json.dumps(
             {
                 "model": huggingface_id,
