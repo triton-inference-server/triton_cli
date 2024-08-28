@@ -34,7 +34,7 @@ from typing import List
 # ================================================
 def build_command(args: argparse.Namespace, executable: str):
     skip_args = ["func"]
-    cmd = [executable]
+    cmd = [executable, "profile"]
     for arg, value in vars(args).items():
         if arg in skip_args:
             pass
@@ -45,12 +45,6 @@ def build_command(args: argparse.Namespace, executable: str):
                 cmd += [f"-{arg}"]
             else:
                 cmd += [f"--{arg}"]
-        # [DLIS-6656] - Remove backend renaming.
-        # This allows "tensorrtllm" to be used as the backend for consistency.
-        # Once GenAI-Perf releases 24.05, "tensorrtllm" as the backend value
-        # will be supported by default.
-        elif arg == "backend" and value in ["tensorrtllm", "trtllm"]:
-            cmd += ["--backend", "tensorrtllm"]
         else:
             if len(arg) == 1:
                 cmd += [f"-{arg}", f"{value}"]
