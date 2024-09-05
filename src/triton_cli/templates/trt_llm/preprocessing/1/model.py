@@ -25,6 +25,7 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import json
+import os
 from typing import List
 
 import numpy as np
@@ -59,6 +60,11 @@ class TritonPythonModel:
 
         add_special_tokens = model_config['parameters'].get(
             'add_special_tokens')
+        visual_model_path = model_config['parameters']['visual_model_path'][
+            'string_value']
+        if visual_model_path == "${visual_model_path}" or visual_model_path == "":
+            visual_model_path = None
+
         if add_special_tokens is not None:
             add_special_tokens_str = add_special_tokens['string_value'].lower()
             if add_special_tokens_str in [
@@ -93,6 +99,28 @@ class TritonPythonModel:
         self.tokenizer_pad_id = self.tokenizer.encode(
             self.tokenizer.pad_token, add_special_tokens=False)[0]
 
+        self.is_multimodal = False
+        if visual_model_path is not None:
+            self.is_multimodal = True
+            visual_model_path = os.path.join(visual_model_path, 'config.json')
+            with open(visual_model_path) as f:
+                visual_model_config = json.load(f)
+            self.model_type = visual_model_config['builder_config'][
+                'model_type']
+
+            assert self.model_type in [
+                'llava', 'blip2-opt'
+            ], f"[TensorRT-LLM][ERROR] Currently supported multi-modal models are llava and blip2-opt"
+
+            llm_model_path = model_config['parameters']['gpt_model_path'][
+                'string_value']
+            llm_model_path = os.path.join(llm_model_path, 'config.json')
+            with open(llm_model_path) as f:
+                llm_model_config = json.load(f)
+            self.vocab_size = int(
+                llm_model_config["pretrained_config"]["vocab_size"])
+            self._setup_ptable_shape(llm_model_config)
+
         # Parse model output configs and convert Triton types to numpy types
         output_names = [
             "INPUT_ID", "DECODER_INPUT_ID", "REQUEST_INPUT_LEN",
@@ -115,6 +143,16 @@ class TritonPythonModel:
                 pb_utils.triton_string_to_numpy(
                     pb_utils.get_output_config_by_name(
                         model_config, output_name)['data_type']))
+
+    def _setup_ptable_shape(self, llm_model_config):
+        max_prompt_embedding_table_size = llm_model_config['build_config'][
+            'max_prompt_embedding_table_size']
+        max_batch_size = llm_model_config['build_config']['max_batch_size']
+
+        num_visual_features = max_prompt_embedding_table_size // max_batch_size
+        hidden_size = llm_model_config['pretrained_config']['hidden_size']
+
+        self.ptable_shape = (-1, num_visual_features, hidden_size)
 
     def execute(self, requests):
         """`execute` must be implemented in every Python model. `execute`
@@ -140,26 +178,16 @@ class TritonPythonModel:
 
         # Every Python backend must iterate over everyone of the requests
         # and create a pb_utils.InferenceResponse for each of them.
-        logger = pb_utils.Logger
         for idx, request in enumerate(requests):
             # Get input tensors
             query = pb_utils.get_input_tensor_by_name(request,
                                                       'QUERY').as_numpy()
+            batch_size = query.shape[0]
+
             decoder_query = pb_utils.get_input_tensor_by_name(
                 request, 'DECODER_QUERY')
             if decoder_query is not None:
                 decoder_query = decoder_query.as_numpy()
-
-            batch_dim = query.shape[0]
-            if batch_dim != 1:
-
-                err_str = "Inflight batching backend expects requests with batch size of 1."
-                logger.log_error(err_str)
-                responses.append(
-                    pb_utils.InferenceResponse(
-                        output_tensors=[],
-                        error=pb_utils.TritonError(err_str)))
-                continue
 
             request_output_len = pb_utils.get_input_tensor_by_name(
                 request, 'REQUEST_OUTPUT_LEN').as_numpy()
@@ -190,7 +218,7 @@ class TritonPythonModel:
             if end_id is not None:
                 end_id = end_id.as_numpy()
             else:
-                end_id = [[self.tokenizer_end_id]]
+                end_id = [[self.tokenizer_end_id]] * batch_size
 
             # Take the pad_id from the input tensors
             # If not specified, use tokenizer to get pad_id
@@ -198,7 +226,7 @@ class TritonPythonModel:
             if pad_id is not None:
                 pad_id = pad_id.as_numpy()
             else:
-                pad_id = [[self.tokenizer_pad_id]]
+                pad_id = [[self.tokenizer_pad_id]] * batch_size
 
             # Preprocessing input data.
             input_id, request_input_len = self._create_request(query)
@@ -206,15 +234,16 @@ class TritonPythonModel:
                 decoder_input_id, request_decoder_input_len = self._create_request(
                     decoder_query)
             else:
-                decoder_input_id = pad_id * np.ones((1, 1), np.int32)
-                request_decoder_input_len = 1 * np.ones((1, 1), np.int32)
+                decoder_input_id = pad_id * np.ones((batch_size, 1), np.int32)
+                request_decoder_input_len = 1 * np.ones(
+                    (batch_size, 1), np.int32)
 
-            bad_words = self._to_word_list_format(bad_words_dict)
-            stop_words = self._to_word_list_format(stop_words_dict)
+            bad_words = self._to_word_list_format(bad_words_dict, batch_size)
+            stop_words = self._to_word_list_format(stop_words_dict, batch_size)
 
             embedding_bias = self._get_embedding_bias(
                 embedding_bias_words, embedding_bias_weights,
-                self.embedding_bias_weights_dtype)
+                self.embedding_bias_weights_dtype, batch_size)
 
             # Create output tensors. You need pb_utils.Tensor
             # objects to create pb_utils.InferenceResponse.
@@ -279,6 +308,43 @@ class TritonPythonModel:
                         add_special_tokens=self.add_special_tokens)).astype(
                             int) for s in query
             ]
+
+        if self.is_multimodal:
+            if 'blip2' in self.model_type:
+                pre_prompt = None
+                post_prompt = None
+            elif 'llava' == self.model_type:
+                pre_prompt = "USER:\n"
+                post_prompt = " ASSISTANT:"
+
+            fake_prompt_id = np.arange(self.vocab_size,
+                                       self.vocab_size + self.ptable_shape[1])
+
+            if pre_prompt is not None:
+                pre_prompt_id = np.array(
+                    self.tokenizer.encode(
+                        pre_prompt,
+                        add_special_tokens=self.add_special_tokens,
+                        padding=True))
+
+            if post_prompt is not None:
+                post_prompt_id = np.array(
+                    self.tokenizer.encode(
+                        post_prompt,
+                        add_special_tokens=self.add_special_tokens,
+                        padding=True))
+
+            if post_prompt is None:
+                start_ids = [
+                    np.concatenate((fake_prompt_id, ids), axis=0)
+                    for ids in start_ids
+                ]
+            else:
+                start_ids = [
+                    np.concatenate(
+                        (pre_prompt_id, fake_prompt_id, ids, post_prompt_id),
+                        axis=0) for ids in start_ids
+                ]
         start_lengths = np.array([[len(ids)] for ids in start_ids]).astype(int)
 
         max_len = 0
@@ -293,7 +359,8 @@ class TritonPythonModel:
 
         return start_ids, start_lengths
 
-    def _to_word_list_format(self, word_lists: List[List[str | bytes]]):
+    def _to_word_list_format(self, word_lists: List[List[str | bytes]],
+                             batch_size):
         '''
         word_lists format:
             len(word_lists) == batch_size
@@ -303,7 +370,7 @@ class TritonPythonModel:
 
         if word_lists is None:
             # Return an empty array of shape (1,2,0)
-            return np.empty([1, 2, 0], dtype="int32")
+            return np.empty([batch_size, 2, 0], dtype="int32")
 
         flat_ids = []
         offsets = []
@@ -337,18 +404,19 @@ class TritonPythonModel:
             (1, 0, 2))
 
     def _get_embedding_bias(self, embedding_bias_words, embedding_bias_weights,
-                            bias_dtype):
+                            bias_dtype, batch_size):
 
         assert self.tokenizer != None, "need to set tokenizer"
 
         if embedding_bias_words is None or embedding_bias_weights is None:
-            return np.empty([1, 0], dtype=self.embedding_bias_weights_dtype)
+            return np.empty([batch_size, 0],
+                            dtype=self.embedding_bias_weights_dtype)
 
         batch_embedding_bias = []
         for words, weights in zip(embedding_bias_words,
                                   embedding_bias_weights):
 
-            vocab_size = self.tokenizer.vocab_size
+            vocab_size = len(self.tokenizer.vocab)
             embedding_bias = [0.] * vocab_size
 
             assert len(words) == len(
