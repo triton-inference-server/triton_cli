@@ -241,7 +241,11 @@ class ModelRepository:
 
     def clear(self):
         logger.info(f"Clearing all contents from {self.repo}...")
-        shutil.rmtree(self.repo)
+
+        # Loops through folders in self.repo (default: /root/models)
+        # and deletes each model directory individually.
+        for models in os.listdir(self.repo):
+            shutil.rmtree(self.repo / models)
 
     # No support for removing individual versions for now
     # TODO: remove doesn't support removing groups of models like TRT LLM at this time
