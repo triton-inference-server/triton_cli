@@ -7,10 +7,8 @@ from random import randint
 from threading import Lock, Thread
 
 import numpy as np
-import torch
 import triton_python_backend_utils as pb_utils
 from torch import from_numpy
-from torch.utils.dlpack import from_dlpack
 
 import tensorrt_llm.bindings.executor as trtllm
 
@@ -22,12 +20,7 @@ def get_input_tensor_by_name(request,
     tensor = pb_utils.get_input_tensor_by_name(request, name)
     if tensor is None:
         return None
-
-    if tensor.is_cpu():
-        tensor = tensor.as_numpy()
-    else:
-        tensor = from_dlpack(tensor.to_dlpack())
-
+    tensor = tensor.as_numpy()
     if expected_batch_size is not None and tensor.shape[
             0] != expected_batch_size:
         raise pb_utils.TritonModelException(
@@ -40,10 +33,7 @@ def get_input_tensor_by_name(request,
 
     if batch_index is not None:
         # Add leading 1 batch dimension
-        if isinstance(tensor, np.ndarray):
-            return np.expand_dims(tensor[batch_index], axis=0)
-        elif isinstance(tensor, torch.Tensor):
-            return torch.unsqueeze(tensor[batch_index], dim=0)
+        return np.expand_dims(tensor[batch_index], axis=0)
     else:
         return tensor
 
@@ -210,12 +200,8 @@ def get_prompt_tuning_config_from_request(request,
     prompt_embedding_table = get_input_tensor_by_name(
         request, 'prompt_embedding_table', batch_size, batch_index)
     if prompt_embedding_table is not None:
-        if isinstance(prompt_embedding_table, np.ndarray):
-            kwargs["embedding_table"] = from_numpy(
-                prompt_embedding_table).squeeze()
-        elif isinstance(prompt_embedding_table, torch.Tensor):
-            kwargs["embedding_table"] = from_dlpack(
-                prompt_embedding_table.to_dlpack()).squeeze(dim=0)
+        kwargs["embedding_table"] = from_numpy(
+            prompt_embedding_table).squeeze()
     kwargs = {k: v for k, v in kwargs.items() if v is not None}
     if len(kwargs) > 0:
         return trtllm.PromptTuningConfig(**kwargs)
@@ -432,6 +418,8 @@ class TritonPythonModel:
             get_parameter(model_config, "max_tokens_in_paged_kv_cache", int),
             "sink_token_length":
             get_parameter(model_config, "sink_token_length", int),
+            "max_attention_window":
+            get_parameter(model_config, "max_attention_window_size", int),
             "free_gpu_memory_fraction":
             get_parameter(model_config, "kv_cache_free_gpu_mem_fraction",
                           float),
@@ -440,12 +428,6 @@ class TritonPythonModel:
             "onboard_blocks":
             get_parameter(model_config, "kv_cache_onboard_blocks", bool),
         }
-        max_attention_window_size = get_parameter(model_config,
-                                                  "max_attention_window_size")
-        if max_attention_window_size:
-            kwargs["max_attention_window"] = [
-                int(x) for x in max_attention_window_size.split(",")
-            ]
         kwargs = {k: v for k, v in kwargs.items() if v is not None}
         return trtllm.KvCacheConfig(**kwargs)
 
