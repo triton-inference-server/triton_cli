@@ -47,7 +47,7 @@ CHECKPOINT_MODULE_MAP = {
 class TRTLLMBuilder:
     def __init__(self, huggingface_id, hf_download_path, engine_output_path):
         self.checkpoint_id = CHECKPOINT_MODULE_MAP[huggingface_id]
-        self.hf_download_path = hf_download_path
+        self.hf_download_path = str(hf_download_path)
         self.converted_weights_path = self.hf_download_path + "/converted_weights"
         self.engine_output_path = engine_output_path
 
