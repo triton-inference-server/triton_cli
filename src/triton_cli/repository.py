@@ -71,7 +71,7 @@ TRT_TEMPLATES_PATH = Path(__file__).parent / "templates" / "trt_llm"
 
 # Support changing destination dynamically to point at
 # pre-downloaded checkpoints in various circumstances
-ENGINE_DEST_PATH = os.environ.get("ENGINE_DEST_PATH", "/tmp/engines")
+ENGINE_DEST_PATH = Path(os.environ.get("ENGINE_DEST_PATH", "/tmp/engines")).resolve()
 
 HF_TOKEN_PATH = Path.home() / ".cache" / "huggingface" / "token"
 
@@ -142,9 +142,8 @@ class NGCWrapper:
     # Update model with correct string if running on non-A100 GPU
     def download_model(self, model, ngc_model_name, dest):
         logger.info(f"Downloading NGC model: {model} to {dest}...")
-        dest_path = Path(dest)
-        dest_path.mkdir(parents=True, exist_ok=True)
-        model_dir = dest_path / ngc_model_name
+        dest.mkdir(parents=True, exist_ok=True)
+        model_dir = dest / ngc_model_name
         if model_dir.exists():
             logger.warning(
                 f"Found existing directory for {model} at {model_dir}, skipping download."
@@ -344,9 +343,14 @@ class ModelRepository:
         return model_config, model_files
 
     def __generate_ngc_model(self, name: str, source: str):
-        engines_path = ENGINE_DEST_PATH + "/" + source
+        engines_path = ENGINE_DEST_PATH / source
         parse_and_substitute(
-            str(self.repo), name, engines_path, engines_path, "auto", dry_run=False
+            str(self.repo),
+            name,
+            str(engines_path),
+            str(engines_path),
+            "auto",
+            dry_run=False,
         )
 
     def __generate_trtllm_model(self, name, huggingface_id):
@@ -356,10 +360,10 @@ class ModelRepository:
                 f"Building a TRT LLM engine for {huggingface_id} is not currently supported."
             )
 
-        engines_path = ENGINE_DEST_PATH + "/" + name
-        hf_download_path = ENGINE_DEST_PATH + "/" + name + "/hf_download"
+        engines_path = ENGINE_DEST_PATH / name
+        hf_download_path = ENGINE_DEST_PATH / name / "hf_download"
 
-        engines = [engine for engine in Path(engines_path).glob("*.engine")]
+        engines = [engine for engine in engines_path.glob("*.engine")]
         if engines:
             logger.warning(
                 f"Found existing engine(s) at {engines_path}, skipping build."

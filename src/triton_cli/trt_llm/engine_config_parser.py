@@ -34,7 +34,7 @@ FLAGS = None
 def parse_and_substitute(
     triton_model_dir, bls_model_name, engine_dir, token_dir, token_type, dry_run
 ):
-    json_path = engine_dir + "/config.json"
+    json_path = engine_dir / "config.json"
     with open(json_path) as j:
         config_file = json.load(j)
 
@@ -50,7 +50,7 @@ def parse_and_substitute(
     config_dict["tensorrt_llm_draft_model_name"] = ""
 
     # Configured based on imported model flow
-    config_dict["engine_dir"] = engine_dir
+    config_dict["engine_dir"] = str(engine_dir)
     config_dict["tokenizer_dir"] = token_dir
     config_dict["tokenizer_type"] = token_type
 
@@ -77,6 +77,8 @@ def parse_and_substitute(
     substitute(preprocessing_filepath, config_dict, dry_run)
     postprocessing_filepath = triton_model_dir + "/postprocessing/config.pbtxt"
     substitute(postprocessing_filepath, config_dict, dry_run)
+    ensemble_filepath = triton_model_dir + "/ensemble/config.pbtxt"
+    substitute(ensemble_filepath, config_dict, dry_run)
     bls_filepath = triton_model_dir + "/" + bls_model_name + "/config.pbtxt"
     substitute(bls_filepath, config_dict, dry_run)
 
