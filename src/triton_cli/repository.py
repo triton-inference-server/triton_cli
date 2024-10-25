@@ -30,7 +30,6 @@ import shutil
 import logging
 import subprocess
 from pathlib import Path
-from rich.console import Console
 
 from directory_tree import display_tree
 
@@ -41,7 +40,6 @@ from triton_cli.common import (
     TritonCLIException,
 )
 from triton_cli.trt_llm.engine_config_parser import parse_and_substitute
-from triton_cli.trt_llm.builder import TRTLLMBuilder
 
 from huggingface_hub import snapshot_download
 from huggingface_hub import utils as hf_utils
@@ -66,6 +64,7 @@ team = {team}
 
 SOURCE_PREFIX_HUGGINGFACE = "hf:"
 SOURCE_PREFIX_NGC = "ngc:"
+SOURCE_PREFIX_LOCAL = "local:"
 
 TRT_TEMPLATES_PATH = Path(__file__).parent / "templates" / "trt_llm"
 
@@ -74,35 +73,6 @@ TRT_TEMPLATES_PATH = Path(__file__).parent / "templates" / "trt_llm"
 ENGINE_DEST_PATH = os.environ.get("ENGINE_DEST_PATH", "/tmp/engines")
 
 HF_TOKEN_PATH = Path.home() / ".cache" / "huggingface" / "token"
-
-# TODO: Improve this flow and reduce hard-coded model check locations
-SUPPORTED_TRT_LLM_BUILDERS = {
-    "facebook/opt-125m": {
-        "hf_allow_patterns": ["*.bin", "*.json", "*.txt"],
-    },
-    "meta-llama/Llama-2-7b-hf": {
-        "hf_allow_patterns": ["*.safetensors", "*.json"],
-    },
-    "meta-llama/Llama-2-7b-chat-hf": {
-        "hf_allow_patterns": ["*.safetensors", "*.json"],
-    },
-    "meta-llama/Meta-Llama-3-8B": {
-        "hf_allow_patterns": ["*.safetensors", "*.json"],
-    },
-    "meta-llama/Meta-Llama-3-8B-Instruct": {
-        "hf_allow_patterns": ["*.safetensors", "*.json"],
-    },
-    "meta-llama/Meta-Llama-3.1-8B": {
-        "hf_allow_patterns": ["*.safetensors", "*.json"],
-    },
-    "meta-llama/Meta-Llama-3.1-8B-Instruct": {
-        "hf_allow_patterns": ["*.safetensors", "*.json"],
-    },
-    "gpt2": {
-        "hf_allow_patterns": ["*.safetensors", "*.json"],
-        "hf_ignore_patterns": ["onnx/*"],
-    },
-}
 
 
 # NOTE: Thin wrapper around NGC CLI is a WAR for now.
@@ -206,11 +176,19 @@ class ModelRepository:
             backend = "tensorrtllm"
         # Local model path
         else:
-            logger.debug("No supported prefix detected, assuming local path")
+            if source.startswith(SOURCE_PREFIX_LOCAL):
+                logger.debug("Local prefix detected, parsing local file path")
+            else:
+                logger.info(
+                    "No supported --source prefix detected, assuming local path"
+                )
+
             source_type = "local"
             model_path = Path(source)
             if not model_path.exists():
-                raise TritonCLIException(f"{model_path} does not exist")
+                raise TritonCLIException(
+                    f"Local file path '{model_path}' provided by --source does not exist"
+                )
 
         model_dir, version_dir = self.__create_model_repository(name, version, backend)
 
@@ -349,23 +327,15 @@ class ModelRepository:
             str(self.repo), name, engines_path, engines_path, "auto", dry_run=False
         )
 
-    def __generate_trtllm_model(self, name, huggingface_id):
-        builder_info = SUPPORTED_TRT_LLM_BUILDERS.get(huggingface_id)
-        if not builder_info:
-            raise TritonCLIException(
-                f"Building a TRT LLM engine for {huggingface_id} is not currently supported."
-            )
-
+    def __generate_trtllm_model(self, name: str, huggingface_id: str):
         engines_path = ENGINE_DEST_PATH + "/" + name
-        hf_download_path = ENGINE_DEST_PATH + "/" + name + "/hf_download"
-
         engines = [engine for engine in Path(engines_path).glob("*.engine")]
         if engines:
             logger.warning(
                 f"Found existing engine(s) at {engines_path}, skipping build."
             )
         else:
-            self.__build_trtllm_engine(huggingface_id, hf_download_path, engines_path)
+            self.__build_trtllm_engine(huggingface_id, engines_path)
 
         # NOTE: In every case, the TRT LLM template should be filled in with values.
         # If the model exists, the CLI will raise an exception when creating the model repo.
@@ -375,30 +345,26 @@ class ModelRepository:
             triton_model_dir=str(self.repo),
             bls_model_name=name,
             engine_dir=engines_path,
-            token_dir=hf_download_path,
+            token_dir=engines_path,
             token_type="auto",
             dry_run=False,
         )
 
-    def __build_trtllm_engine(self, huggingface_id, hf_download_path, engines_path):
-        builder_info = SUPPORTED_TRT_LLM_BUILDERS.get(huggingface_id)
-        hf_allow_patterns = builder_info["hf_allow_patterns"]
-        hf_ignore_patterns = builder_info.get("hf_ignore_patterns", None)
-        self.__download_hf_model(
-            huggingface_id,
-            hf_download_path,
-            allow_patterns=hf_allow_patterns,
-            ignore_patterns=hf_ignore_patterns,
-        )
+    def __build_trtllm_engine(self, huggingface_id: str, engines_path: Path):
+        from tensorrt_llm import LLM, BuildConfig
 
-        builder = TRTLLMBuilder(
-            huggingface_id=huggingface_id,
-            hf_download_path=hf_download_path,
-            engine_output_path=engines_path,
-        )
-        console = Console()
-        with console.status(f"Building TRT-LLM engine for {huggingface_id}..."):
-            builder.build()
+        # NOTE: Given config.json, can read from 'build_config' section and from_dict
+        config = BuildConfig()
+        # TODO: Expose more build args to user
+        # TODO: Discuss LLM API BuildConfig defaults
+        # NOTE: Using some defaults from trtllm-build because LLM API defaults are too low
+        config.max_input_len = 1024
+        config.max_seq_len = 8192
+        config.max_batch_size = 256
+
+        engine = LLM(huggingface_id, build_config=config)
+        # TODO: Investigate if LLM is internally saving a copy to a temp dir
+        engine.save(str(engines_path))
 
     def __create_model_repository(
         self, name: str, version: int = 1, backend: str = None

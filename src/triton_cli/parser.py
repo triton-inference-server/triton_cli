@@ -228,8 +228,7 @@ def parse_args_repo(parser):
         "--source",
         type=str,
         required=False,
-        help="Local model path or model identifier. Use prefix 'hf:' to specify a HuggingFace model ID. "
-        "NOTE: HuggingFace model support is currently limited to Transformer models through the vLLM backend.",
+        help="Local model path or model identifier. Use prefix 'hf:' to specify a HuggingFace model ID, or 'local:' prefix to specify a file path to a model.",
     )
 
     repo_remove = parser.add_parser("remove", help="Remove model from model repository")

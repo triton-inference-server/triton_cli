@@ -119,6 +119,41 @@ minutes.
 > in Huggingface through either `huggingface-cli login` or setting the `HF_TOKEN`
 > environment variable.
 
+### Model Sources
+
+<!-- TODO: Add more docs on commands, such as a doc on `import` behavior/args -->
+
+The `triton import` command helps automate the process of creating a model repository
+to serve with Triton Inference Server. When preparing models, a `--source` is required
+to point at the location containing a model/weights. This argument is overloaded to support
+a few types of locations:
+- HuggingFace (`--source hf:<HUGGINGFACE_ID>`)
+- Local Filesystem (`--source local:</path/to/model>`)
+
+#### Model Source Aliases
+
+<!-- TODO: Put known model sources into a JSON file or something separate from the code -->
+
+For convenience, the Triton CLI supports short aliases for a handful
+of models which will automatically set the correct `--source` for you.
+A full list of aliases can be found from `KNOWN_MODEL_SOURCES` within `parser.py`,
+but some examples can be found below:
+- `gpt2`
+- `opt125m`
+- `mistral-7b`
+- `llama-2-7b-chat`
+- `llama-3-8b-instruct`
+- `llama-3.1-8b-instruct`
+
+For example, this command will go get Llama 3.1 8B Instruct from HuggingFace:
+```bash
+triton import -m llama-3.1-8b-instruct
+
+# Equivalent command without alias:
+# triton import --model llama-3.1-8b-instruct --source "hf:meta-llama/Llama-3.1-8B-Instruct"
+```
+
+For full control and flexibility, you can always manually specify the `--source`.
 
 ### Serving a vLLM Model
 
@@ -127,18 +162,7 @@ locally in the HuggingFace cache. No offline engine building step is required,
 but you can pre-download the model in advance to avoid downloading at server
 startup time.
 
-The following models have currently been tested for vLLM through the CLI:
-- `gpt2`
-- `opt125m`
-- `mistral-7b`
-- `falcon-7b`
-- `llama-2-7b`
-- `llama-2-7b-chat`
-- `llama-3-8b`
-- `llama-3-8b-instruct`
-- `llama-3.1-8b`
-- `llama-3.1-8b-instruct`
-
+The following models are supported by vLLM: https://docs.vllm.ai/en/latest/models/supported_models.html
 
 #### Example
 
@@ -189,15 +213,7 @@ triton profile -m llama-3-8b-instruct --backend vllm
 > see [here](https://docs.nvidia.com/deeplearning/triton-inference-server/user-guide/docs/user_guide/model_configuration.html#instance-groups).
 
 The following models are currently supported for automating TRT-LLM
-engine builds through the CLI:
-- `gpt2`
-- `opt125m`
-- `llama-2-7b`
-- `llama-2-7b-chat`
-- `llama-3-8b`
-- `llama-3-8b-instruct`
-- `llama-3.1-8b`
-- `llama-3.1-8b-instruct`
+engine builds through the CLI: https://nvidia.github.io/TensorRT-LLM/llm-api-examples/index.html#supported-models
 
 > [!NOTE]
 > 1. Building a TRT-LLM engine for Llama-2-7B, Llama-3-8B, or Llama-3.1-8B
@@ -282,5 +298,3 @@ and may not be as optimized as possible for your system or use case.
 - Triton CLI currently uses the TRT-LLM dependencies installed in its environment
 to build TRT-LLM engines, so you must take care to match the build-time and
 run-time versions of TRT-LLM.
-- Triton CLI currently does not support launching the server as a background
-process.
