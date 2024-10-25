@@ -22,8 +22,8 @@ and running the CLI from within the latest corresponding `tritonserver`
 container image, which should have all necessary system dependencies installed.
 
 For vLLM and TRT-LLM, you can use their respective images:
-- `nvcr.io/nvidia/tritonserver:24.08-vllm-python-py3`
-- `nvcr.io/nvidia/tritonserver:24.08-trtllm-python-py3`
+- `nvcr.io/nvidia/tritonserver:24.09-vllm-python-py3`
+- `nvcr.io/nvidia/tritonserver:24.09-trtllm-python-py3`
 
 If you decide to run the CLI on the host or in a custom image, please
 see this list of [additional dependencies](#additional-dependencies-for-custom-environments)
@@ -38,13 +38,14 @@ matrix below:
 
 | Triton CLI Version | TRT-LLM Version | Triton Container Tag |
 |:------------------:|:---------------:|:--------------------:|
+| 0.1.0  | v0.13.0 | 24.09 |
 | 0.0.11 | v0.12.0 | 24.08 |
 | 0.0.10 | v0.11.0 | 24.07 |
-| 0.0.9 | v0.10.0 | 24.06 |
-| 0.0.8 | v0.9.0 | 24.05 |
-| 0.0.7 | v0.9.0 | 24.04 |
-| 0.0.6 | v0.8.0 | 24.02, 24.03 |
-| 0.0.5 | v0.7.1 | 24.01 |
+| 0.0.9  | v0.10.0 | 24.06 |
+| 0.0.8  | v0.9.0  | 24.05 |
+| 0.0.7  | v0.9.0  | 24.04 |
+| 0.0.6  | v0.8.0  | 24.02, 24.03 |
+| 0.0.5  | v0.7.1  | 24.01 |
 
 ### Install from GitHub
 
@@ -58,7 +59,7 @@ It is also possible to install from a specific branch name, a commit hash
 or a tag name. For example to install `triton_cli` with a specific tag:
 
 ```bash
-GIT_REF="0.0.11"
+GIT_REF="0.1.0"
 pip install git+https://github.com/triton-inference-server/triton_cli.git@${GIT_REF}
 ```
 
@@ -93,7 +94,7 @@ triton -h
 triton import -m gpt2
 
 # Start server pointing at the default model repository
-triton start --image nvcr.io/nvidia/tritonserver:24.08-vllm-python-py3
+triton start --image nvcr.io/nvidia/tritonserver:24.09-vllm-python-py3
 
 # Infer with CLI
 triton infer -m gpt2 --prompt "machine learning is"
@@ -173,10 +174,10 @@ docker run -ti \
   --shm-size=1g --ulimit memlock=-1 \
   -v ${HOME}/models:/root/models \
   -v ${HOME}/.cache/huggingface:/root/.cache/huggingface \
-  nvcr.io/nvidia/tritonserver:24.08-vllm-python-py3
+  nvcr.io/nvidia/tritonserver:24.09-vllm-python-py3
 
 # Install the Triton CLI
-pip install git+https://github.com/triton-inference-server/triton_cli.git@0.0.11
+pip install git+https://github.com/triton-inference-server/triton_cli.git@0.1.0
 
 # Authenticate with huggingface for restricted models like Llama-2 and Llama-3
 huggingface-cli login
@@ -238,10 +239,10 @@ docker run -ti \
   -v /tmp:/tmp \
   -v ${HOME}/models:/root/models \
   -v ${HOME}/.cache/huggingface:/root/.cache/huggingface \
-  nvcr.io/nvidia/tritonserver:24.08-trtllm-python-py3
+  nvcr.io/nvidia/tritonserver:24.09-trtllm-python-py3
 
 # Install the Triton CLI
-pip install git+https://github.com/triton-inference-server/triton_cli.git@0.0.11
+pip install git+https://github.com/triton-inference-server/triton_cli.git@0.1.0
 
 # Authenticate with huggingface for restricted models like Llama-2 and Llama-3
 huggingface-cli login

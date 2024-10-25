@@ -50,7 +50,7 @@ dependencies = [
     "grpcio>=1.65.5",
     "directory-tree == 0.0.4", # may remove in future
     "docker == 6.1.3",
-    "genai-perf @ git+https://github.com/triton-inference-server/perf_analyzer.git@r24.08#subdirectory=genai-perf",
+    "genai-perf @ git+https://github.com/triton-inference-server/perf_analyzer.git@r24.09#subdirectory=genai-perf",
     # TODO: rely on tritonclient to pull in protobuf and numpy dependencies?
     "numpy >=1.21,<2",
     "protobuf>=3.7.0",
@@ -59,7 +59,7 @@ dependencies = [
     "rich == 13.5.2",
     # TODO: Test on cpu-only machine if [cuda] dependency is an issue,
     # Use explicit client version matching genai-perf version for tagged release
-    "tritonclient[all] == 2.49",
+    "tritonclient[all] == 2.50",
     "huggingface-hub >= 0.19.4",
     # Testing
     "pytest >= 8.1.1", # may remove later
