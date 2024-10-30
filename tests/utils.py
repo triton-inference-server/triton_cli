@@ -24,14 +24,17 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-import time
-import psutil
 import io
+import os
+import sys
 import json
+import time
+import requests
+import subprocess
 from contextlib import redirect_stdout
+from typing import List, Dict, Optional
+
 from triton_cli.main import run
-from subprocess import Popen
-from triton_cli.client.client import InferenceServerException
 
 
 class TritonCommands:
@@ -110,93 +113,170 @@ class TritonCommands:
         run(args)
 
 
+# TODO: Consider removal if other version works
 # Context Manager to start and kill a server running in background and used by testing functions
+# class ScopedTritonServerOld:
+#    def __init__(self, repo=None, mode="local", timeout=60):
+#        self.repo = repo
+#        self.mode = mode
+#        self.timeout = timeout
+#
+#    def __enter__(self):
+#        self.pid = self.run_server(self.repo, self.mode)
+#        self.wait_for_server_ready(timeout=self.timeout)  # Polling
+#
+#    def __exit__(self, type, value, traceback):
+#        self.kill_server(self.pid)
+#        self.repo, self.mode = None, None
+#
+#    def run_server(self, repo=None, mode="local"):
+#        args = ["triton", "start"]
+#        if repo:
+#            args += ["--repo", repo]
+#        if mode:
+#            args += ["--mode", mode]
+#        # Use Popen to run the server in the background as a separate process.
+#        p = Popen(args)
+#        return p.pid
+#
+#    def check_pid(self):
+#        """Check the 'triton start' PID and raise an exception if the process is unhealthy"""
+#        # Check if the PID exists, an exception is raised if not
+#        self.check_pid_with_signal()
+#        # If the PID exists, check the status of the process. Raise an exception
+#        # for a bad status.
+#        self.check_pid_status()
+#
+#    def check_pid_with_signal(self):
+#        """Check for the existence of a PID by sending signal 0"""
+#        try:
+#            proc = psutil.Process(self.pid)
+#            proc.send_signal(0)
+#        except psutil.NoSuchProcess as e:
+#            # PID doesn't exist, passthrough the exception
+#            raise e
+#
+#    def check_pid_status(self):
+#        """Check the status of the 'triton start' process based on its PID"""
+#        process = psutil.Process(self.pid)
+#        # NOTE: May need to check other statuses in the future, but zombie was observed
+#        # in some local test cases.
+#        if process.status() == psutil.STATUS_ZOMBIE:
+#            raise Exception(f"'triton start' PID {self.pid} was in a zombie state.")
+#
+#    def wait_for_server_ready(self, timeout: int = 60):
+#        start = time.time()
+#        while time.time() - start < timeout:
+#            print(
+#                "[DEBUG] Waiting for server to be ready ",
+#                round(timeout - (time.time() - start)),
+#                flush=True,
+#            )
+#            time.sleep(1)
+#            try:
+#                print(f"[DEBUG] Checking status of 'triton start' PID {self.pid}...")
+#                self.check_pid()
+#
+#                # For simplicity in testing, make sure both HTTP and GRPC endpoints
+#                # are ready before marking server ready.
+#                if self.check_server_ready(protocol="http") and self.check_server_ready(
+#                    protocol="grpc"
+#                ):
+#                    print("[DEBUG] Server is ready!")
+#                    return
+#            except ConnectionRefusedError as e:
+#                # Dump to log for testing transparency
+#                print(e)
+#            except InferenceServerException:
+#                pass
+#        raise Exception(f"=== Timeout {timeout} secs. Server not ready. ===")
+#
+#    def kill_server(self, pid: int, sig: int = 2, timeout: int = 30):
+#        try:
+#            proc = psutil.Process(pid)
+#            proc.send_signal(sig)
+#            # Add wait timeout to avoid hanging if process can't be cleanly
+#            # stopped for some reason.
+#            proc.wait(timeout=timeout)
+#        except psutil.NoSuchProcess as e:
+#            print(e)
+#
+#    def check_server_ready(self, protocol="grpc"):
+#        status = TritonCommands._status(protocol)
+#        return status["ready"]
+
+
 class ScopedTritonServer:
-    def __init__(self, repo=None, mode="local", timeout=60):
-        self.repo = repo
-        self.mode = mode
-        self.timeout = timeout
+    def __init__(
+        self,
+        repo: Optional[str] = None,
+        mode: Optional[str] = "local",
+        timeout: int = 120,
+        extra_args: Optional[List[str]] = None,
+        env_dict: Optional[Dict[str, str]] = None,
+    ) -> None:
+        # TODO: Be more coupled with Triton CLI settings
+        self.host = "localhost"
+        self.port = 8000
+        self.start_timeout = timeout
 
-    def __enter__(self):
-        self.pid = self.run_server(self.repo, self.mode)
-        self.wait_for_server_ready(timeout=self.timeout)  # Polling
+        env = os.environ.copy()
+        if env_dict is not None:
+            env.update(env_dict)
 
-    def __exit__(self, type, value, traceback):
-        self.kill_server(self.pid)
-        self.repo, self.mode = None, None
-
-    def run_server(self, repo=None, mode="local"):
-        args = ["triton", "start"]
+        args: List[str] = ["triton", "start"]
         if repo:
             args += ["--repo", repo]
         if mode:
             args += ["--mode", mode]
-        # Use Popen to run the server in the background as a separate process.
-        p = Popen(args)
-        return p.pid
+        if extra_args:
+            args += extra_args
 
-    def check_pid(self):
-        """Check the 'triton start' PID and raise an exception if the process is unhealthy"""
-        # Check if the PID exists, an exception is raised if not
-        self.check_pid_with_signal()
-        # If the PID exists, check the status of the process. Raise an exception
-        # for a bad status.
-        self.check_pid_status()
+        print("Starting server ...")
+        self.proc = subprocess.Popen(
+            args,
+            env=env,
+            stdout=sys.stdout,
+            stderr=sys.stderr,
+        )
+        print("Waiting for server ready...")
+        # Wait until health endpoint is responsive
+        self._wait_for_server(
+            url=self.url_for("v2", "health", "ready"),
+            timeout=self.start_timeout,
+        )
+        print("DONE: Server ready!")
 
-    def check_pid_with_signal(self):
-        """Check for the existence of a PID by sending signal 0"""
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.proc.terminate()
         try:
-            proc = psutil.Process(self.pid)
-            proc.send_signal(0)
-        except psutil.NoSuchProcess as e:
-            # PID doesn't exist, passthrough the exception
-            raise e
+            wait_secs = 60
+            self.proc.wait(wait_secs)
+        except subprocess.TimeoutExpired:
+            # force kill if needed
+            self.proc.kill()
 
-    def check_pid_status(self):
-        """Check the status of the 'triton start' process based on its PID"""
-        process = psutil.Process(self.pid)
-        # NOTE: May need to check other statuses in the future, but zombie was observed
-        # in some local test cases.
-        if process.status() == psutil.STATUS_ZOMBIE:
-            raise Exception(f"'triton start' PID {self.pid} was in a zombie state.")
-
-    def wait_for_server_ready(self, timeout: int = 60):
+    def _wait_for_server(self, *, url: str, timeout: float):
         start = time.time()
-        while time.time() - start < timeout:
-            print(
-                "[DEBUG] Waiting for server to be ready ",
-                round(timeout - (time.time() - start)),
-                flush=True,
-            )
-            time.sleep(1)
+        while True:
             try:
-                print(f"[DEBUG] Checking status of 'triton start' PID {self.pid}...")
-                self.check_pid()
+                if requests.get(url).status_code == 200:
+                    break
+            except Exception as err:
+                result = self.proc.poll()
+                if result is not None and result != 0:
+                    raise RuntimeError("Server exited unexpectedly.") from err
 
-                # For simplicity in testing, make sure both HTTP and GRPC endpoints
-                # are ready before marking server ready.
-                if self.check_server_ready(protocol="http") and self.check_server_ready(
-                    protocol="grpc"
-                ):
-                    print("[DEBUG] Server is ready!")
-                    return
-            except ConnectionRefusedError as e:
-                # Dump to log for testing transparency
-                print(e)
-            except InferenceServerException:
-                pass
-        raise Exception(f"=== Timeout {timeout} secs. Server not ready. ===")
+                time.sleep(0.5)
+                if time.time() - start > timeout:
+                    raise RuntimeError("Server failed to start in time.") from err
 
-    def kill_server(self, pid: int, sig: int = 2, timeout: int = 30):
-        try:
-            proc = psutil.Process(pid)
-            proc.send_signal(sig)
-            # Add wait timeout to avoid hanging if process can't be cleanly
-            # stopped for some reason.
-            proc.wait(timeout=timeout)
-        except psutil.NoSuchProcess as e:
-            print(e)
+    @property
+    def url_root(self) -> str:
+        return f"http://{self.host}:{self.port}"
 
-    def check_server_ready(self, protocol="grpc"):
-        status = TritonCommands._status(protocol)
-        return status["ready"]
+    def url_for(self, *parts: str) -> str:
+        return self.url_root + "/" + "/".join(parts)
