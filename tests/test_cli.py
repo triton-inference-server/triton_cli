@@ -49,6 +49,15 @@ MODEL_REPO = os.path.join(TEST_DIR, "test_models")
 
 
 class TestRepo:
+    def test_noargs(self):
+        # Test that running 'triton' with no args will print help output
+        args = []
+        with pytest.raises(SystemExit) as excinfo:
+            TritonCommands._run_and_capture_stdout(args)
+
+        # argparse returns code 2 for error / missing arguments
+        assert excinfo.value.code == 2
+
     @pytest.mark.parametrize("repo", TEST_REPOS)
     def test_clear(self, repo):
         TritonCommands._clear(repo)

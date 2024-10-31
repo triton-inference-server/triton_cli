@@ -444,9 +444,10 @@ def parse_args(argv=None):
 
     argv_ = argv if argv is not None else sys.argv[1:]
     # Add special argparse handling for passthrough to genai-perf CLI
-    if argv_[0] == "profile":
+    if len(argv_) > 1 and argv_[0] == "profile":
         args, unknown_args = parser.parse_known_args(argv_)
         args = add_unknown_args_to_args(args, unknown_args)
     else:
         args = parser.parse_args(argv_)
+
     return args
