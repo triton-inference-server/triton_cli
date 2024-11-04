@@ -215,6 +215,9 @@ class ScopedTritonServer:
         extra_args: Optional[List[str]] = None,
         env_dict: Optional[Dict[str, str]] = None,
     ) -> None:
+        self.started = False
+        self.stopped = False
+
         # TODO: Be more coupled with Triton CLI settings
         self.host = "localhost"
         self.port = 8000
@@ -232,10 +235,14 @@ class ScopedTritonServer:
         if extra_args:
             args += extra_args
 
+        self.args = args
+        self.env = env
+
+    def _startup(self):
         print("Starting server ...")
         self.proc = subprocess.Popen(
-            args,
-            env=env,
+            self.args,
+            env=self.env,
             stdout=sys.stdout,
             stderr=sys.stderr,
         )
@@ -247,10 +254,7 @@ class ScopedTritonServer:
         )
         print("DONE: Server ready!")
 
-    def __enter__(self):
-        return self
-
-    def __exit__(self, exc_type, exc_value, traceback):
+    def _shutdown(self):
         self.proc.terminate()
         try:
             wait_secs = 60
@@ -258,6 +262,31 @@ class ScopedTritonServer:
         except subprocess.TimeoutExpired:
             # force kill if needed
             self.proc.kill()
+
+    def start(self):
+        if self.started:
+            print("[WARNING] Server has already been started, skipping startup.")
+            return
+
+        self.started = True
+        self._startup()
+
+    def stop(self):
+        print(f"[DEBUG] =========== [START] STOPPING SERVER {self.proc} ========")
+        if self.stopped:
+            print("[WARNING] Server has already been stopped, skipping shutdown.")
+            return
+
+        self.stopped = True
+        self._shutdown()
+        print(f"[DEBUG] =========== [DONE] STOPPING SERVER {self.proc} ========")
+
+    def __enter__(self):
+        self.start()
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.stop()
 
     def _wait_for_server(self, *, url: str, timeout: float):
         start = time.time()

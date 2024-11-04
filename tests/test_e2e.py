@@ -26,7 +26,7 @@
 
 import os
 import pytest
-from utils import TritonCommands, ScopedTritonServer
+from utils import TritonCommands
 
 
 PROMPT = "machine learning is"
@@ -53,17 +53,16 @@ class TestE2E:
         ],
     )
     @pytest.mark.timeout(600)
-    def test_tensorrtllm_e2e(self, protocol):
+    def test_tensorrtllm_e2e(self, llm_server, protocol):
         # NOTE: TRTLLM test models will be passed by the testing infrastructure.
         # Only a single model will be passed per test to enable tests to run concurrently.
         model = os.environ.get("TRTLLM_MODEL")
         assert model is not None, "TRTLLM_MODEL env var must be set!"
         TritonCommands._clear()
         TritonCommands._import(model, backend="tensorrtllm")
-        # TRT-LLM's LLM API will download the model on the fly, so give it a big timeout
-        with ScopedTritonServer(timeout=600):
-            TritonCommands._infer(model, prompt=PROMPT, protocol=protocol)
-            TritonCommands._profile(model, backend="tensorrtllm")
+        llm_server.start()
+        TritonCommands._infer(model, prompt=PROMPT, protocol=protocol)
+        TritonCommands._profile(model, backend="tensorrtllm")
 
     @pytest.mark.skipif(
         os.environ.get("IMAGE_KIND") != "VLLM", reason="Only run for VLLM image"
@@ -82,7 +81,7 @@ class TestE2E:
         ],
     )
     @pytest.mark.timeout(900)
-    def test_vllm_e2e(self, protocol):
+    def test_vllm_e2e(self, llm_server, protocol):
         # NOTE: VLLM test models will be passed by the testing infrastructure.
         # Only a single model will be passed per test to enable tests to run concurrently.
         model = os.environ.get("VLLM_MODEL")
@@ -94,40 +93,40 @@ class TestE2E:
         # (a) Pre-download and mount larger models in test environment
         # (b) Download model from HF for vLLM at import step to remove burden
         #     from server startup step.
-        with ScopedTritonServer(timeout=600):
-            TritonCommands._infer(model, prompt=PROMPT, protocol=protocol)
-            TritonCommands._profile(model, backend="vllm")
+        llm_server.start()
+        TritonCommands._infer(model, prompt=PROMPT, protocol=protocol)
+        TritonCommands._profile(model, backend="vllm")
 
     @pytest.mark.skipif(
         os.environ.get("CI_PIPELINE") == "GITHUB_ACTIONS",
         reason="bandage/temporary fix",
     )
     @pytest.mark.parametrize("protocol", ["grpc", "http"])
-    def test_non_llm(self, protocol):
+    def test_non_llm(self, simple_server, protocol):
         # This test runs on the default Triton image, as well as on both TRT-LLM and VLLM images.
         # Use the existing models.
-        with ScopedTritonServer(repo=MODEL_REPO):
-            model = "add_sub"
-            # infer should work without a prompt for non-LLM models
+        simple_server.start()
+        model = "add_sub"
+        # infer should work without a prompt for non-LLM models
+        TritonCommands._infer(model, protocol=protocol)
+
+    @pytest.mark.skipif(
+        os.environ.get("CI_PIPELINE") == "GITHUB_ACTIONS",
+        reason="bandage/temporary fix",
+    )
+    @pytest.mark.parametrize("protocol", ["grpc", "http"])
+    def test_mock_llm(self, simple_server, protocol):
+        # This test runs on the default Triton image, as well as on both TRT-LLM and VLLM images.
+        # Use the existing models.
+        simple_server.start()
+        model = "mock_llm"
+        # infer should work with a prompt for LLM models
+        TritonCommands._infer(model, prompt=PROMPT, protocol=protocol)
+        # infer should fail without a prompt for LLM models
+        with pytest.raises(Exception):
             TritonCommands._infer(model, protocol=protocol)
 
-    @pytest.mark.skipif(
-        os.environ.get("CI_PIPELINE") == "GITHUB_ACTIONS",
-        reason="bandage/temporary fix",
-    )
-    @pytest.mark.parametrize("protocol", ["grpc", "http"])
-    def test_mock_llm(self, protocol):
-        # This test runs on the default Triton image, as well as on both TRT-LLM and VLLM images.
-        # Use the existing models.
-        with ScopedTritonServer(repo=MODEL_REPO):
-            model = "mock_llm"
-            # infer should work with a prompt for LLM models
-            TritonCommands._infer(model, prompt=PROMPT, protocol=protocol)
-            # infer should fail without a prompt for LLM models
-            with pytest.raises(Exception):
-                TritonCommands._infer(model, protocol=protocol)
-
-            # profile for triton endpoints only supports grpc protocol currently
-            if protocol == "grpc":
-                # profile should work without a prompt for LLM models
-                TritonCommands._profile(model, backend="tensorrtllm")
+        # profile for triton endpoints only supports grpc protocol currently
+        if protocol == "grpc":
+            # profile should work without a prompt for LLM models
+            TritonCommands._profile(model, backend="tensorrtllm")
