@@ -364,6 +364,7 @@ class ModelRepository:
 
         engine = LLM(huggingface_id, build_config=config)
         # TODO: Investigate if LLM is internally saving a copy to a temp dir
+        # Currently, models are being saved to /root/.cache/huggingface/hub/models--<model_name>
         engine.save(str(engines_path))
 
     def __create_model_repository(
