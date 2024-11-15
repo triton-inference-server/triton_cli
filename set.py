@@ -32,33 +32,9 @@ from contextlib import redirect_stdout
 from triton_cli.main import run
 from subprocess import Popen
 from triton_cli.client.client import InferenceServerException
-from signal import SIGTERM, SIGKILL
+from signal import SIGTERM, signal, SIGINT
 import os
 from subprocess import STDOUT, PIPE, Popen, TimeoutExpired
-
-
-def sleep5():
-    print("Sleeping for 5 Seconds:\n Count: ")
-    for t in range(1, 6):
-        time.sleep(1)
-        print(f"{t}")
-    print("Done sleeping")
-
-
-def get_process_statuses(pid_list):
-    result = []
-    for pid in pid_list:
-        try:
-            process = psutil.Process(pid)
-            status = process.status()  # Retrieve the process status
-            result.append(f"{pid}: {status}")
-        except psutil.NoSuchProcess:
-            result.append(f"{pid}: does not exist or has been terminated")
-        except psutil.AccessDenied:
-            result.append(f"{pid}: access denied")
-        except Exception as e:
-            result.append(f"{pid}: error ({e})")
-    return "\n".join(result)
 
 
 class TritonCommands:
@@ -145,7 +121,7 @@ class ScopedTritonServer:
         self.timeout = timeout
 
     def __enter__(self):
-        self.proc = self.run_server(self.repo, self.mode)
+        self.run_server(self.repo, self.mode)
         self.wait_for_server_ready(timeout=self.timeout)  # Polling
 
     def __exit__(self, type, value, traceback):
@@ -159,8 +135,12 @@ class ScopedTritonServer:
         if mode:
             args += ["--mode", mode]
         # Use Popen to run the server in the background as a separate process.
-        p = Popen(args)
-        return p
+        print(
+            "[CUSTOM] [ScopedTritonServer::run_server] About to perform Popen(triton start)"
+        )
+        self.proc = Popen(args)
+
+        return self.proc
 
     def check_pid(self):
         """Check the 'triton start' PID and raise an exception if the process is unhealthy"""
@@ -218,33 +198,107 @@ class ScopedTritonServer:
         raise Exception(f"=== Timeout {timeout} secs. Server not ready. ===")
 
     def kill_server(self, timeout: int = 30):
+        print("[DEBUG] Attempting to Kill Triton Server")
         try:
-            print(f"[DEBUG] Attempting to KILL THE SERVER")
-            cli_pid = self.proc.pid
-            print(f"[DEBUG] CLI PID (triton-cli command: triton start): {cli_pid}")
-            cli_process = psutil.Process(cli_pid)
-
-            children = cli_process.children(recursive=True)
-            children_pid = [child.pid for child in children]
-            if children:
-                print("=" * 40)
-                child_str = "\n".join([str(x) for x in children])
-                print(f"[DEBUG] Children pids:\n{child_str}")
-                print("=" * 40)
-            else:
-                print(f"[DEBUG] NO CHILDREN PIDS! SOMETHING IS WRONG!")
-
-            # Once we are done killing all the children processes
-            # os.kill(cli_pid, SIGTERM)
             self.proc.terminate()
-            self.proc.wait()
-            sleep5()
-            print(get_process_statuses(children_pid))
-            sleep5()
-
+            # Add wait timeout to avoid hanging if process can't be cleanly
+            # stopped for some reason.
+            ret = self.proc.wait(timeout=timeout)
+            print(f"[DEBUG] RETURNCODE = {ret}")
+            if ret != 0:
+                print("[DEBUG] Needed to forcefully terminate")
+                self.proc.kill()
         except psutil.NoSuchProcess as e:
             print(e)
 
     def check_server_ready(self, protocol="grpc"):
         status = TritonCommands._status(protocol)
         return status["ready"]
+
+    def __str__(self) -> str:
+        return self.get_process_info(self.proc.pid)
+
+    def get_process_info(self, pid):
+        try:
+            # Create a process object
+            process = psutil.Process(pid)
+
+            # Initialize a list to store formatted information
+            info = []
+
+            # General information
+            info.append(f"Process ID (PID): {process.pid}")
+            info.append(f"Name: {process.name()}")
+            info.append(f"Status: {process.status()}")
+            info.append(f"Executable Path: {process.exe()}")
+            info.append(f"Current Working Directory: {process.cwd()}")
+            info.append(f"Command Line: {' '.join(process.cmdline())}")
+            info.append(f"Parent PID: {process.ppid()}")
+            info.append(f"Username: {process.username()}")
+
+            # Memory usage details
+            memory_info = process.memory_info()
+            info.append(
+                f"Memory Info: RSS={memory_info.rss / (1024 ** 2):.2f} MB, VMS={memory_info.vms / (1024 ** 2):.2f} MB"
+            )
+
+            # CPU usage details
+            cpu_times = process.cpu_times()
+            info.append(
+                f"CPU Times: user={cpu_times.user:.2f}s, system={cpu_times.system:.2f}s"
+            )
+            info.append(f"CPU Affinity: {process.cpu_affinity()}")
+            info.append(f"CPU Percent: {process.cpu_percent(interval=1.0)}%")
+
+            # I/O statistics
+            io_counters = process.io_counters()
+            info.append(
+                f"I/O Counters: read_bytes={io_counters.read_bytes}, write_bytes={io_counters.write_bytes}"
+            )
+
+            # Open files
+            open_files = process.open_files()
+            if open_files:
+                info.append("Open Files:")
+                for file in open_files:
+                    info.append(f" - {file.path}")
+            else:
+                info.append("Open Files: None")
+
+            # Child Processes (Subprocesses)
+            children = process.children(recursive=True)
+            if children:
+                info.append("Child Processes:")
+                for child in children:
+                    child_info = (
+                        f" - PID: {child.pid}, Name: {child.name()}, "
+                        f"Status: {child.status()}, CPU %: {child.cpu_percent(interval=1.0)}%, "
+                        f"Memory: RSS={child.memory_info().rss / (1024 ** 2):.2f} MB"
+                    )
+                    info.append(child_info)
+            else:
+                info.append("Child Processes: None")
+
+            # Join all information with line breaks for readability
+            return "\n".join(info)
+
+        except psutil.NoSuchProcess:
+            return f"No process found with PID {pid}"
+        except Exception as e:
+            return f"An error occurred: {e}"
+
+
+MODEL_NAME = "gpt2"
+print("[CUSTOM] Clearing /root/models: ")
+TritonCommands._clear()
+print(f"[CUSTOM] Import {MODEL_NAME}:")
+TritonCommands._import("gpt2", backend="tensorrtllm")
+# print(f"[CUSTOM] Creating ScopedTritonServer object")
+# server_proc = ScopedTritonServer()
+# print(f"[CUSTOM] Starting the server")
+# server_proc.run_server()
+# print(f"[CUSTOM] Printing out server_proc details")
+# print(server_proc)
+# print(f"[CUSTOM] Sending inference request")
+# TritonCommands._infer("gpt2", "Testing! Testing! Testing!", "grpc")
+# print(f"[CUSTOM] Printi")

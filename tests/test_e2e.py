@@ -58,7 +58,7 @@ class TestE2E:
         # Only a single model will be passed per test to enable tests to run concurrently.
         model = os.environ.get("TRTLLM_MODEL")
         assert model is not None, "TRTLLM_MODEL env var must be set!"
-        TritonCommands._clear() 
+        TritonCommands._clear()
         TritonCommands._import(model, backend="tensorrtllm")
         # TRT-LLM's LLM API will download the model on the fly, so give it a big timeout
         with ScopedTritonServer(timeout=600):
