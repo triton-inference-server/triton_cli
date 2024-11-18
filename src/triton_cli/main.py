@@ -52,12 +52,10 @@ def main():
     # Custom exceptions are thrown by us and should give clear messages
     except TritonCLIException as e:
         logger.error(f"{e}")
-        sys.exit(1)
     except Exception as e:
         logger.error(f"{e}")
         logger.error(f"Unexpected error:\n{traceback.format_exc()}")
-        sys.exit(1)
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
