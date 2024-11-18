@@ -32,9 +32,6 @@ from contextlib import redirect_stdout
 from triton_cli.main import run
 from subprocess import Popen
 from triton_cli.client.client import InferenceServerException
-from signal import SIGTERM, SIGKILL
-import os
-from subprocess import STDOUT, PIPE, Popen, TimeoutExpired
 
 
 def get_process_statuses(pid_list):
@@ -211,7 +208,7 @@ class ScopedTritonServer:
 
     def kill_server(self, timeout: int = 30):
         try:
-            print(f"[DEBUG] Attempting to KILL THE SERVER")
+            print("[DEBUG] Attempting to KILL THE SERVER")
             cli_pid = self.proc.pid
             print(f"[DEBUG] CLI PID (triton-cli command: triton start): {cli_pid}")
             cli_process = psutil.Process(cli_pid)
@@ -224,7 +221,7 @@ class ScopedTritonServer:
                 print(f"[DEBUG] Children pids:\n{child_str}")
                 print("=" * 40)
             else:
-                print(f"[DEBUG] NO CHILDREN PIDS! SOMETHING IS WRONG!")
+                print("[DEBUG] NO CHILDREN PIDS! SOMETHING IS WRONG!")
 
             self.proc.terminate()
             self.proc.wait(timeout=timeout)
