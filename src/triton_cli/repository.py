@@ -351,22 +351,22 @@ class ModelRepository:
         )
 
     def __build_trtllm_engine(self, huggingface_id: str, engines_path: Path):
-        from tensorrt_llm import LLM, BuildConfig
-
-        # NOTE: Given config.json, can read from 'build_config' section and from_dict
-        config = BuildConfig()
-        # TODO: Expose more build args to user
-        # TODO: Discuss LLM API BuildConfig defaults
-        # NOTE: Using some defaults from trtllm-build because LLM API defaults are too low
-        config.max_input_len = 1024
-        config.max_seq_len = 8192
-        config.max_batch_size = 128
-
-        engine = LLM(huggingface_id, build_config=config)
-        # TODO: Investigate if LLM is internally saving a copy to a temp dir
-        # Currently, models are being saved to /root/.cache/huggingface/hub/models--<model_name>
-        engine.save(str(engines_path))
-
+        print(huggingface_id, engines_path)
+        trtllm_build_script = Path(__file__).resolve().parent / "trt_llm" / "engine_generation_script.py" 
+        
+        model_args = ["--huggingface_id", huggingface_id,
+                      "--engines_path", engines_path]
+        
+        cmd = ["python3", str(trtllm_build_script)] + model_args
+        cmd_str = " ".join(cmd)
+        logger.debug(f"Running {cmd_str}")
+        print(f"Running {cmd_str}")
+        ret_val = subprocess.run(cmd, capture_output=True, text=True)
+        print(f"STDOUT: {ret_val.stdout}")
+        print(f"STDERR: {ret_val.stderr}")
+        
+        
+        
     def __create_model_repository(
         self, name: str, version: int = 1, backend: str = None
     ):

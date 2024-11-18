@@ -40,7 +40,7 @@ from subprocess import STDOUT, PIPE, Popen, TimeoutExpired
 def sleep5():
     print("Sleeping for 5 Seconds:\n Count: ")
     for t in range(1, 6):
-        time.sleep(1)
+        # time.sleep(1)
         print(f"{t}")
     print("Done sleeping")
 
