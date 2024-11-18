@@ -37,14 +37,6 @@ import os
 from subprocess import STDOUT, PIPE, Popen, TimeoutExpired
 
 
-def sleep5():
-    print("Sleeping for 5 Seconds:\n Count: ")
-    for t in range(1, 6):
-        # time.sleep(1)
-        print(f"{t}")
-    print("Done sleeping")
-
-
 def get_process_statuses(pid_list):
     result = []
     for pid in pid_list:
@@ -234,13 +226,10 @@ class ScopedTritonServer:
             else:
                 print(f"[DEBUG] NO CHILDREN PIDS! SOMETHING IS WRONG!")
 
-            # Once we are done killing all the children processes
-            # os.kill(cli_pid, SIGTERM)
             self.proc.terminate()
-            self.proc.wait()
-            sleep5()
+            self.proc.wait(timeout=timeout)
+
             print(get_process_statuses(children_pid))
-            sleep5()
 
         except psutil.NoSuchProcess as e:
             print(e)
