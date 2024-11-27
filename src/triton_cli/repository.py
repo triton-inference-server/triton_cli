@@ -358,9 +358,9 @@ class ModelRepository:
         # TODO: Expose more build args to user
         # TODO: Discuss LLM API BuildConfig defaults
         # NOTE: Using some defaults from trtllm-build because LLM API defaults are too low
-        config.max_input_len = 1024
-        config.max_seq_len = 8192
-        config.max_batch_size = 256
+        # config.max_input_len = 1024
+        # config.max_seq_len = 8192
+        # config.max_batch_size = 256
 
         engine = LLM(huggingface_id, build_config=config)
         # TODO: Investigate if LLM is internally saving a copy to a temp dir
