@@ -305,14 +305,14 @@ class ScopedTritonServer:
         print("[DEBUG] Processes before server stop:")
         find_processes_by_name(["triton", "python"])
 
-        print(f"[DEBUG] =========== [START] STOPPING SERVER {self.proc} ========")
+        # print(f"[DEBUG] =========== [START] STOPPING SERVER {self.proc} ========")
         if self.stopped:
             print("[WARNING] Server has already been stopped, skipping shutdown.")
             return
 
         self.stopped = True
         self._shutdown()
-        print(f"[DEBUG] =========== [DONE] STOPPING SERVER {self.proc} ========")
+        # print(f"[DEBUG] =========== [DONE] STOPPING SERVER {self.proc} ========")
 
         print("[DEBUG] Processes after server stop:")
         find_processes_by_name(["triton", "python"])
