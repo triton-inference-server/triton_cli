@@ -29,6 +29,7 @@ import json
 import shutil
 import logging
 import subprocess
+import multiprocessing
 from pathlib import Path
 
 from directory_tree import display_tree
@@ -335,7 +336,13 @@ class ModelRepository:
                 f"Found existing engine(s) at {engines_path}, skipping build."
             )
         else:
-            self.__build_trtllm_engine(huggingface_id, engines_path)
+            # Run TRT-LLM build in a separate process to make sure it definitely
+            # cleans up any GPU memory used when done.
+            p = multiprocessing.Process(
+                target=self.__build_trtllm_engine, args=(huggingface_id, engines_path)
+            )
+            p.start()
+            p.join()
 
         # NOTE: In every case, the TRT LLM template should be filled in with values.
         # If the model exists, the CLI will raise an exception when creating the model repo.

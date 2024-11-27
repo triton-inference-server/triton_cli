@@ -58,8 +58,10 @@ class TestE2E:
         # Only a single model will be passed per test to enable tests to run concurrently.
         model = os.environ.get("TRTLLM_MODEL")
         assert model is not None, "TRTLLM_MODEL env var must be set!"
+        # Source is optional if using a "known: model"
+        source = os.environ.get("MODEL_SOURCE")
         TritonCommands._clear()
-        TritonCommands._import(model, backend="tensorrtllm")
+        TritonCommands._import(model, source=source, backend="tensorrtllm")
         llm_server.start()
         TritonCommands._infer(model, prompt=PROMPT, protocol=protocol)
         TritonCommands._profile(model, backend="tensorrtllm")
@@ -86,8 +88,10 @@ class TestE2E:
         # Only a single model will be passed per test to enable tests to run concurrently.
         model = os.environ.get("VLLM_MODEL")
         assert model is not None, "VLLM_MODEL env var must be set!"
+        # Source is optional if using a "known: model"
+        source = os.environ.get("MODEL_SOURCE")
         TritonCommands._clear()
-        TritonCommands._import(model)
+        TritonCommands._import(model, source=source)
         # vLLM will download the model on the fly, so give it a big timeout
         # TODO: Consider one of the following
         # (a) Pre-download and mount larger models in test environment
