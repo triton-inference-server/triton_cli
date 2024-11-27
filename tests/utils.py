@@ -222,6 +222,7 @@ class ScopedTritonServer:
         self.host = "localhost"
         self.port = 8000
         self.start_timeout = timeout
+        self.proc = None
 
         env = os.environ.copy()
         if env_dict is not None:
