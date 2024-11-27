@@ -29,12 +29,35 @@ import os
 import sys
 import json
 import time
+import psutil
 import requests
 import subprocess
 from contextlib import redirect_stdout
 from typing import List, Dict, Optional
 
 from triton_cli.main import run
+
+
+def find_processes_by_name(names: List[str]):
+    def name_in_proc(name: str, proc: psutil.Process):
+        if name.lower() in proc.info["name"]:
+            return True
+        if not proc.info["cmdline"]:
+            return False
+        if any(name.lower() in cmd.lower() for cmd in proc.info["cmdline"]):
+            return True
+
+        return False
+
+    for proc in psutil.process_iter(["pid", "name", "cmdline"]):
+        try:
+            for name in names:
+                if name_in_proc(name, proc):
+                    print(proc.info)
+        except psutil.ZombieProcess:
+            print(f"Zombie process detected: {proc.info}")
+        except (psutil.NoSuchProcess, psutil.AccessDenied):
+            pass
 
 
 class TritonCommands:
@@ -265,6 +288,9 @@ class ScopedTritonServer:
             self.proc.kill()
 
     def start(self):
+        print("[DEBUG] Processes before server start:")
+        find_processes_by_name(["triton", "python"])
+
         if self.started:
             print("[WARNING] Server has already been started, skipping startup.")
             return
@@ -272,7 +298,13 @@ class ScopedTritonServer:
         self.started = True
         self._startup()
 
+        print("[DEBUG] Processes after server start:")
+        find_processes_by_name(["triton", "python"])
+
     def stop(self):
+        print("[DEBUG] Processes before server stop:")
+        find_processes_by_name(["triton", "python"])
+
         print(f"[DEBUG] =========== [START] STOPPING SERVER {self.proc} ========")
         if self.stopped:
             print("[WARNING] Server has already been stopped, skipping shutdown.")
@@ -281,6 +313,9 @@ class ScopedTritonServer:
         self.stopped = True
         self._shutdown()
         print(f"[DEBUG] =========== [DONE] STOPPING SERVER {self.proc} ========")
+
+        print("[DEBUG] Processes after server stop:")
+        find_processes_by_name(["triton", "python"])
 
     def __enter__(self):
         self.start()
