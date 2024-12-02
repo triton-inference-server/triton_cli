@@ -364,7 +364,6 @@ class ModelRepository:
         config = BuildConfig()
         # TODO: Expose more build args to user
         # TODO: Discuss LLM API BuildConfig defaults
-        # NOTE: Using some defaults from trtllm-build because LLM API defaults are too low
         # config.max_input_len = 1024
         # config.max_seq_len = 8192
         # config.max_batch_size = 256
