@@ -135,12 +135,10 @@ class TritonServerLocal(TritonServer):
         if self._tritonserver_process is not None:
             self._tritonserver_process.terminate()
             try:
-                self._tritonserver_process.communicate(
-                    timeout=SERVER_OUTPUT_TIMEOUT_SECS
-                )
+                self._tritonserver_process.wait(timeout=SERVER_OUTPUT_TIMEOUT_SECS)
             except TimeoutExpired:
                 self._tritonserver_process.kill()
-                self._tritonserver_process.communicate()
+                self._tritonserver_process.wait()
             self._tritonserver_process = None
             logger.debug("Stopped Triton Server.")
 
