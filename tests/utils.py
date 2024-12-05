@@ -160,19 +160,19 @@ class ScopedTritonServer:
                     raise RuntimeError("Server failed to start in time.") from err
 
     def kill_server(self, timeout: int = 60):
-        self.proc.terminate()
         try:
-            # Add wait timeout to avoid hanging if process can't be cleanly
-            # stopped for some reason.
-            self.proc.wait(timeout=timeout)
+            self.proc.terminate()
+            self.proc.wait(timeout=timeout)  # Wait for triton to clean up
         except subprocess.TimeoutExpired:
             self.proc.kill()
+            self.proc.wait()  # Indefinetely wait until the process is cleaned up.
         except psutil.NoSuchProcess as e:
             print(e)
 
-    def check_server_ready(self, protocol="grpc"):
-        status = TritonCommands._status(protocol)
-        return status["ready"]
+    def check_server_ready(self):
+        status_grpc = TritonCommands._status(protocol="grpc")
+        status_http = TritonCommands._status(protocol="http")
+        return status_grpc["ready"] and status_http["ready"]
 
 
 # class ScopedTritonServer:
