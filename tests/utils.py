@@ -125,10 +125,7 @@ class ScopedTritonServer:
 
     def start(self):
         self.proc = self.run_server(self.repo, self.mode)
-        self.wait_for_server_ready(
-            # url=self.url_for("v2", "health", "ready"),
-            timeout=self.timeout
-        )  # Polling
+        self.wait_for_server_ready(timeout=self.timeout)  # Polling
 
     def stop(self):
         self.kill_server()
