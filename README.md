@@ -22,8 +22,8 @@ and running the CLI from within the latest corresponding `tritonserver`
 container image, which should have all necessary system dependencies installed.
 
 For vLLM and TRT-LLM, you can use their respective images:
-- `nvcr.io/nvidia/tritonserver:24.09-vllm-python-py3`
-- `nvcr.io/nvidia/tritonserver:24.09-trtllm-python-py3`
+- `nvcr.io/nvidia/tritonserver:24.10-vllm-python-py3`
+- `nvcr.io/nvidia/tritonserver:24.10-trtllm-python-py3`
 
 If you decide to run the CLI on the host or in a custom image, please
 see this list of [additional dependencies](#additional-dependencies-for-custom-environments)
@@ -60,7 +60,7 @@ It is also possible to install from a specific branch name, a commit hash
 or a tag name. For example to install `triton_cli` with a specific tag:
 
 ```bash
-GIT_REF="0.1.0"
+GIT_REF="0.1.1"
 pip install git+https://github.com/triton-inference-server/triton_cli.git@${GIT_REF}
 ```
 
@@ -95,7 +95,7 @@ triton -h
 triton import -m gpt2
 
 # Start server pointing at the default model repository
-triton start --image nvcr.io/nvidia/tritonserver:24.09-vllm-python-py3
+triton start --image nvcr.io/nvidia/tritonserver:24.10-vllm-python-py3
 
 # Infer with CLI
 triton infer -m gpt2 --prompt "machine learning is"
@@ -175,10 +175,10 @@ docker run -ti \
   --shm-size=1g --ulimit memlock=-1 \
   -v ${HOME}/models:/root/models \
   -v ${HOME}/.cache/huggingface:/root/.cache/huggingface \
-  nvcr.io/nvidia/tritonserver:24.09-vllm-python-py3
+  nvcr.io/nvidia/tritonserver:24.10-vllm-python-py3
 
 # Install the Triton CLI
-pip install git+https://github.com/triton-inference-server/triton_cli.git@0.1.0
+pip install git+https://github.com/triton-inference-server/triton_cli.git@0.1.1
 
 # Authenticate with huggingface for restricted models like Llama-2 and Llama-3
 huggingface-cli login
@@ -240,7 +240,7 @@ docker run -ti \
   -v /tmp:/tmp \
   -v ${HOME}/models:/root/models \
   -v ${HOME}/.cache/huggingface:/root/.cache/huggingface \
-  nvcr.io/nvidia/tritonserver:24.09-trtllm-python-py3
+  nvcr.io/nvidia/tritonserver:24.10-trtllm-python-py3
 
 # Install the Triton CLI
 pip install git+https://github.com/triton-inference-server/triton_cli.git@0.1.0
