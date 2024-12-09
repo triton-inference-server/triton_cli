@@ -15,6 +15,7 @@
 # limitations under the License.
 
 import os
+import signal
 import logging
 from subprocess import STDOUT, PIPE, Popen, TimeoutExpired
 from .server_utils import TritonServerUtils
@@ -56,6 +57,23 @@ class TritonServerLocal(TritonServer):
         ], "Triton Server requires --model-repository argument to be set."
 
         self._server_utils = TritonServerUtils(self._server_config["model-repository"])
+        self._register_signal_handlers()
+
+    def _signal_handler(self, signal, frame):
+        # Graceful shutdown
+        print(f"Received {signal=}, {frame=}. Shutting down...")
+        self.stop()
+
+    def _register_signal_handlers(self):
+        # Gracefully shutdown when receiving signals for testing and interactive use
+        signal.signal(
+            signal.SIGINT,
+            self._signal_handler,
+        )
+        signal.signal(
+            signal.SIGTERM,
+            self._signal_handler,
+        )
 
     def start(self, env=None):
         """
@@ -117,12 +135,10 @@ class TritonServerLocal(TritonServer):
         if self._tritonserver_process is not None:
             self._tritonserver_process.terminate()
             try:
-                self._tritonserver_process.communicate(
-                    timeout=SERVER_OUTPUT_TIMEOUT_SECS
-                )
+                self._tritonserver_process.wait(timeout=SERVER_OUTPUT_TIMEOUT_SECS)
             except TimeoutExpired:
                 self._tritonserver_process.kill()
-                self._tritonserver_process.communicate()
+                self._tritonserver_process.wait()
             self._tritonserver_process = None
             logger.debug("Stopped Triton Server.")
 

@@ -228,8 +228,7 @@ def parse_args_repo(parser):
         "--source",
         type=str,
         required=False,
-        help="Local model path or model identifier. Use prefix 'hf:' to specify a HuggingFace model ID. "
-        "NOTE: HuggingFace model support is currently limited to Transformer models through the vLLM backend.",
+        help="Local model path or model identifier. Use prefix 'hf:' to specify a HuggingFace model ID, or 'local:' prefix to specify a file path to a model.",
     )
 
     repo_remove = parser.add_parser("remove", help="Remove model from model repository")
@@ -305,7 +304,13 @@ def start_server_with_fallback(args: argparse.Namespace, blocking=True):
         try:
             args.mode = mode
             server = start_server(args, blocking=blocking)
+        # TODO: Clean up re-entrant print error
+        except RuntimeError as e:
+            print(e)
+            break
         except Exception as e:
+            print(e)
+            print(type(e))
             msg = f"Failed to start server in '{mode}' mode. {e}"
             logger.debug(msg)
             errors.append(msg)
