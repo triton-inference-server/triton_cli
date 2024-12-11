@@ -304,13 +304,7 @@ def start_server_with_fallback(args: argparse.Namespace, blocking=True):
         try:
             args.mode = mode
             server = start_server(args, blocking=blocking)
-        # TODO: Clean up re-entrant print error
-        except RuntimeError as e:
-            print(e)
-            break
         except Exception as e:
-            print(e)
-            print(type(e))
             msg = f"Failed to start server in '{mode}' mode. {e}"
             logger.debug(msg)
             errors.append(msg)
