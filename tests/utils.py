@@ -73,15 +73,6 @@ class TritonCommands:
         run(args)
 
     def _profile(model, backend):
-        # FIXME: WAR for genai-perf bug in 24.09, remove in 24.10
-        import genai_perf
-
-        if genai_perf.__version__ == "0.0.6dev":
-            print(
-                "[WARNING] Skipping call to 'triton profile' due to known issue in genai-perf"
-            )
-            return
-
         args = ["profile", "-m", model, "--backend", backend]
         # NOTE: With default parameters, genai-perf may take upwards of 1m30s or 2m to run,
         # so limit the genai-perf run with --request-count to reduce time for testing purposes.

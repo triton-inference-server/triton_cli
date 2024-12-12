@@ -50,8 +50,8 @@ dependencies = [
     # Client deps - generally versioned together
     "grpcio>=1.66.1",
     # Use explicit client version matching genai-perf version for tagged release
-    "tritonclient[all] == 2.50",
-    "genai-perf @ git+https://github.com/triton-inference-server/perf_analyzer.git@r24.09#subdirectory=genai-perf",
+    "tritonclient[all] == 2.51",
+    "genai-perf @ git+https://github.com/triton-inference-server/perf_analyzer.git@r24.10#subdirectory=genai-perf",
     # Misc deps
     "directory-tree == 0.0.4", # may remove in future
     "docker == 6.1.3",
