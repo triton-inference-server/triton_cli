@@ -154,6 +154,13 @@ input [
     optional: true
   },
   {
+    name: "num_return_sequences"
+    data_type: TYPE_INT32
+    dims: [ 1 ]
+    reshape: { shape: [ ] }
+    optional: true
+  },
+  {
     name: "beam_width"
     data_type: TYPE_INT32
     dims: [ 1 ]
@@ -174,6 +181,12 @@ input [
   {
     name: "prompt_vocab_size"
     data_type: TYPE_INT32
+    dims: [ 1 ]
+    optional: true
+  },
+  {
+    name: "prompt_table_extra_id"
+    data_type: TYPE_UINT64
     dims: [ 1 ]
     optional: true
   },
@@ -231,6 +244,11 @@ output [
   },
   {
     name: "batch_index"
+    data_type: TYPE_INT32
+    dims: [ 1 ]
+  },
+  {
+    name: "sequence_index"
     data_type: TYPE_INT32
     dims: [ 1 ]
   }
