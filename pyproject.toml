@@ -47,7 +47,7 @@ keywords = []
 requires-python = ">=3.10,<4"
 # TODO: Add [gpu] set of dependencies for trtllm once it's available on pypi
 dependencies = [
-    "grpcio>=1.65.5",
+    "grpcio>=1.67.0",
     "directory-tree == 0.0.4", # may remove in future
     "docker == 6.1.3",
     "genai-perf @ git+https://github.com/triton-inference-server/perf_analyzer.git@r24.08#subdirectory=genai-perf",
