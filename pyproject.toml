@@ -48,7 +48,7 @@ requires-python = ">=3.10,<4"
 # TODO: Add [gpu] set of dependencies for trtllm once it's available on pypi
 dependencies = [
     # Client deps - generally versioned together
-    "grpcio>=1.66.1",
+    "grpcio>=1.67.0",
     # Use explicit client version matching genai-perf version for tagged release
     "tritonclient[all] == 2.51",
     "genai-perf @ git+https://github.com/triton-inference-server/perf_analyzer.git@r24.10#subdirectory=genai-perf",
