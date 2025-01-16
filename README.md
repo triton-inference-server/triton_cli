@@ -22,8 +22,8 @@ and running the CLI from within the latest corresponding `tritonserver`
 container image, which should have all necessary system dependencies installed.
 
 For vLLM and TRT-LLM, you can use their respective images:
-- `nvcr.io/nvidia/tritonserver:24.10-vllm-python-py3`
-- `nvcr.io/nvidia/tritonserver:24.10-trtllm-python-py3`
+- `nvcr.io/nvidia/tritonserver:25.01-vllm-python-py3`
+- `nvcr.io/nvidia/tritonserver:25.01-trtllm-python-py3`
 
 If you decide to run the CLI on the host or in a custom image, please
 see this list of [additional dependencies](#additional-dependencies-for-custom-environments)
@@ -38,6 +38,7 @@ matrix below:
 
 | Triton CLI Version | TRT-LLM Version | Triton Container Tag |
 |:------------------:|:---------------:|:--------------------:|
+| 0.1.4  | v0.17.0 | 25.01 |
 | 0.1.1  | v0.14.0 | 24.10 |
 | 0.1.0  | v0.13.0 | 24.09 |
 | 0.0.11 | v0.12.0 | 24.08 |
@@ -60,7 +61,7 @@ It is also possible to install from a specific branch name, a commit hash
 or a tag name. For example to install `triton_cli` with a specific tag:
 
 ```bash
-GIT_REF="0.1.1"
+GIT_REF="0.1.4"
 pip install git+https://github.com/triton-inference-server/triton_cli.git@${GIT_REF}
 ```
 
