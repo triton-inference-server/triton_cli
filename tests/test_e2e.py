@@ -52,7 +52,9 @@ class TestE2E:
             ),
         ],
     )
-    @pytest.mark.timeout(600)
+    # Give ample 30min timeout for now as this test will currently download
+    # models from huggingface as well, and network speed is intermittent.
+    @pytest.mark.timeout(1800)
     def test_tensorrtllm_e2e(self, llm_server, protocol):
         # NOTE: TRTLLM test models will be passed by the testing infrastructure.
         # Only a single model will be passed per test to enable tests to run concurrently.
@@ -82,7 +84,9 @@ class TestE2E:
             ),
         ],
     )
-    @pytest.mark.timeout(900)
+    # Give ample 30min timeout for now as this test will currently download
+    # models from huggingface as well, and network speed is intermittent.
+    @pytest.mark.timeout(1800)
     def test_vllm_e2e(self, llm_server, protocol):
         # NOTE: VLLM test models will be passed by the testing infrastructure.
         # Only a single model will be passed per test to enable tests to run concurrently.
