@@ -35,6 +35,11 @@ TEST_DIR = os.path.dirname(os.path.realpath(__file__))
 MODEL_REPO = os.path.join(TEST_DIR, "test_models")
 
 
+# Give ample 30min timeout for tests that download models from huggingface
+# where network speed can be intermittent, for test consistency.
+LLM_TIMEOUT_SECS = 1800
+
+
 class TestE2E:
     @pytest.mark.skipif(
         os.environ.get("IMAGE_KIND") != "TRTLLM", reason="Only run for TRT-LLM image"
@@ -52,10 +57,8 @@ class TestE2E:
             ),
         ],
     )
-    # Give ample 30min timeout for now as this test will currently download
-    # models from huggingface as well, and network speed is intermittent.
-    @pytest.mark.timeout(1800)
-    def test_tensorrtllm_e2e(self, llm_server, protocol):
+    @pytest.mark.timeout(LLM_TIMEOUT_SECS)
+    def test_tensorrtllm_e2e(self, trtllm_server, protocol):
         # NOTE: TRTLLM test models will be passed by the testing infrastructure.
         # Only a single model will be passed per test to enable tests to run concurrently.
         model = os.environ.get("TRTLLM_MODEL")
@@ -64,7 +67,7 @@ class TestE2E:
         source = os.environ.get("MODEL_SOURCE")
         TritonCommands._clear()
         TritonCommands._import(model, source=source, backend="tensorrtllm")
-        llm_server.start()
+        trtllm_server.start()
         TritonCommands._infer(model, prompt=PROMPT, protocol=protocol)
         TritonCommands._profile(model, backend="tensorrtllm")
 
@@ -84,10 +87,8 @@ class TestE2E:
             ),
         ],
     )
-    # Give ample 30min timeout for now as this test will currently download
-    # models from huggingface as well, and network speed is intermittent.
-    @pytest.mark.timeout(1800)
-    def test_vllm_e2e(self, llm_server, protocol):
+    @pytest.mark.timeout(LLM_TIMEOUT_SECS)
+    def test_vllm_e2e(self, vllm_server, protocol):
         # NOTE: VLLM test models will be passed by the testing infrastructure.
         # Only a single model will be passed per test to enable tests to run concurrently.
         model = os.environ.get("VLLM_MODEL")
@@ -96,12 +97,7 @@ class TestE2E:
         source = os.environ.get("MODEL_SOURCE")
         TritonCommands._clear()
         TritonCommands._import(model, source=source)
-        # vLLM will download the model on the fly, so give it a big timeout
-        # TODO: Consider one of the following
-        # (a) Pre-download and mount larger models in test environment
-        # (b) Download model from HF for vLLM at import step to remove burden
-        #     from server startup step.
-        llm_server.start()
+        vllm_server.start()
         TritonCommands._infer(model, prompt=PROMPT, protocol=protocol)
         TritonCommands._profile(model, backend="vllm")
 
