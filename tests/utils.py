@@ -107,6 +107,7 @@ class ScopedTritonServer:
         self.repo = repo
         self.mode = mode
         self.timeout = timeout
+        self.proc = None
 
     def __enter__(self):
         self.start()
@@ -132,6 +133,9 @@ class ScopedTritonServer:
         return p
 
     def wait_for_server_ready(self, timeout: int = 60):
+        if not self.proc:
+            raise RuntimeError("Server process wasn't started")
+
         start = time.time()
         while True:
             try:
@@ -147,6 +151,12 @@ class ScopedTritonServer:
                     raise RuntimeError("Server failed to start in time.") from err
 
     def kill_server(self, timeout: int = 60):
+        if not self.proc:
+            # If process wasn't started by this point, just print the error and
+            # gracefully exit for now.
+            print("ERROR: Server process wasn't started")
+            return
+
         try:
             self.proc.terminate()
             self.proc.wait(timeout=timeout)  # Wait for triton to clean up
@@ -154,6 +164,8 @@ class ScopedTritonServer:
             self.proc.kill()
             self.proc.wait()  # Indefinetely wait until the process is cleaned up.
         except psutil.NoSuchProcess as e:
+            print(e)
+        except AttributeError as e:
             print(e)
 
     def check_server_ready(self):
