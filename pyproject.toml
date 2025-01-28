@@ -54,7 +54,8 @@ dependencies = [
     "genai-perf @ git+https://github.com/triton-inference-server/perf_analyzer.git@r24.10#subdirectory=genai-perf",
     # Misc deps
     "directory-tree == 0.0.4", # may remove in future
-    "docker == 6.1.3",
+    # https://github.com/docker/docker-py/issues/3256#issuecomment-2376439000
+    "docker == 7.1.0",
     # TODO: rely on tritonclient to pull in protobuf and numpy dependencies?
     "numpy >=1.21,<2",
     "protobuf>=3.7.0",
