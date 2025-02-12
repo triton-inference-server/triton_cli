@@ -27,6 +27,13 @@
 name: "preprocessing"
 backend: "python"
 max_batch_size: ${triton_max_batch_size}
+
+dynamic_batching {
+    preferred_batch_size: [ ${triton_max_batch_size} ]
+    max_queue_delay_microseconds: ${max_queue_delay_microseconds}
+    default_queue_policy: { max_queue_size: ${max_queue_size} }
+}
+
 input [
     {
         name: "QUERY"
@@ -37,6 +44,24 @@ input [
         name: "DECODER_QUERY"
         data_type: TYPE_STRING
         dims: [ 1 ]
+        optional: true
+    },
+    {
+        name: "IMAGE_BYTES"
+        data_type: TYPE_UINT8
+        dims: [ -1, -1, -1, -1 ]
+        optional: true
+    },
+    {
+        name: "IMAGE_URL"
+        data_type: TYPE_STRING
+        dims: [ 1 ]
+        optional: true
+    },
+    {
+        name: "VIDEO_BYTES"
+        data_type: TYPE_UINT8
+        dims: [ -1, -1, -1, -1 ]
         optional: true
     },
     {
@@ -142,6 +167,38 @@ output [
         name: "OUT_PROMPT_TABLE_EXTRA_IDS"
         data_type: TYPE_UINT64
         dims: [ -1 ]
+    },
+    {
+        name: "PIXEL_VALUES"
+        data_type: TYPE_FP16
+        dims: [ -1, -1, -1, -1 ]
+    },
+    {
+        name: "ASPECT_RATIO_IDS"
+        data_type: TYPE_INT64
+        dims: [ -1 ]
+    },
+    {
+        name: "ASPECT_RATIO_MASK"
+        data_type: TYPE_INT64
+        dims: [ -1, -1 ]
+    },
+    {
+        name: "CROSS_ATTENTION_MASK"
+        data_type: TYPE_INT64
+        dims: [ -1, -1, -1 ]
+    },
+    # Required for image postprocessing in the llava_onevision model
+    {
+        name: "IMAGE_SIZES"
+        data_type: TYPE_INT64
+        dims: [ 2 ]
+    },
+    # Indicates if the input is video in the llava_onevision model
+    {
+        name: "IS_VIDEO_INPUT"
+        data_type: TYPE_BOOL
+        dims: [ 1 ]
     }
 ]
 
@@ -170,6 +227,13 @@ parameters: {
   key: "gpt_model_path"
   value: {
     string_value: "${engine_dir}"
+  }
+}
+
+parameters: {
+  key: "max_num_images"
+  value: {
+    string_value: "${max_num_images}"
   }
 }
 

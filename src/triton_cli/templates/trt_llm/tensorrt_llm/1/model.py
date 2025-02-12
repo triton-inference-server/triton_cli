@@ -3,8 +3,10 @@ import json
 import os
 import sys
 import time
+from dataclasses import dataclass
 from random import randint
 from threading import Lock, Thread
+from typing import Any, List
 
 import numpy as np
 import torch
@@ -13,6 +15,52 @@ from torch import from_numpy
 from torch.utils.dlpack import from_dlpack
 
 import tensorrt_llm.bindings.executor as trtllm
+from tensorrt_llm.llmapi.tokenizer import _xgrammar_tokenizer_info
+
+METRIC_TOTAL_OUTPUT_TOKENS = "total_output_tokens"
+METRIC_TOTAL_INPUT_TOKENS = "total_input_tokens"
+import tensorrt_llm.logger as logger
+
+# From https://github.com/pytorch/pytorch/blob/39425feac799905402abe4d15667fa47c344f2d7/torch/testing/_internal/common_utils.py#L1761
+# Dict of NumPy dtype -> torch dtype (when the correspondence exists)
+numpy_to_torch_dtype_dict = {
+    np.bool_: torch.bool,
+    np.uint8: torch.uint8,
+    np.uint16: torch.uint16,
+    np.uint32: torch.uint32,
+    np.uint64: torch.uint64,
+    np.int8: torch.int8,
+    np.int16: torch.int16,
+    np.int32: torch.int32,
+    np.int64: torch.int64,
+    np.float16: torch.float16,
+    np.float32: torch.float32,
+    np.float64: torch.float64,
+    np.complex64: torch.complex64,
+    np.complex128: torch.complex128
+}
+
+# Dict of torch dtype -> NumPy dtype
+torch_to_numpy_dtype_dict = {
+    value: key
+    for (key, value) in numpy_to_torch_dtype_dict.items()
+}
+torch_to_numpy_dtype_dict.update({
+    torch.bfloat16: np.float32,
+    torch.complex32: np.complex64
+})
+
+
+@dataclass
+class RequestData:
+    triton_req_id: int
+    triton_user_id: str
+    batch_index: int
+    batch_size: int
+    num_return_sequences: int
+    num_input_tokens: int
+    num_output_tokens: int
+    response_sender: Any
 
 
 def mpi_comm():
@@ -27,12 +75,13 @@ def mpi_rank():
 def get_input_tensor_by_name(request,
                              name,
                              expected_batch_size=None,
-                             batch_index=None):
+                             batch_index=None,
+                             force_on_torch=False):
     tensor = pb_utils.get_input_tensor_by_name(request, name)
     if tensor is None:
         return None
 
-    if tensor.is_cpu():
+    if tensor.is_cpu() and not force_on_torch:
         tensor = tensor.as_numpy()
     else:
         tensor = from_dlpack(tensor.to_dlpack())
@@ -135,6 +184,10 @@ def parse_medusa_choices(medusa_choices):
     return result
 
 
+def parse_eagle_choices(eagle_choices):
+    return parse_medusa_choices(eagle_choices)
+
+
 def get_sampling_config_from_request(request, batch_size=1, batch_index=0):
     kwargs = {}
     kwargs['beam_width'] = get_input_scalar_by_name(
@@ -171,6 +224,8 @@ def get_sampling_config_from_request(request, batch_size=1, batch_index=0):
         request, 'beam_search_diversity_rate', batch_size, batch_index)
     kwargs['early_stopping'] = get_input_scalar_by_name(
         request, 'early_stopping', batch_size, batch_index)
+    kwargs['num_return_sequences'] = get_input_scalar_by_name(
+        request, 'num_return_sequences', batch_size, batch_index) or 1
     kwargs = {k: v for k, v in kwargs.items() if v is not None}
     return trtllm.SamplingConfig(**kwargs)
 
@@ -183,6 +238,8 @@ def get_output_config_from_request(request, batch_size=1, batch_index=0):
         request, 'return_context_logits', batch_size, batch_index)
     kwargs["return_generation_logits"] = get_input_scalar_by_name(
         request, 'return_generation_logits', batch_size, batch_index)
+    kwargs["return_perf_metrics"] = get_input_scalar_by_name(
+        request, 'return_kv_cache_reuse_stats', batch_size, batch_index)
     kwargs = {k: v for k, v in kwargs.items() if v is not None}
     return trtllm.OutputConfig(**kwargs)
 
@@ -198,7 +255,7 @@ def get_external_draft_tokens_config_from_request(request,
     draft_logits = get_input_tensor_by_name(request, 'draft_logits',
                                             batch_size, batch_index)
     if draft_logits is not None:
-        kwargs['logits'] = from_numpy(draft_logits).squeeze()
+        kwargs['logits'] = from_numpy(draft_logits).squeeze(dim=0)
     kwargs['acceptance_threshold'] = get_input_scalar_by_name(
         request, 'draft_acceptance_threshold', batch_size, batch_index)
     kwargs = {k: v for k, v in kwargs.items() if v is not None}
@@ -220,7 +277,7 @@ def get_prompt_tuning_config_from_request(request,
     if prompt_embedding_table is not None:
         if isinstance(prompt_embedding_table, np.ndarray):
             kwargs["embedding_table"] = from_numpy(
-                prompt_embedding_table).squeeze()
+                prompt_embedding_table).squeeze(dim=0)
         elif isinstance(prompt_embedding_table, torch.Tensor):
             kwargs["embedding_table"] = prompt_embedding_table.squeeze(dim=0)
 
@@ -242,15 +299,155 @@ def get_lora_config_from_request(request, batch_size=1, batch_index=0):
     lora_weights = get_input_tensor_by_name(request, 'lora_weights',
                                             batch_size, batch_index)
     if lora_weights is not None:
-        kwargs["weights"] = from_numpy(lora_weights).squeeze()
+        kwargs["weights"] = from_numpy(lora_weights).squeeze(dim=0)
     lora_config = get_input_tensor_by_name(request, 'lora_config', batch_size,
                                            batch_index)
     if lora_config is not None:
-        kwargs["config"] = from_numpy(lora_config).squeeze()
+        kwargs["config"] = from_numpy(lora_config).squeeze(dim=0)
     kwargs = {k: v for k, v in kwargs.items() if v is not None}
     if len(kwargs) > 0:
         return trtllm.LoraConfig(**kwargs)
     return None
+
+
+def get_guided_decoding_params_from_request(request,
+                                            batch_size=1,
+                                            batch_index=0):
+    kwargs = {}
+    guided_decoding_guide_type = get_input_tensor_by_name(
+        request, 'guided_decoding_guide_type', batch_size, batch_index)
+    if guided_decoding_guide_type is not None:
+        guided_decoding_guide_type = guided_decoding_guide_type.squeeze(
+            axis=0)[0].decode()
+        guided_decoding_guide_type_mapping = {
+            "json": trtllm.GuidedDecodingParams.GuideType.JSON,
+            "json_schema": trtllm.GuidedDecodingParams.GuideType.JSON_SCHEMA,
+            "regex": trtllm.GuidedDecodingParams.GuideType.REGEX,
+            "ebnf_grammar": trtllm.GuidedDecodingParams.GuideType.EBNF_GRAMMAR
+        }
+        guided_decoding_guide_type = guided_decoding_guide_type_mapping.get(
+            guided_decoding_guide_type)
+    kwargs['guide_type'] = guided_decoding_guide_type
+
+    guided_decoding_guide = get_input_tensor_by_name(request,
+                                                     'guided_decoding_guide',
+                                                     batch_size, batch_index)
+    if guided_decoding_guide is not None:
+        kwargs['guide'] = guided_decoding_guide.squeeze(axis=0)[0].decode()
+    kwargs = {k: v for k, v in kwargs.items() if v is not None}
+    if len(kwargs) > 0:
+        return trtllm.GuidedDecodingParams(**kwargs)
+    return None
+
+
+def get_kv_cache_retention_config_from_request(request,
+                                               batch_size=1,
+                                               batch_index=0):
+
+    def get_tensor_and_check_length(name: str, expected_length: int):
+        tensor = get_input_tensor_by_name(request, name, batch_size,
+                                          batch_index)
+
+        if tensor is None:
+            raise RuntimeError(f"{name} must be provided.")
+
+        tensor = np.squeeze(tensor, axis=0)
+
+        if len(tensor) != expected_length:
+            raise RuntimeError(
+                f"Invalid {name} length. Expected length {expected_length}, got length {len(tensor)}"
+            )
+
+        return tensor
+
+    token_range_starts = get_input_tensor_by_name(
+        request, "retention_token_range_starts", batch_size, batch_index)
+
+    if token_range_starts is not None:
+        token_range_starts = np.squeeze(token_range_starts, axis=0)
+
+        token_range_ends = get_tensor_and_check_length(
+            "retention_token_range_ends", len(token_range_starts))
+        token_range_ends = [
+            None if end == -1 else end for end in token_range_ends
+        ]
+
+        token_range_priorities = get_tensor_and_check_length(
+            "retention_token_range_priorities", len(token_range_starts))
+
+        token_range_durations_ms = get_input_tensor_by_name(
+            request, "retention_token_range_durations_ms", batch_size,
+            batch_index)
+
+        if token_range_durations_ms is None:
+            token_range_durations_ms = [None] * len(token_range_starts)
+        else:
+            token_range_durations_ms = np.squeeze(token_range_durations_ms,
+                                                  axis=0)
+            token_range_durations_ms = [
+                None if duration == -1 else duration
+                for duration in token_range_durations_ms
+            ]
+
+            if len(token_range_durations_ms) != len(token_range_starts):
+                raise RuntimeError(
+                    f"Invalid retention_token_range_durations length. Expected length {len(token_range_starts)}, got length {len(token_range_durations_ms)}"
+                )
+
+        ranges = []
+
+        for start, end, priority, duration_ms in zip(token_range_starts,
+                                                     token_range_ends,
+                                                     token_range_priorities,
+                                                     token_range_durations_ms):
+            ranges.append(
+                trtllm.KvCacheRetentionConfig.TokenRangeRetentionConfig(
+                    token_start=start,
+                    token_end=end,
+                    priority=priority.item(),
+                    duration_ms=None if duration_ms is None else
+                    datetime.timedelta(milliseconds=duration_ms.item())))
+
+        decode_args = {}
+
+        decode_priority = get_input_scalar_by_name(
+            request, "retention_decode_priority", batch_size, batch_index)
+        if decode_priority is not None:
+            decode_args['decode_retention_priority'] = decode_priority
+
+        decode_duration_ms = get_input_scalar_by_name(
+            request, "retention_decode_duration_ms", batch_size, batch_index)
+        if decode_duration_ms is not None:
+            decode_args[
+                'decode_duration_ms'] = decode_duration_ms if decode_duration_ms != -1 else None
+
+        return trtllm.KvCacheRetentionConfig(
+            token_range_retention_configs=ranges, **decode_args)
+
+    return None
+
+
+def build_1_2_5_buckets(max_value: int) -> List[int]:
+    """
+    Builds a list of buckets with increasing powers of 10 multiplied by
+    mantissa values (1, 5), starting from 10 until the value exceeds
+    the specified maximum.
+
+    Example:
+    >>> build_1_2_5_buckets(1000)
+    [10, 50, 100, 500, 1000]
+    """
+    mantissa_lst = [1, 5]
+    exponent = 1  # Start from exponent 1 instead of 0
+    buckets: List[int] = []
+    while True:
+        for m in mantissa_lst:
+            value = m * 10**exponent
+            if value <= max_value:
+                buckets.append(value)
+            else:
+                return buckets
+        exponent += 1
 
 
 def convert_request(request, exclude_input_from_output, decoupled):
@@ -280,7 +477,6 @@ def convert_request(request, exclude_input_from_output, decoupled):
             input_length = len(input_token_ids)
         # Trim input token ids with input_lengths
         inputs['input_token_ids'] = input_token_ids[0:input_length]
-
         inputs['max_new_tokens'] = get_input_scalar_by_name(
             request, 'request_output_len', batch_size, batch_index)
         if inputs['max_new_tokens'] is None:
@@ -291,9 +487,6 @@ def convert_request(request, exclude_input_from_output, decoupled):
         if inputs['streaming'] and not decoupled:
             raise pb_utils.TritonModelException(
                 "Streaming is only supported in decoupled mode.")
-
-        inputs['num_return_sequences'] = get_input_scalar_by_name(
-            request, 'num_return_sequences', batch_size, batch_index) or 1
 
         inputs['end_id'] = get_input_scalar_by_name(request, 'end_id',
                                                     batch_size, batch_index)
@@ -308,7 +501,8 @@ def convert_request(request, exclude_input_from_output, decoupled):
         embedding_bias = get_input_tensor_by_name(request, 'embedding_bias',
                                                   batch_size, batch_index)
         if embedding_bias is not None and embedding_bias.size != 0:
-            inputs['embedding_bias'] = from_numpy(embedding_bias).squeeze()
+            inputs['embedding_bias'] = from_numpy(embedding_bias).squeeze(
+                dim=0)
 
         sampling_config = get_sampling_config_from_request(
             request, batch_size, batch_index)
@@ -320,7 +514,7 @@ def convert_request(request, exclude_input_from_output, decoupled):
             # if request doesn't specify exclude_input_from_output, try to use the parameter
             output_config.exclude_input_from_output = (
                 exclude_input_from_output
-                if exclude_input_from_output is not None else false)
+                if exclude_input_from_output is not None else False)
         else:
             output_config.exclude_input_from_output = req_exclude_input_from_output
 
@@ -330,6 +524,51 @@ def convert_request(request, exclude_input_from_output, decoupled):
             request, batch_size, batch_index, input_length)
         lora_config = get_lora_config_from_request(request, batch_size,
                                                    batch_index)
+        kv_cache_retention_config = get_kv_cache_retention_config_from_request(
+            request, batch_size, batch_index)
+
+        # Inputs for mllama support
+        encoder_input_features = get_input_tensor_by_name(
+            request, 'encoder_input_features', batch_size, batch_index)
+        if encoder_input_features is not None:
+            if isinstance(encoder_input_features, np.ndarray):
+                encoder_input_features = from_numpy(
+                    encoder_input_features).squeeze(dim=0)
+            elif isinstance(encoder_input_features, torch.Tensor):
+                encoder_input_features = encoder_input_features.squeeze(dim=0)
+            inputs['encoder_input_features'] = encoder_input_features
+            logger.debug(
+                f"inputs to llm: encoder_input_features ({encoder_input_features.shape}"
+            )
+
+            encoder_output_length = get_input_tensor_by_name(
+                request, 'encoder_output_lengths', batch_size, batch_index)
+            if encoder_output_length is not None:
+                inputs['encoder_output_length'] = np.squeeze(
+                    encoder_output_length, axis=0)
+
+            cross_attention_mask = get_input_tensor_by_name(
+                request, 'cross_attention_mask', batch_size, batch_index)
+            if cross_attention_mask is not None:
+                inputs['cross_attention_mask'] = cross_attention_mask[0]
+                logger.debug(
+                    f"inputs to llm: cross_attention_mask ({ cross_attention_mask.shape})"
+                )
+
+            skip_cross_attn_blocks = get_input_tensor_by_name(
+                request,
+                'skip_cross_attn_blocks',
+                batch_size,
+                batch_index,
+                force_on_torch=True)
+            if skip_cross_attn_blocks is not None:
+                inputs['skip_cross_attn_blocks'] = skip_cross_attn_blocks[0]
+                logger.debug(
+                    f"inputs to llm: skip_cross_attn_blocks ({ skip_cross_attn_blocks.shape})"
+                )
+
+        guided_decoding_params = get_guided_decoding_params_from_request(
+            request, batch_size, batch_index)
 
         requests.append(
             trtllm.Request(
@@ -339,16 +578,21 @@ def convert_request(request, exclude_input_from_output, decoupled):
                 external_draft_tokens_config=external_draft_tokens_config,
                 prompt_tuning_config=prompt_tuning_config,
                 lora_config=lora_config,
-            ))
+                guided_decoding_params=guided_decoding_params,
+                kv_cache_retention_config=kv_cache_retention_config))
     return requests
 
 
-def convert_response(response, batch_index, batch_size, num_return_sequences):
+def convert_response(response,
+                     batch_index,
+                     batch_size,
+                     num_return_sequences,
+                     expected_logits_dtype=torch.float32):
 
     if response.has_error():
         return pb_utils.InferenceResponse(output_tensors=[],
                                           error=pb_utils.TritonError(
-                                              response.error_msg)), True
+                                              response.error_msg)), True, 0
     result = response.result
     beam_lengths = np.expand_dims(
         np.array([len(beam) for beam in result.output_token_ids], np.int32), 0)
@@ -358,6 +602,7 @@ def convert_response(response, batch_index, batch_size, num_return_sequences):
     for idx, beam in enumerate(result.output_token_ids):
         output_ids[0, idx, :len(beam)] = beam
 
+    output_lengths = output_ids.size
     output_tensors = [
         pb_utils.Tensor("output_ids", output_ids),
         pb_utils.Tensor("sequence_length", beam_lengths),
@@ -376,18 +621,24 @@ def convert_response(response, batch_index, batch_size, num_return_sequences):
                 np.expand_dims(np.array(result.log_probs, np.float32), 0)))
 
     if result.context_logits is not None:
+        assert (result.context_logits.dtype is expected_logits_dtype)
         output_tensors.append(
             pb_utils.Tensor(
                 "context_logits",
-                np.expand_dims(np.array(result.context_logits, np.float32),
-                               0)))
+                np.expand_dims(
+                    np.array(
+                        result.context_logits, torch_to_numpy_dtype_dict[
+                            result.context_logits.dtype]), 0)))
 
     if result.generation_logits is not None:
+        assert (result.generation_logits.dtype is expected_logits_dtype)
         output_tensors.append(
             pb_utils.Tensor(
                 "generation_logits",
-                np.expand_dims(np.array(result.generation_logits, np.float32),
-                               0)))
+                np.expand_dims(
+                    np.array(
+                        result.generation_logits, torch_to_numpy_dtype_dict[
+                            result.generation_logits.dtype]), 0)))
 
     if batch_size > 1:
         output_tensors.append(
@@ -402,7 +653,29 @@ def convert_response(response, batch_index, batch_size, num_return_sequences):
                 np.expand_dims(np.array([result.sequence_index], np.int32),
                                0)))
 
-    return pb_utils.InferenceResponse(output_tensors), result.is_final
+    if result.request_perf_metrics is not None:
+        kv_cache_metrics = result.request_perf_metrics.kv_cache_metrics
+        output_tensors.append(
+            pb_utils.Tensor(
+                "kv_cache_alloc_new_blocks",
+                np.expand_dims(
+                    np.array([kv_cache_metrics.num_new_allocated_blocks],
+                             np.int32), 0)))
+        output_tensors.append(
+            pb_utils.Tensor(
+                "kv_cache_reused_blocks",
+                np.expand_dims(
+                    np.array([kv_cache_metrics.num_reused_blocks], np.int32),
+                    0)))
+        output_tensors.append(
+            pb_utils.Tensor(
+                "kv_cache_alloc_total_blocks",
+                np.expand_dims(
+                    np.array([kv_cache_metrics.num_total_allocated_blocks],
+                             np.int32), 0)))
+
+    return pb_utils.InferenceResponse(
+        output_tensors), result.is_final, output_lengths
 
 
 def convert_scheduler_policy(batch_scheduler_policy: str):
@@ -443,6 +716,12 @@ def convert_decoding_mode(decoding_mode: str):
         return trtllm.DecodingMode.BeamSearch()
     elif decoding_mode == "medusa":
         return trtllm.DecodingMode.Medusa()
+    elif decoding_mode == "redrafter":
+        return trtllm.DecodingMode.ExplicitDraftTokens()
+    elif decoding_mode == "lookahead":
+        return trtllm.DecodingMode.Lookahead()
+    elif decoding_mode == "eagle":
+        return trtllm.DecodingMode.Eagle()
     raise pb_utils.TritonModelException(
         f"decoding_mode value of '{decoding_mode}' is not supported.")
 
@@ -451,6 +730,22 @@ def convert_timestamp_to_seconds(timestamp: str):
     return int(
         datetime.datetime.strptime(timestamp,
                                    "%m-%d-%Y %H:%M:%S.%f").timestamp())
+
+
+def triton_string_to_torch(dtype):
+    type_map = {
+        "TYPE_BOOL": torch.bool,
+        "TYPE_UINT8": torch.uint8,
+        "TYPE_INT8": torch.int8,
+        "TYPE_INT16": torch.int16,
+        "TYPE_INT32": torch.int32,
+        "TYPE_INT64": torch.int64,
+        "TYPE_FP16": torch.float16,
+        "TYPE_FP32": torch.float32,
+        "TYPE_FP64": torch.float64,
+        "TYPE_BF16": torch.bfloat16
+    }
+    return type_map[dtype]
 
 
 class TritonPythonModel:
@@ -540,10 +835,15 @@ class TritonPythonModel:
         return trtllm.PeftCacheConfig(**kwargs)
 
     def get_decoding_config(self, model_config):
+        eagle_choices = parse_eagle_choices(
+            get_parameter(model_config, "eagle_choices"))
         kwargs = {
             "medusa_choices":
             parse_medusa_choices(get_parameter(model_config,
                                                "medusa_choices")),
+            "eagle_config":
+            None
+            if eagle_choices is None else trtllm.EagleConfig(eagle_choices),
             "decoding_mode":
             convert_decoding_mode(get_parameter(model_config,
                                                 "decoding_mode")),
@@ -557,10 +857,43 @@ class TritonPythonModel:
             "multi_block_mode":
             get_parameter(model_config, "multi_block_mode", bool),
             "enable_context_fmha_fp32_acc":
-            get_parameter(model_config, "enable_context_fmha_fp32_acc", bool)
+            get_parameter(model_config, "enable_context_fmha_fp32_acc", bool),
+            "cuda_graph_mode":
+            get_parameter(model_config, "cuda_graph_mode", bool),
+            "cuda_graph_cache_size":
+            get_parameter(model_config, "cuda_graph_cache_size", int),
         }
         kwargs = {k: v for k, v in kwargs.items() if v is not None}
         return trtllm.ExtendedRuntimePerfKnobConfig(**kwargs)
+
+    def get_guided_decoding_config(self, model_config):
+
+        guided_decoding_backend = get_parameter(model_config,
+                                                "guided_decoding_backend", str)
+
+        tokenizer_dir = get_parameter(model_config, "tokenizer_dir", str)
+        if guided_decoding_backend not in ['xgrammar']:
+            if tokenizer_dir:
+                pb_utils.Logger.log_warn(
+                    f"Guided decoding backend has not been set but tokenizer_dir is given. Tokenizer_dir will be ignored."
+                )
+            return None
+
+        if guided_decoding_backend == 'xgrammar':
+            guided_decoding_backend = trtllm.GuidedDecodingConfig.GuidedDecodingBackend.XGRAMMAR
+
+        if not tokenizer_dir:
+            raise ValueError(
+                "Guided decoding requires tokenizer's information. Please provide 'tokenizer_dir'."
+            )
+        from transformers import AutoTokenizer
+        tokenizer = AutoTokenizer.from_pretrained(tokenizer_dir)
+        pb_utils.Logger.log_info(
+            f"Guided decoding has been set with {guided_decoding_backend} backend"
+        )
+        return trtllm.GuidedDecodingConfig(
+            backend=guided_decoding_backend,
+            **_xgrammar_tokenizer_info(tokenizer))
 
     def get_executor_config(self, model_config):
         kwargs = {
@@ -592,7 +925,9 @@ class TritonPythonModel:
                 {},
             ).get("max_queue_size"),
             "extended_runtime_perf_knob_config":
-            self.get_extended_runtime_perf_knob_config(model_config)
+            self.get_extended_runtime_perf_knob_config(model_config),
+            "guided_decoding_config":
+            self.get_guided_decoding_config(model_config)
         }
         kwargs = {k: v for k, v in kwargs.items() if v is not None}
         return trtllm.ExecutorConfig(**kwargs)
@@ -623,6 +958,17 @@ class TritonPythonModel:
             name="nv_trt_llm_general_metrics",
             description="General TRT LLM metrics",
             kind=pb_utils.MetricFamily.GAUGE,
+        )
+        # Set the metric using self.general_metric_output_family.observe(string_size)
+        self.request_tokens_metric_family = pb_utils.MetricFamily(
+            name="nv_llm_input_token_len",
+            description="TRT LLM response metrics",
+            kind=pb_utils.MetricFamily.HISTOGRAM,
+        )
+        self.response_tokens_metric_family = pb_utils.MetricFamily(
+            name="nv_llm_output_token_len",
+            description="TRT LLM response metrics",
+            kind=pb_utils.MetricFamily.HISTOGRAM,
         )
         common_labels = {"model": model, "version": version}
         self.all_metrics = {
@@ -695,6 +1041,20 @@ class TritonPythonModel:
                 "general_type": "iteration_counter",
                 **common_labels
             }),
+            METRIC_TOTAL_OUTPUT_TOKENS:
+            self.response_tokens_metric_family.Metric(
+                labels={
+                    "response_metric_type": METRIC_TOTAL_OUTPUT_TOKENS,
+                    **common_labels
+                },
+                buckets=build_1_2_5_buckets(1000)),
+            METRIC_TOTAL_INPUT_TOKENS:
+            self.request_tokens_metric_family.Metric(
+                labels={
+                    "response_metric_type": METRIC_TOTAL_INPUT_TOKENS,
+                    **common_labels
+                },
+                buckets=build_1_2_5_buckets(1000)),
         }
         if is_v1_model:
             self.all_metrics.update({
@@ -780,10 +1140,11 @@ class TritonPythonModel:
         self.stats_check_period_ms = get_parameter(
             model_config, "stats_check_period_ms", int) or 100
 
-        if not self.decoupled:
-            raise pb_utils.TritonModelException(
-                "Please enable decoupled transaction policy in the model configuration to serve this model"
-            )
+        self.logits_dtype = None
+        for output in model_config['output']:
+            if output['name'] == 'context_logits' or output[
+                    'name'] == 'generation_logits':
+                self.logits_dtype = triton_string_to_torch(output['data_type'])
 
         self.create_metrics(args["model_name"],
                             args["model_version"],
@@ -893,12 +1254,22 @@ class TritonPythonModel:
                     request_ids, triton_req_ids, triton_user_ids,
                     executor_requests, triton_requests, batch_indices):
 
-                self.req_id_to_request_data[
-                    req_id] = triton_req_id, triton_user_id, batch_index, len(
-                        batch_indices
-                    ), executor_request.num_return_sequences, triton_request.get_response_sender(
-                    )
+                self.req_id_to_request_data[req_id] = RequestData(
+                    triton_req_id, triton_user_id, batch_index,
+                    len(batch_indices),
+                    executor_request.sampling_config.num_return_sequences, 0,
+                    0, triton_request.get_response_sender())
                 self.triton_req_id_to_req_ids[triton_req_id].add(req_id)
+                input_len = len(
+                    executor_request.input_token_ids
+                ) if executor_request.input_token_ids is not None else 0
+                self.req_id_to_request_data[
+                    req_id].num_input_tokens += input_len
+                # This checks both request level and instance config level
+                if executor_request.output_config.exclude_input_from_output == False and executor_request.streaming == False:
+                    self.req_id_to_request_data[
+                        req_id].num_output_tokens -= self.req_id_to_request_data[
+                            req_id].num_input_tokens * executor_request.sampling_config.beam_width
                 if triton_user_id is not None and triton_user_id != "":
                     self.triton_user_id_to_req_ids[triton_user_id].add(req_id)
 
@@ -910,53 +1281,61 @@ class TritonPythonModel:
             for response in self.executor.await_responses(
                     timeout=datetime.timedelta(milliseconds=1)):
                 req_id = response.request_id
+                request_data = None
                 with self.lock:
                     if req_id not in self.req_id_to_request_data:
                         continue
-                    triton_req_id, triton_user_id, batch_index, batch_size, num_return_sequences, response_sender = self.req_id_to_request_data[
-                        req_id]
+                    request_data = self.req_id_to_request_data[req_id]
 
-                triton_response, is_final = convert_response(
-                    response, batch_index, batch_size, num_return_sequences)
-
+                triton_response, is_final, output_length = convert_response(
+                    response, request_data.batch_index,
+                    request_data.batch_size, request_data.num_return_sequences,
+                    self.logits_dtype)
+                with self.lock:
+                    self.req_id_to_request_data[
+                        req_id].num_output_tokens += output_length
                 triton_request_final = False
                 if is_final:
                     with self.lock:
                         # Check if all executor requests part of that triton request are finished
-                        self.triton_req_id_to_req_ids[triton_req_id].remove(
-                            req_id)
-                        if len(self.triton_req_id_to_req_ids[triton_req_id]
-                               ) == 0:
+                        self.triton_req_id_to_req_ids[
+                            request_data.triton_req_id].remove(req_id)
+                        if len(self.triton_req_id_to_req_ids[
+                                request_data.triton_req_id]) == 0:
                             pb_utils.Logger.log_info(
-                                f"DELETING Req id {req_id}, triton_req_id {triton_req_id} "
+                                f"DELETING Req id {req_id}, triton_req_id {request_data.triton_req_id} "
                             )
                             triton_request_final = True
-                            del self.triton_req_id_to_req_ids[triton_req_id]
-                            if triton_user_id is not None and triton_user_id != "":
+                            del self.triton_req_id_to_req_ids[
+                                request_data.triton_req_id]
+                            if request_data.triton_user_id is not None and request_data.triton_user_id != "":
                                 del self.triton_user_id_to_req_ids[
-                                    triton_user_id]
+                                    request_data.triton_user_id]
+                        self.update_metrics_per_request(req_id)
                         del self.req_id_to_request_data[req_id]
 
-                response_sender.send(
+                request_data.response_sender.send(
                     triton_response,
                     flags=pb_utils.TRITONSERVER_RESPONSE_COMPLETE_FINAL
                     if triton_request_final else 0)
-
-                # Remove local reference so response_sender can be cleaned properly.
-                del response_sender
 
     def cancellation_loop(self):
         """Checks if any pending requests have been cancelled."""
         while self.running:
             time.sleep(self.cancellation_check_period_ms / 1000.0)
             with self.lock:
-                for req_id, (triton_req_id, triton_user_id, batch_index,
-                             batch_size, num_return_sequences, response_sender
-                             ) in self.req_id_to_request_data.items():
-                    if response_sender.is_cancelled():
+                for req_id, request_data in self.req_id_to_request_data.items(
+                ):
+                    if request_data.response_sender.is_cancelled():
                         self.executor.cancel_request(req_id)
-                    # Remove local reference so response_sender can be cleaned properly.
-                    del response_sender
+
+    def update_metrics_per_request(self, req_id):
+        """Updates triton metrics after completing one request"""
+        output_tokens = self.req_id_to_request_data[req_id].num_output_tokens
+        input_tokens = self.req_id_to_request_data[req_id].num_input_tokens
+
+        self.all_metrics[METRIC_TOTAL_OUTPUT_TOKENS].observe(output_tokens)
+        self.all_metrics[METRIC_TOTAL_INPUT_TOKENS].observe(input_tokens)
 
     def metrics_loop(self):
         """Updates triton metrics using stats from the executor."""
@@ -965,6 +1344,12 @@ class TritonPythonModel:
             for stat in self.executor.get_latest_iteration_stats():
                 try:
                     for key, metric in self.all_metrics.items():
+                        # Skip processing for both histogram metrics
+                        if isinstance(key, str) and key in [
+                                METRIC_TOTAL_OUTPUT_TOKENS,
+                                METRIC_TOTAL_INPUT_TOKENS
+                        ]:
+                            continue
                         value = None
                         if hasattr(stat, key):
                             value = getattr(stat, key)
