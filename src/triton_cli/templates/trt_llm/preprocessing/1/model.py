@@ -128,7 +128,7 @@ class TritonPythonModel:
         if visual_model_path is not None:
             self.is_multimodal = True
             visual_model_path = os.path.join(visual_model_path, 'config.json')
-            with open(visual_model_path, 'r') as f:
+            with open(visual_model_path) as f:
                 visual_model_config = json.load(f)
             self.model_type = visual_model_config['builder_config'][
                 'model_type']
@@ -142,7 +142,7 @@ class TritonPythonModel:
             llm_model_path = model_config['parameters']['gpt_model_path'][
                 'string_value']
             llm_model_path = os.path.join(llm_model_path, 'config.json')
-            with open(llm_model_path, 'r') as f:
+            with open(llm_model_path) as f:
                 llm_model_config = json.load(f)
             self.vocab_size = int(
                 llm_model_config["pretrained_config"]["vocab_size"])

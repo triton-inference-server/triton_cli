@@ -372,7 +372,7 @@ class ModelRepository:
         # TODO: Investigate if LLM is internally saving a copy to a temp dir
         engine.save(str(engines_path))
 
-        # The new trtllm(v0.17.0+) requires explicit calling shutdown to shutdown 
+        # The new trtllm(v0.17.0+) requires explicit calling shutdown to shutdown
         # the mpi blocking thread, or the engine process won't exit
         engine.shutdown()
 
