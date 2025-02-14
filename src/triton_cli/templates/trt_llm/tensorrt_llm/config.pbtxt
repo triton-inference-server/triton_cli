@@ -44,6 +44,21 @@ input [
     data_type: TYPE_INT32
     dims: [ -1 ]
     allow_ragged_batch: true
+    optional: true
+  },
+  {
+    name: "encoder_input_features"
+    data_type: ${encoder_input_features_data_type}
+    dims: [ -1, -1 ]
+    allow_ragged_batch: true
+    optional: true
+  },
+  {
+    name: "encoder_output_lengths"
+    data_type: TYPE_INT32
+    dims: [ 1 ]
+    reshape: { shape: [ ] }
+    optional: true
   },
   {
     name: "input_lengths"
@@ -87,7 +102,7 @@ input [
   },
   {
     name: "draft_logits"
-    data_type: TYPE_FP32
+    data_type: ${logits_datatype}
     dims: [ -1, -1 ]
     optional: true
     allow_ragged_batch: true
@@ -261,6 +276,13 @@ input [
     optional: true
   },
   {
+    name: "return_kv_cache_reuse_stats"
+    data_type: TYPE_BOOL
+    dims: [ 1 ]
+    reshape: { shape: [ ] }
+    optional: true
+  },
+  {
     name: "exclude_input_in_output"
     data_type: TYPE_BOOL
     dims: [ 1 ]
@@ -301,6 +323,14 @@ input [
     dims: [ 1 ]
     reshape: { shape: [ ] }
     optional: true
+  },
+  # cross_attention_mask shape `[bs, seq_len, num_images*num_tiles]`
+  {
+    name: "cross_attention_mask"
+    data_type: TYPE_BOOL
+    dims: [ -1, -1 ]
+    optional: true
+    allow_ragged_batch: true
   },
   # the unique task ID for the given LoRA.
   # To perform inference with a specific LoRA for the first time `lora_task_id` `lora_weights` and `lora_config` must all be given.
@@ -350,6 +380,70 @@ input [
     dims: [ -1 ]
     optional: true
     allow_ragged_batch: true
+  },
+  # skip_cross_attn_blocks shape `[bs, 1]`, only used in mllama
+  {
+    name: "skip_cross_attn_blocks"
+    data_type: TYPE_BOOL
+    dims: [ 1 ]
+    optional: true
+    allow_ragged_batch: true
+  },
+  {
+    name: "retention_token_range_starts"
+    data_type: TYPE_INT32
+    dims: [ -1 ]
+    optional: true
+    allow_ragged_batch: true
+  },
+  {
+    name: "retention_token_range_ends"
+    data_type: TYPE_INT32
+    dims: [ -1 ]
+    optional: true
+    allow_ragged_batch: true
+  },
+  {
+    name: "retention_token_range_priorities"
+    data_type: TYPE_INT32
+    dims: [ -1 ]
+    optional: true
+    allow_ragged_batch: true
+  },
+  {
+    name: "retention_token_range_durations_ms"
+    data_type: TYPE_INT32
+    dims: [ -1 ]
+    optional: true
+    allow_ragged_batch: true
+  },
+  {
+    name: "retention_decode_priority"
+    data_type: TYPE_INT32
+    dims: [ 1 ]
+    optional: true
+    allow_ragged_batch: true
+  },
+  {
+    name: "retention_decode_duration_ms"
+    data_type: TYPE_INT32
+    dims: [ 1 ]
+    optional: true
+    allow_ragged_batch: true
+  },
+  {
+    name: "guided_decoding_guide_type"
+    data_type: TYPE_STRING
+    dims: [ 1 ]
+    optional: true
+    allow_ragged_batch: true
+  },
+  {
+    name: "guided_decoding_guide"
+    data_type: TYPE_STRING
+    dims: [ 1 ]
+    optional: true
+    allow_ragged_batch: true
   }
 ]
 output [
@@ -375,12 +469,12 @@ output [
   },
   {
     name: "context_logits"
-    data_type: TYPE_FP32
+    data_type: ${logits_datatype}
     dims: [ -1, -1 ]
   },
   {
     name: "generation_logits"
-    data_type: TYPE_FP32
+    data_type: ${logits_datatype}
     dims: [ -1, -1, -1 ]
   },
   {
@@ -397,6 +491,21 @@ output [
     name: "context_phase_params"
     data_type: TYPE_UINT8
     dims: [ -1 ]
+  },
+  {
+    name: "kv_cache_alloc_new_blocks"
+    data_type: TYPE_INT32
+    dims: [ 1 ]
+  },
+  {
+    name: "kv_cache_reused_blocks"
+    data_type: TYPE_INT32
+    dims: [ 1 ]
+  },
+  {
+    name: "kv_cache_alloc_total_blocks"
+    data_type: TYPE_INT32
+    dims: [ 1 ]
   }
 ]
 instance_group [
@@ -594,6 +703,12 @@ parameters: {
   }
 }
 parameters: {
+  key: "eagle_choices"
+    value: {
+      string_value: "${eagle_choices}"
+  }
+}
+parameters: {
   key: "gpu_weights_percent"
     value: {
       string_value: "${gpu_weights_percent}"
@@ -609,5 +724,35 @@ parameters: {
   key: "multi_block_mode"
   value: {
     string_value: "${multi_block_mode}"
+  }
+}
+parameters: {
+  key: "cuda_graph_mode"
+  value: {
+    string_value: "${cuda_graph_mode}"
+  }
+}
+parameters: {
+  key: "cuda_graph_cache_size"
+  value: {
+    string_value: "${cuda_graph_cache_size}"
+  }
+}
+parameters: {
+  key: "speculative_decoding_fast_logits"
+  value: {
+    string_value: "${speculative_decoding_fast_logits}"
+  }
+}
+parameters: {
+  key: "tokenizer_dir"
+  value: {
+    string_value: "${tokenizer_dir}"
+  }
+}
+parameters: {
+  key: "guided_decoding_backend"
+  value: {
+    string_value: "${guided_decoding_backend}"
   }
 }

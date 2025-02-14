@@ -1,4 +1,4 @@
-# Copyright 2023-2024, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# Copyright 2023-2025, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -51,7 +51,7 @@ dependencies = [
     "grpcio>=1.67.0",
     # Use explicit client version matching genai-perf version for tagged release
     "tritonclient[all] == 2.51",
-    "genai-perf @ git+https://github.com/triton-inference-server/perf_analyzer.git@r24.10#subdirectory=genai-perf",
+    "genai-perf @ git+https://github.com/triton-inference-server/perf_analyzer.git@r25.01#subdirectory=genai-perf",
     # Misc deps
     "directory-tree == 0.0.4", # may remove in future
     # https://github.com/docker/docker-py/issues/3256#issuecomment-2376439000

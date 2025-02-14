@@ -1,3 +1,30 @@
+<!--
+# Copyright 2025, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+#  * Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+#  * Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#  * Neither the name of NVIDIA CORPORATION nor the names of its
+#    contributors may be used to endorse or promote products derived
+#    from this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ``AS IS'' AND ANY
+# EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+# PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR
+# CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+# PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
+# OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. -->
+
 # Triton Command Line Interface (Triton CLI)
 > [!NOTE]
 > Triton CLI is currently in BETA. Its features and functionality are likely
@@ -22,8 +49,8 @@ and running the CLI from within the latest corresponding `tritonserver`
 container image, which should have all necessary system dependencies installed.
 
 For vLLM and TRT-LLM, you can use their respective images:
-- `nvcr.io/nvidia/tritonserver:24.10-vllm-python-py3`
-- `nvcr.io/nvidia/tritonserver:24.10-trtllm-python-py3`
+- `nvcr.io/nvidia/tritonserver:25.01-vllm-python-py3`
+- `nvcr.io/nvidia/tritonserver:25.01-trtllm-python-py3`
 
 If you decide to run the CLI on the host or in a custom image, please
 see this list of [additional dependencies](#additional-dependencies-for-custom-environments)
@@ -38,6 +65,7 @@ matrix below:
 
 | Triton CLI Version | TRT-LLM Version | Triton Container Tag |
 |:------------------:|:---------------:|:--------------------:|
+| 0.1.2  | v0.17.0.post1 | 25.01 |
 | 0.1.1  | v0.14.0 | 24.10 |
 | 0.1.0  | v0.13.0 | 24.09 |
 | 0.0.11 | v0.12.0 | 24.08 |
@@ -60,7 +88,7 @@ It is also possible to install from a specific branch name, a commit hash
 or a tag name. For example to install `triton_cli` with a specific tag:
 
 ```bash
-GIT_REF="0.1.1"
+GIT_REF="0.1.2"
 pip install git+https://github.com/triton-inference-server/triton_cli.git@${GIT_REF}
 ```
 
@@ -95,7 +123,7 @@ triton -h
 triton import -m gpt2
 
 # Start server pointing at the default model repository
-triton start --image nvcr.io/nvidia/tritonserver:24.10-vllm-python-py3
+triton start --image nvcr.io/nvidia/tritonserver:25.01-vllm-python-py3
 
 # Infer with CLI
 triton infer -m gpt2 --prompt "machine learning is"
@@ -120,6 +148,12 @@ minutes.
 > Also, usage of certain restricted models like Llama models requires authentication
 > in Huggingface through either `huggingface-cli login` or setting the `HF_TOKEN`
 > environment variable.
+>
+> If your huggingface cache is not located at `${HOME}/.cache/huggingface`, you could
+> set the huggingface cache with
+>
+> ex: `export HF_HOME=path/to/your/huggingface/cache`
+>
 
 ### Model Sources
 
@@ -175,26 +209,26 @@ docker run -ti \
   --shm-size=1g --ulimit memlock=-1 \
   -v ${HOME}/models:/root/models \
   -v ${HOME}/.cache/huggingface:/root/.cache/huggingface \
-  nvcr.io/nvidia/tritonserver:24.10-vllm-python-py3
+  nvcr.io/nvidia/tritonserver:25.01-vllm-python-py3
 
 # Install the Triton CLI
-pip install git+https://github.com/triton-inference-server/triton_cli.git@0.1.1
+pip install git+https://github.com/triton-inference-server/triton_cli.git@0.1.2
 
 # Authenticate with huggingface for restricted models like Llama-2 and Llama-3
 huggingface-cli login
 
 # Generate a Triton model repository containing a vLLM model config
 triton remove -m all
-triton import -m llama-3-8b-instruct --backend vllm
+triton import -m llama-3.1-8b-instruct --backend vllm
 
 # Start Triton pointing at the default model repository
 triton start
 
 # Interact with model
-triton infer -m llama-3-8b-instruct --prompt "machine learning is"
+triton infer -m llama-3.1-8b-instruct --prompt "machine learning is"
 
 # Profile model with GenAI-Perf
-triton profile -m llama-3-8b-instruct --backend vllm
+triton profile -m llama-3.1-8b-instruct --backend vllm
 ```
 
 ### Serving a TRT-LLM Model
@@ -240,26 +274,26 @@ docker run -ti \
   -v /tmp:/tmp \
   -v ${HOME}/models:/root/models \
   -v ${HOME}/.cache/huggingface:/root/.cache/huggingface \
-  nvcr.io/nvidia/tritonserver:24.10-trtllm-python-py3
+  nvcr.io/nvidia/tritonserver:25.01-trtllm-python-py3
 
 # Install the Triton CLI
-pip install git+https://github.com/triton-inference-server/triton_cli.git@0.1.0
+pip install git+https://github.com/triton-inference-server/triton_cli.git@0.1.2
 
 # Authenticate with huggingface for restricted models like Llama-2 and Llama-3
 huggingface-cli login
 
 # Build TRT LLM engine and generate a Triton model repository pointing at it
 triton remove -m all
-triton import -m llama-3-8b-instruct --backend tensorrtllm
+triton import -m llama-3.1-8b-instruct --backend tensorrtllm
 
 # Start Triton pointing at the default model repository
 triton start
 
 # Interact with model
-triton infer -m llama-3-8b-instruct --prompt "machine learning is"
+triton infer -m llama-3.1-8b-instruct --prompt "machine learning is"
 
 # Profile model with GenAI-Perf
-triton profile -m llama-3-8b-instruct --backend tensorrtllm
+triton profile -m llama-3.1-8b-instruct --backend tensorrtllm
 ```
 ## Additional Dependencies for Custom Environments
 

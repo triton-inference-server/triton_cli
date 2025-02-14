@@ -1,4 +1,4 @@
-# Copyright 2023-2024, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# Copyright 2023-2025, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -41,18 +41,6 @@ def parse_and_substitute(
     config_dict = {}
     # These fields will cause parsing issues when parsing model config if not
     # replaced, so replace with sensible defaults.
-    config_dict["triton_backend"] = "tensorrtllm"  # or python
-    config_dict["decoupled_mode"] = "True"
-    config_dict["max_queue_size"] = 0  # disable queueing by default
-    config_dict["batching_strategy"] = "inflight_fused_batching"  # "gpt_model_type"
-    config_dict["tensorrt_llm_model_name"] = "tensorrt_llm"
-    # Draft model unused by default, can be configured with speculative decoding
-    config_dict["tensorrt_llm_draft_model_name"] = ""
-
-    # Configured based on imported model flow
-    config_dict["engine_dir"] = engine_dir
-    config_dict["tokenizer_dir"] = token_dir
-    config_dict["tokenizer_type"] = token_type
 
     # FIXME: Revert handling using 'build_config' as the key when gpt migrates to using unified builder
     build_config_key = (
@@ -63,13 +51,29 @@ def parse_and_substitute(
     config_dict["triton_max_batch_size"] = config_file[build_config_key][
         "max_batch_size"
     ]
-    config_dict["max_queue_delay_microseconds"] = 1000
+
+    config_dict["logits_datatype"] = "TYPE_FP32"
+    config_dict["triton_backend"] = "tensorrtllm"  # or python
+    config_dict["decoupled_mode"] = "True"
+    config_dict["max_queue_size"] = 0  # disable queueing by default
+    config_dict["batching_strategy"] = "inflight_fused_batching"  # "gpt_model_type"
+    config_dict["tensorrt_llm_model_name"] = "tensorrt_llm"
+    config_dict["encoder_input_features_data_type"] = "TYPE_FP16"
+    # Draft model unused by default, can be configured with speculative decoding
+    config_dict["tensorrt_llm_draft_model_name"] = ""
+
+    # Configured based on imported model flow
+    config_dict["engine_dir"] = engine_dir
+    config_dict["tokenizer_dir"] = token_dir
+    config_dict["tokenizer_type"] = token_type
+
+    config_dict["max_queue_delay_microseconds"] = 0
     # Default echo = False
     config_dict["exclude_input_in_output"] = "True"
     # The following parameters are based on NGC's model requirements
-    config_dict["bls_instance_count"] = 1
     config_dict["postprocessing_instance_count"] = 1
     config_dict["preprocessing_instance_count"] = 1
+    config_dict["bls_instance_count"] = 1
 
     trtllm_filepath = triton_model_dir + "/tensorrt_llm/config.pbtxt"
     substitute(trtllm_filepath, config_dict, dry_run)

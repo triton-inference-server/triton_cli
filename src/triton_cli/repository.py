@@ -1,4 +1,4 @@
-# Copyright 2023-2024, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# Copyright 2023-2025, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -371,6 +371,10 @@ class ModelRepository:
         engine = LLM(huggingface_id, build_config=config)
         # TODO: Investigate if LLM is internally saving a copy to a temp dir
         engine.save(str(engines_path))
+
+        # The new trtllm(v0.17.0+) requires explicit calling shutdown to shutdown
+        # the mpi blocking thread, or the engine process won't exit
+        engine.shutdown()
 
     def __create_model_repository(
         self, name: str, version: int = 1, backend: str = None
