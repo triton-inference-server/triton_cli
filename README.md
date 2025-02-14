@@ -149,7 +149,7 @@ minutes.
 > in Huggingface through either `huggingface-cli login` or setting the `HF_TOKEN`
 > environment variable.
 >
-> If you huggingface cache is not located at "${HOME}/.cache/huggingface", you could
+> If your huggingface cache is not located at `${HOME}/.cache/huggingface`, you could
 > set the huggingface cache with
 >
 > ex: `export HF_HOME=path/to/your/huggingface/cache`
