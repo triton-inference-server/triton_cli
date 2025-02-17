@@ -1,0 +1,26 @@
+{
+    "max_batch_size": 64,
+    "decoupled": true,
+
+    "model":"placeholder",
+    "tokenizer": null,
+    "tokenizer_model": null,
+    "skip_tokenizer_init": null,
+    "trust_remote_code": null,
+    "tensor_parallel_size": null,
+    "dtype": null,
+    "revision": null,
+    "tokenizer_revision": null,
+    "speculative_model": null,
+    "enable_chunked_prefill": null,
+
+    "use_cuda_graph": null,
+    "cuda_graph_batch_sizes": null,
+    "cuda_graph_max_batch_size": null,
+    "cuda_graph_padding_enabled": null,
+    "enable_overlap_scheduler": null,
+    "kv_cache_dtype": null,
+    "torch_compile_enabled": null,
+    "torch_compile_fullgraph": null,
+    "torch_compile_inductor_enabled": null
+}

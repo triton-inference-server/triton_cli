@@ -67,7 +67,9 @@ SOURCE_PREFIX_HUGGINGFACE = "hf:"
 SOURCE_PREFIX_NGC = "ngc:"
 SOURCE_PREFIX_LOCAL = "local:"
 
-TRT_TEMPLATES_PATH = Path(__file__).parent / "templates" / "trt_llm"
+TEMPALTES_PATH = Path(__file__).parent / "templates"
+TRT_TEMPLATES_PATH = TEMPALTES_PATH / "trt_llm"
+LLMAPI_TEMPLATES_PATH = TEMPALTES_PATH / "llmapi"
 
 # Support changing destination dynamically to point at
 # pre-downloaded checkpoints in various circumstances
@@ -190,7 +192,6 @@ class ModelRepository:
                 raise TritonCLIException(
                     f"Local file path '{model_path}' provided by --source does not exist"
                 )
-
         model_dir, version_dir = self.__create_model_repository(name, version, backend)
 
         # Note it's a bit redundant right now, but we check prefix above first
@@ -266,6 +267,8 @@ class ModelRepository:
                     self.remove(model, verbose=False)
                 # Let detailed traceback be reported for TRT-LLM errors for debugging
                 raise e
+        elif backend == "llmapi":
+            self.__generate_llmapi_model(version_dir, huggingface_id)
         else:
             # TODO: Add generic support for HuggingFace models with HF API.
             # For now, use vLLM as a means of deploying HuggingFace Transformers
@@ -305,6 +308,21 @@ class ModelRepository:
                 local_dir=hf_download_path,
                 use_auth_token=True,  # for gated repos like llama
             )
+
+    def __generate_llmapi_model(self, version_dir, huggingface_id: str):
+        # load the model.json from llmapi template
+        model_config_file = version_dir / "model.json"
+        with open(model_config_file) as f:
+            model_config_str = f.read()
+
+        model_config_json = json.loads(model_config_str)
+
+        # change the model id as the huggingface_id
+        model_config_json["model"] = huggingface_id
+
+        # write back the model.json
+        with open(model_config_file, "w") as f:
+            f.write(json.dumps(model_config_json))
 
     def __generate_vllm_model(self, huggingface_id: str):
         backend = "vllm"
@@ -402,6 +420,18 @@ class ModelRepository:
                 logger.debug(f"Adding TensorRT-LLM models at: {self.repo}")
             else:
                 version_dir.mkdir(parents=True, exist_ok=False)
+
+                if backend == "llmapi":
+                    shutil.copytree(
+                        LLMAPI_TEMPLATES_PATH / "1",
+                        version_dir,
+                        dirs_exist_ok=True,
+                        ignore=shutil.ignore_patterns("__pycache__"),
+                    )
+                    shutil.copy(
+                        LLMAPI_TEMPLATES_PATH / "config.pbtxt",
+                        model_dir,
+                    )
                 logger.debug(f"Adding new model to repo at: {version_dir}")
         except FileExistsError:
             logger.warning(f"Overwriting existing model in repo at: {version_dir}")
