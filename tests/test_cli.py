@@ -1,4 +1,4 @@
-# Copyright 2023-2024, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# Copyright 2023-2025, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -37,6 +37,8 @@ TEST_REPOS = [None, os.path.join("tmp", "models")]
 CUSTOM_VLLM_MODEL_SOURCES = [("vllm-model", "hf:gpt2")]
 
 CUSTOM_TRTLLM_MODEL_SOURCES = [("trtllm-model", "hf:gpt2")]
+
+CUSTOM_LLMAPI_MODEL_SOURCES = [("llmapi-model", "hf:gpt2")]
 
 # TODO: Add public NGC model for testing
 CUSTOM_NGC_MODEL_SOURCES = [("my-llm", "ngc:does-not-exist")]
@@ -94,6 +96,16 @@ class TestRepo:
         # TODO: Parse repo to find TRT-LLM models and backend in config
         TritonCommands._clear()
         TritonCommands._import(model, source=source, backend="tensorrtllm")
+        TritonCommands._clear()
+
+    @pytest.mark.skipif(
+        os.environ.get("IMAGE_KIND") != "LLMAPI", reason="Only run for LLMAPI image"
+    )
+    @pytest.mark.parametrize("model,source", CUSTOM_TRTLLM_MODEL_SOURCES)
+    def test_repo_add_llmapi_build(self, model, source):
+        # TODO: Parse repo to find TRT-LLM models and backend in config
+        TritonCommands._clear()
+        TritonCommands._import(model, source=source, backend="llmapi")
         TritonCommands._clear()
 
     @pytest.mark.skip(reason="Pre-built TRT-LLM engines not available")

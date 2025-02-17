@@ -64,6 +64,18 @@ def vllm_server():
 
 
 @pytest.fixture(scope="function")
+def llmapi_server():
+    llm_repo = None
+
+    # llmapi models might need to be downloaded on the fly during model loading,
+    # so leave longer timeout in case of slow network.
+    server = ScopedTritonServer(repo=llm_repo, timeout=1800)
+    yield server
+    # Ensure server is cleaned up after each test
+    server.stop()
+
+
+@pytest.fixture(scope="function")
 def simple_server():
     test_dir = os.path.dirname(os.path.realpath(__file__))
     simple_repo = os.path.join(test_dir, "test_models")

@@ -38,7 +38,7 @@ Server.
 
 ## Table of Contents
 
-| [Pre-requisites](#pre-requisites) | [Installation](#installation) | [Quickstart](#quickstart) | [Serving LLM Models](#serving-llm-models) | [Serving a vLLM Model](#serving-a-vllm-model) | [Serving a TRT-LLM Model](#serving-a-trt-llm-model) | [Additional Dependencies for Custom Environments](#additional-dependencies-for-custom-environments) | [Known Limitations](#known-limitations) |
+| [Pre-requisites](#pre-requisites) | [Installation](#installation) | [Quickstart](#quickstart) | [Serving LLM Models](#serving-llm-models) | [Serving a vLLM Model](#serving-a-vllm-model) | [Serving a TRT-LLM Model](#serving-a-trt-llm-model) | [Serving a HuggingFace Model with LLM API](#serving-a-huggingface-model-with-llm-api) | [Additional Dependencies for Custom Environments](#additional-dependencies-for-custom-environments) | [Known Limitations](#known-limitations) |
 
 ## Pre-requisites
 
@@ -295,6 +295,46 @@ triton infer -m llama-3.1-8b-instruct --prompt "machine learning is"
 # Profile model with GenAI-Perf
 triton profile -m llama-3.1-8b-instruct --backend tensorrtllm
 ```
+
+### Serving a HuggingFace Model with LLM API
+
+The LLM API is a high-level Python API and designed for Tensorrt LLM workflows. It could
+convert the LLM weights into a Tensorrt LLM engine and serve the engine with a unified Python API.
+Huggingface models will be downloaded at runtime when starting the LLM API engine if not found
+locally in the HuggingFace cache. No offline engine building step is required,
+but you can pre-download the model in advance to avoid downloading at server
+startup time.
+
+#### Example
+
+```bash
+# This container comes with all of the dependencies for building TRT-LLM engines
+# and serving the engine with Triton Inference Server.
+docker run -ti \
+  --gpus all \
+  --network=host \
+  --shm-size=1g --ulimit memlock=-1 \
+  -v ${HOME}/models:/root/models \
+  -v ${HOME}/.cache/huggingface:/root/.cache/huggingface \
+  nvcr.io/nvidia/tritonserver:25.0x-trtllm-python-py3
+
+# Install the Triton CLI
+pip install git+https://github.com/triton-inference-server/triton_cli.git@0.1.3
+
+# Authenticate with huggingface for restricted models like Llama-2 and Llama-3
+huggingface-cli login
+
+# Build TRT LLM engine and generate a Triton model repository pointing at it
+triton remove -m all
+triton import -m llama-3.1-8b-instruct --backend llmapi
+
+# Start Triton pointing at the default model repository
+triton start
+
+# Interact with model
+triton infer -m llama-3.1-8b-instruct --prompt "machine learning is"
+```
+
 ## Additional Dependencies for Custom Environments
 
 When using Triton CLI outside of official Triton NGC containers, you may
