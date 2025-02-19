@@ -90,8 +90,11 @@ class TestE2E:
     )
     @pytest.mark.timeout(LLM_TIMEOUT_SECS)
     def test_llmapi_e2e(self, llmapi_server, protocol):
-        # NOTE: vLLM test models will be passed in by the testing infrastructure.
+        # NOTE: huggingface test models will be passed in by the testing infrastructure.
         # Only a single model will be passed in per test to enable tests to run concurrently.
+        # NOTE: llmapi "backend" is not using the exact same api format as tensorrtllm(tensorrt_llm_bls) backend or vllm backend,
+        # but genai-perf only supports those two. So we temporarily set genai-perf's backend as vllm,
+        # since the default request of vllm from genai-perf still work with llmapi "backend".
         model = os.environ.get("LLMAPI_MODEL")
         assert model is not None, "LLMAPI_MODEL env var must be set!"
         # Source is optional if using a "known: model"
@@ -100,9 +103,6 @@ class TestE2E:
         TritonCommands._import(model, source=source, backend="llmapi")
         llmapi_server.start()
         TritonCommands._infer(model, prompt=PROMPT, protocol=protocol)
-        # llmapi "backend" is not using the exact same api format as tensorrtllm(tensorrt_llm_bls) backend or vllm backend,
-        # but genai-perf only supports those two, temporarily set genai-perf's backend as vllm,
-        # since the default request of vllm from genai-perf still work with llmapi "backend"
         # TODO: update this to llmapi when genai-perf supports the llmapi backend's api format
         TritonCommands._profile(model, backend="vllm")
 

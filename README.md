@@ -307,19 +307,23 @@ startup time.
 
 #### Example
 
+Please, make sure to replace <xx.yy> with the version of Triton that you want to use.
+The latest Triton Server container could be found [here](https://catalog.ngc.nvidia.com/orgs/nvidia/containers/tritonserver/tags).
 ```bash
-# This container comes with all of the dependencies for building TRT-LLM engines
-# and serving the engine with Triton Inference Server.
+TRITON_VERSION="<xx.yy>"
 docker run -ti \
   --gpus all \
   --network=host \
   --shm-size=1g --ulimit memlock=-1 \
   -v ${HOME}/models:/root/models \
   -v ${HOME}/.cache/huggingface:/root/.cache/huggingface \
-  nvcr.io/nvidia/tritonserver:25.0x-trtllm-python-py3
+  nvcr.io/nvidia/tritonserver:${TRITON_VERSION}-trtllm-python-py3
 
 # Install the Triton CLI
-pip install git+https://github.com/triton-inference-server/triton_cli.git@0.1.3
+# Please, make sure to replace <x.y.z> with the version of Triton CLI, the version should be >= 0.1.3
+# The latest Triton CLI could be found in (https://github.com/triton-inference-server/triton_cli/releases)
+GIT_REF="<x.y.z>"
+pip install git+https://github.com/triton-inference-server/triton_cli.git@${GIT_REF}
 
 # Authenticate with huggingface for restricted models like Llama-2 and Llama-3
 huggingface-cli login
