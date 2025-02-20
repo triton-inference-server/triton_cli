@@ -72,6 +72,24 @@ class TestE2E:
         TritonCommands._profile(model, backend="tensorrtllm")
 
     @pytest.mark.skipif(
+        os.environ.get("IMAGE_KIND") != "TRTLLM", reason="Only run for TRT-LLM image"
+    )
+    @pytest.mark.timeout(LLM_TIMEOUT_SECS)
+    def test_tensorrtllm_openai_e2e(self, trtllm_openai_server):
+        # NOTE: TRTLLM test models will be passed by the testing infrastructure.
+        # Only a single model will be passed per test to enable tests to run concurrently.
+        model = os.environ.get("TRTLLM_MODEL")
+        assert model is not None, "TRTLLM_MODEL env var must be set!"
+        # Source is optional if using a "known: model"
+        source = os.environ.get("MODEL_SOURCE")
+        TritonCommands._clear()
+        TritonCommands._import(model, source=source, backend="tensorrtllm")
+        trtllm_openai_server.start()
+        TritonCommands._profile(
+            model, service_kind="openai", endpoint_type="chat", url="localhost:9000"
+        )
+
+    @pytest.mark.skipif(
         os.environ.get("IMAGE_KIND") != "VLLM", reason="Only run for VLLM image"
     )
     @pytest.mark.parametrize(
@@ -100,6 +118,24 @@ class TestE2E:
         vllm_server.start()
         TritonCommands._infer(model, prompt=PROMPT, protocol=protocol)
         TritonCommands._profile(model, backend="vllm")
+
+    @pytest.mark.skipif(
+        os.environ.get("IMAGE_KIND") != "VLLM", reason="Only run for VLLM image"
+    )
+    @pytest.mark.timeout(LLM_TIMEOUT_SECS)
+    def test_vllm_openai_e2e(self, vllm_openai_server):
+        # NOTE: VLLM test models will be passed by the testing infrastructure.
+        # Only a single model will be passed per test to enable tests to run concurrently.
+        model = os.environ.get("VLLM_MODEL")
+        assert model is not None, "VLLM_MODEL env var must be set!"
+        # Source is optional if using a "known: model"
+        source = os.environ.get("MODEL_SOURCE")
+        TritonCommands._clear()
+        TritonCommands._import(model, source=source)
+        vllm_openai_server.start()
+        TritonCommands._profile(
+            model, service_kind="openai", endpoint_type="chat", url="localhost:9000"
+        )
 
     @pytest.mark.skipif(
         os.environ.get("CI_PIPELINE") == "GITHUB_ACTIONS",
