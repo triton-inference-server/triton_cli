@@ -40,7 +40,6 @@ class TritonServerUtils:
 
     def get_launch_command(
         self,
-        tritonserver_path: str,
         server_config: TritonServerConfig,
         cmd_as_list: bool,
         env_cmds=[],
@@ -48,8 +47,6 @@ class TritonServerUtils:
         """
         Parameters
         ----------
-        tritonserver_path : str
-            Path to the tritonserver executable
         server_config : TritonServerConfig
             A TritonServerConfig object containing command-line arguments to run tritonserver
         cmd_as_list : bool
@@ -73,7 +70,9 @@ class TritonServerUtils:
             )
             cmd = self._trtllm_utils.mpi_run(server_config)
         else:
-            cmd = env_cmds + [tritonserver_path] + server_config.to_args_list()
+            cmd = (
+                env_cmds + [server_config.server_path()] + server_config.to_args_list()
+            )
 
         if cmd_as_list:
             return cmd
@@ -111,6 +110,14 @@ class TRTLLMUtils:
             An int corresponding to the appropriate world size to use to run the TRT LLM engine(s).
         """
         return self._world_size
+
+    def get_engine_path(self) -> str:
+        """
+        Returns
+        -------
+            A string indicating the path where the TRT LLM engines are stored with the tokenizer
+        """
+        return self._get_engine_path(self._trtllm_model_config_path)
 
     def mpi_run(self, server_config: TritonServerConfig) -> str:
         """
@@ -221,3 +228,79 @@ class TRTLLMUtils:
                 return tp * pp
         except OSError:
             raise Exception(f"Unable to open {engine_config_path}")
+
+
+class VLLMUtils:
+    """
+    A utility class for handling TRT LLM-specific models.
+    """
+
+    def __init__(self, model_path: str):
+        self._model_repo_path = model_path
+        self._vllm_model_config_path = self._find_vllm_model_config_path()
+        self._is_vllm_model = self._vllm_model_config_path is not None
+
+    def has_vllm_model(self) -> bool:
+        """
+        Returns
+        -------
+            A boolean indicating whether a vLLM model exists in the model repo
+        """
+        return self._is_vllm_model
+
+    def get_vllm_model_huggingface_id_or_path(self) -> str:
+        """
+        Returns
+        -------
+            The vLLM model's Huggingface Id or path
+        """
+        return self._find_vllm_model_huggingface_id_or_path()
+
+    def _find_vllm_model_config_path(self) -> Path:
+        """
+        Returns
+        -------
+            A pathlib.Path object containing the path to the vLLM model config folder.
+        Assumptions
+        ----------
+            - Assumes only a single model uses the vLLM backend (could have multiple models)
+        """
+        try:
+            match = subprocess.check_output(
+                [
+                    "grep",
+                    "-r",
+                    "--include",
+                    "*.pbtxt",
+                    'backend: "vllm"',
+                    self._model_repo_path,
+                ]
+            )
+            # Example match: b'{PATH}/config.pbtxt:backend: "tensorrtllm"\n'
+            return Path(match.decode().split(":")[0])
+        except subprocess.CalledProcessError:
+            # The 'grep' command will return a non-zero exit code
+            # if no matches are found.
+            return None
+
+    def _find_vllm_model_huggingface_id_or_path(self) -> str:
+        """
+        Returns
+        -------
+            The vLLM model's Huggingface Id or path
+        """
+        assert self._is_vllm_model, "model Huggingface Id or path cannot be parsed from a model repository that does not contain a vLLM model."
+        try:
+            # assume the version is always "1"
+            model_version_path = self._vllm_model_config_path.parent / "1"
+            model_config_json_file = model_version_path / "model.json"
+            with open(model_config_json_file) as json_data:
+                data = json.load(json_data)
+                model_id = data.get("model")
+                if not model_id:
+                    raise Exception(
+                        f"Unable to parse config from {model_config_json_file}"
+                    )
+                return model_id
+        except OSError:
+            raise Exception(f"Unable to open {model_config_json_file}")

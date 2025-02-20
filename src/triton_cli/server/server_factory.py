@@ -15,19 +15,17 @@
 # limitations under the License.
 
 import logging
-import os
 import shutil
 
 from .server_local import TritonServerLocal
 from .server_docker import TritonServerDocker
-from .server_config import TritonServerConfig
+from .server_config import TritonServerConfig, TritonOpenAIServerConfig
 from triton_cli.common import (
     DEFAULT_SHM_SIZE,
-    DEFAULT_TRITONSERVER_PATH,
     LOGGER_NAME,
     TritonCLIException,
 )
-
+from .server_utils import TRTLLMUtils, VLLMUtils
 
 logger = logging.getLogger(LOGGER_NAME)
 
@@ -82,7 +80,7 @@ class TritonServerFactory:
         )
 
     @staticmethod
-    def create_server_local(path, config, gpus=None):
+    def create_server_local(config, gpus=None):
         """
         Parameters
         ----------
@@ -99,7 +97,7 @@ class TritonServerFactory:
         TritonServerLocal
         """
 
-        return TritonServerLocal(path=path, config=config, gpus=gpus)
+        return TritonServerLocal(config=config, gpus=gpus)
 
     @staticmethod
     def get_server_handle(config, gpus=None):
@@ -130,15 +128,10 @@ class TritonServerFactory:
 
     @staticmethod
     def _get_local_server_handle(config, gpus):
-        tritonserver_path = DEFAULT_TRITONSERVER_PATH
-        TritonServerFactory._validate_triton_server_path(tritonserver_path)
+        triton_config = TritonServerFactory._get_triton_server_config(config)
+        TritonServerFactory._validate_triton_server_path(triton_config.server_path())
 
-        triton_config = TritonServerConfig()
-        triton_config["model-repository"] = config.model_repository
-        if config.verbose:
-            triton_config["log-verbose"] = "1"
         server = TritonServerFactory.create_server_local(
-            path=tritonserver_path,
             config=triton_config,
             gpus=gpus,
         )
@@ -147,10 +140,7 @@ class TritonServerFactory:
 
     @staticmethod
     def _get_docker_server_handle(config, gpus):
-        triton_config = TritonServerConfig()
-        triton_config["model-repository"] = os.path.abspath(config.model_repository)
-        if config.verbose:
-            triton_config["log-verbose"] = "1"
+        triton_config = TritonServerFactory._get_triton_server_config(config)
 
         server = TritonServerFactory.create_server_docker(
             image=config.image,
@@ -174,3 +164,39 @@ class TritonServerFactory:
             raise TritonCLIException(
                 f"Either the binary {tritonserver_path} is invalid, not on the PATH, or does not have the correct permissions."
             )
+
+    @staticmethod
+    def _get_triton_server_config(config):
+        """
+        Raises an exception if a tokenizer can not be found and is not specified with OpenAI Frontend
+        """
+        if config.frontend == "openai":
+            triton_config = TritonOpenAIServerConfig()
+            triton_config["model-repository"] = config.model_repository
+
+            if config.openai_chat_template_tokenizer is None:
+                trtllm_utils = TRTLLMUtils(triton_config["model-repository"])
+                vllm_utils = VLLMUtils(triton_config["model-repository"])
+
+                if trtllm_utils.has_trtllm_model():
+                    triton_config["tokenizer"] = trtllm_utils.get_engine_path()
+                elif vllm_utils.has_vllm_model():
+                    triton_config["tokenizer"] = (
+                        vllm_utils.get_vllm_model_huggingface_id_or_path()
+                    )
+                else:
+                    raise TritonCLIException(
+                        "Unable to find a tokenizer to start the Triton OpenAI RESTful API, please use '--openai-chat-template-tokenizer' to specify a tokenizer."
+                    )
+            else:
+                triton_config["tokenizer"] = config.openai_chat_template_tokenizer
+
+            if config.verbose:
+                triton_config["tritonserver-log-verbose-level"] = "1"
+        else:
+            triton_config = TritonServerConfig()
+            triton_config["model-repository"] = config.model_repository
+            if config.verbose:
+                triton_config["log-verbose"] = "1"
+
+        return triton_config

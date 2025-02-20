@@ -38,11 +38,18 @@ LOGGER_NAME: str = "triton"
 
 # Server
 DEFAULT_TRITONSERVER_PATH: str = "tritonserver"
+DEFAULT_TRITONSERVER_OPENAI_FRONTEND_PATH: str = (
+    "/opt/tritonserver/python/openai/openai_frontend/main.py"
+)
+
 ## Server Docker
 DEFAULT_SHM_SIZE: str = "1G"
 # A custom image containing both vLLM and TRT-LLM dependencies,
 # defined in triton_cli/docker/Dockerfile.
 DEFAULT_TRITONSERVER_IMAGE: str = "triton_llm"
+
+# Serving Frontend
+SUPPORTED_FRONTEND: set = {"kserve", "openai"}
 
 # Model Repository
 DEFAULT_MODEL_REPO: Path = Path.home() / "models"

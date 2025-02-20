@@ -23,7 +23,6 @@ from .server import TritonServer
 from .server_utils import TritonServerUtils
 from triton_cli.common import (
     HF_CACHE,
-    DEFAULT_TRITONSERVER_PATH,
     DEFAULT_TRITONSERVER_IMAGE,
     LOGGER_NAME,
 )
@@ -164,7 +163,6 @@ class TritonServerDocker(TritonServer):
         }
         # Construct run command
         command = self._server_utils.get_launch_command(
-            tritonserver_path=DEFAULT_TRITONSERVER_PATH,
             server_config=self._server_config,
             cmd_as_list=False,
             env_cmds=env_cmds,

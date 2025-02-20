@@ -29,6 +29,7 @@ import json
 import time
 import psutil
 import subprocess
+import requests
 from contextlib import redirect_stdout
 from triton_cli.main import run
 from subprocess import Popen
@@ -72,8 +73,16 @@ class TritonCommands:
             args += ["-i", protocol]
         run(args)
 
-    def _profile(model, backend):
-        args = ["profile", "-m", model, "--backend", backend]
+    def _profile(model, backend=None, service_kind=None, endpoint_type=None, url=None):
+        args = ["profile", "-m", model]
+        if backend:
+            args += ["--backend", backend]
+        if service_kind:
+            args += ["--service-kind", service_kind]
+        if endpoint_type:
+            args += ["--endpoint-type", endpoint_type]
+        if url:
+            args += ["--url", url]
         # NOTE: With default parameters, genai-perf may take upwards of 1m30s or 2m to run,
         # so limit the genai-perf run with --request-count to reduce time for testing purposes.
         args += ["--synthetic-input-tokens-mean", "100", "--", "--request-count", "10"]
@@ -103,9 +112,10 @@ class TritonCommands:
 
 # Context Manager to start and kill a server running in background and used by testing functions
 class ScopedTritonServer:
-    def __init__(self, repo=None, mode="local", timeout=60):
+    def __init__(self, repo=None, mode="local", timeout=60, frontend=None):
         self.repo = repo
         self.mode = mode
+        self.frontend = frontend
         self.timeout = timeout
         self.proc = None
 
@@ -116,18 +126,20 @@ class ScopedTritonServer:
         self.stop()
 
     def start(self):
-        self.proc = self.run_server(self.repo, self.mode)
+        self.proc = self.run_server(self.repo, self.mode, self.frontend)
         self.wait_for_server_ready(timeout=self.timeout)  # Polling
 
     def stop(self):
         self.kill_server()
 
-    def run_server(self, repo=None, mode="local"):
+    def run_server(self, repo=None, mode="local", frontend=None):
         args = ["triton", "start"]
         if repo:
             args += ["--repo", repo]
         if mode:
             args += ["--mode", mode]
+        if frontend:
+            args += ["--frontend", frontend]
         # Use Popen to run the server in the background as a separate process.
         p = Popen(args)
         return p
@@ -169,6 +181,12 @@ class ScopedTritonServer:
             print(e)
 
     def check_server_ready(self):
-        status_grpc = TritonCommands._status(protocol="grpc")
-        status_http = TritonCommands._status(protocol="http")
-        return status_grpc["ready"] and status_http["ready"]
+        if self.frontend == "openai":
+            # TODO: change this to status command after we have
+            # the dedicated OpenAI client
+            response = requests.get("http://localhost:9000/health/ready")
+            return response.status_code == 200
+        else:
+            status_grpc = TritonCommands._status(protocol="grpc")
+            status_http = TritonCommands._status(protocol="http")
+            return status_grpc["ready"] and status_http["ready"]
