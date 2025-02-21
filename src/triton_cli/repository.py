@@ -156,6 +156,8 @@ class ModelRepository:
         source: str = None,
         backend: str = None,
         verbose=True,
+        tp=1,
+        pp=1,
     ):
         if not source:
             raise TritonCLIException("Non-empty model source must be provided")
@@ -198,7 +200,9 @@ class ModelRepository:
         # path is invalid. This should be cleaned up.
         if source_type == "huggingface":
             hf_id = source.split(":")[1]
-            self.__add_huggingface_model(model_dir, version_dir, hf_id, name, backend)
+            self.__add_huggingface_model(
+                model_dir, version_dir, hf_id, name, backend, tp, pp
+            )
         elif source_type == "ngc":
             # NOTE: NGC models likely to contain colons
             ngc_id = source.replace(SOURCE_PREFIX_NGC, "")
@@ -248,6 +252,8 @@ class ModelRepository:
         huggingface_id: str,
         name: str,
         backend: str,
+        tp,
+        pp,
     ):
         if not model_dir or not model_dir.exists():
             raise TritonCLIException("Model directory must be provided and exist")
@@ -257,7 +263,7 @@ class ModelRepository:
         if backend == "tensorrtllm":
             # TODO: Refactor the cleanup flow, move it to a higher level
             try:
-                self.__generate_trtllm_model(name, huggingface_id)
+                self.__generate_trtllm_model(name, huggingface_id, tp, pp)
             except Exception as e:
                 # If generating TRLTLM model fails, clean up the draft models
                 # added to the model repository.
@@ -270,7 +276,7 @@ class ModelRepository:
             # TODO: Add generic support for HuggingFace models with HF API.
             # For now, use vLLM as a means of deploying HuggingFace Transformers
             # NOTE: Only transformer models are supported at this time.
-            config, files = self.__generate_vllm_model(huggingface_id)
+            config, files = self.__generate_vllm_model(huggingface_id, tp, pp)
             config_file = model_dir / "config.pbtxt"
             config_file.write_text(config)
             for file, contents in files.items():
@@ -306,7 +312,7 @@ class ModelRepository:
                 use_auth_token=True,  # for gated repos like llama
             )
 
-    def __generate_vllm_model(self, huggingface_id: str):
+    def __generate_vllm_model(self, huggingface_id: str, tp, pp):
         backend = "vllm"
         instance_group = "[{kind: KIND_MODEL}]"
         model_config = MODEL_CONFIG_TEMPLATE.format(
@@ -317,6 +323,8 @@ class ModelRepository:
                 "model": huggingface_id,
                 "disable_log_requests": True,
                 "gpu_memory_utilization": 0.85,
+                "tensor_parallel_size": tp,
+                "pipeline_parallel_size": pp,
             }
         )
         model_files = {"model.json": model_contents}
@@ -328,7 +336,7 @@ class ModelRepository:
             str(self.repo), name, engines_path, engines_path, "auto", dry_run=False
         )
 
-    def __generate_trtllm_model(self, name: str, huggingface_id: str):
+    def __generate_trtllm_model(self, name: str, huggingface_id: str, tp, pp):
         engines_path = ENGINE_DEST_PATH + "/" + name
         engines = [engine for engine in Path(engines_path).glob("*.engine")]
         if engines:
@@ -339,7 +347,8 @@ class ModelRepository:
             # Run TRT-LLM build in a separate process to make sure it definitely
             # cleans up any GPU memory used when done.
             p = multiprocessing.Process(
-                target=self.__build_trtllm_engine, args=(huggingface_id, engines_path)
+                target=self.__build_trtllm_engine,
+                args=(huggingface_id, engines_path, tp, pp),
             )
             p.start()
             p.join()
@@ -355,9 +364,10 @@ class ModelRepository:
             token_dir=engines_path,
             token_type="auto",
             dry_run=False,
+            word_size=tp * pp,
         )
 
-    def __build_trtllm_engine(self, huggingface_id: str, engines_path: Path):
+    def __build_trtllm_engine(self, huggingface_id: str, engines_path: Path, tp, pp):
         from tensorrt_llm import LLM, BuildConfig
 
         # NOTE: Given config.json, can read from 'build_config' section and from_dict
@@ -368,7 +378,12 @@ class ModelRepository:
         # config.max_seq_len = 8192
         # config.max_batch_size = 256
 
-        engine = LLM(huggingface_id, build_config=config)
+        engine = LLM(
+            huggingface_id,
+            build_config=config,
+            tensor_parallel_size=tp,
+            pipeline_parallel_size=pp,
+        )
         # TODO: Investigate if LLM is internally saving a copy to a temp dir
         engine.save(str(engines_path))
 

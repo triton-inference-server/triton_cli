@@ -64,16 +64,16 @@ class TritonServerUtils:
 
         # Don't use mpirun in the world_size==1 case because it obscures
         # errors at runtime, making debugging more difficult.
-        if (
-            self._trtllm_utils.has_trtllm_model()
-            and self._trtllm_utils.get_world_size() > 1
-        ):
-            logger.info(
-                f"Launching server with world size: {self._trtllm_utils.get_world_size()}"
-            )
-            cmd = self._trtllm_utils.mpi_run(server_config)
-        else:
-            cmd = env_cmds + [tritonserver_path] + server_config.to_args_list()
+        # if (
+        #     self._trtllm_utils.has_trtllm_model()
+        #     and self._trtllm_utils.get_world_size() > 1
+        # ):
+        #     logger.info(
+        #         f"Launching server with world size: {self._trtllm_utils.get_world_size()}"
+        #     )
+        #     cmd = self._trtllm_utils.mpi_run(server_config)
+        # else:
+        cmd = env_cmds + [tritonserver_path] + server_config.to_args_list()
 
         if cmd_as_list:
             return cmd

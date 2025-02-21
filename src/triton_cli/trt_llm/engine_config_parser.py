@@ -32,7 +32,13 @@ FLAGS = None
 
 
 def parse_and_substitute(
-    triton_model_dir, bls_model_name, engine_dir, token_dir, token_type, dry_run
+    triton_model_dir,
+    bls_model_name,
+    engine_dir,
+    token_dir,
+    token_type,
+    dry_run,
+    world_size,
 ):
     json_path = engine_dir + "/config.json"
     with open(json_path) as j:
@@ -52,6 +58,8 @@ def parse_and_substitute(
         "max_batch_size"
     ]
 
+    devices_ids = ",".join([id for id in range(world_size)])
+    config_dict["gpu_device_ids"] = devices_ids
     config_dict["logits_datatype"] = "TYPE_FP32"
     config_dict["triton_backend"] = "tensorrtllm"  # or python
     config_dict["decoupled_mode"] = "True"

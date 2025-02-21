@@ -230,6 +230,20 @@ def parse_args_repo(parser):
         required=False,
         help="Local model path or model identifier. Use prefix 'hf:' to specify a HuggingFace model ID, or 'local:' prefix to specify a file path to a model.",
     )
+    repo_import.add_argument(
+        "--tensor-parallel-size",
+        type=int,
+        required=False,
+        default=1,
+        help="Tensor Parallel Size",
+    )
+    repo_import.add_argument(
+        "--pipeline-parallel-size",
+        type=int,
+        required=False,
+        default=1,
+        help="Pipeline Parallel Size",
+    )
 
     repo_remove = parser.add_parser("remove", help="Remove model from model repository")
     repo_remove.set_defaults(func=handle_repo_remove)
@@ -260,6 +274,8 @@ def handle_repo_import(args: argparse.Namespace):
         version=1,
         source=args.source,
         backend=args.backend,
+        tp=args.tensor_parallel_size,
+        pp=args.pipeline_parallel_size,
     )
 
 
