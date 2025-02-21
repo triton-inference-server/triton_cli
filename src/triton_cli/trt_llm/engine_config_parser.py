@@ -58,7 +58,7 @@ def parse_and_substitute(
         "max_batch_size"
     ]
 
-    devices_ids = ",".join([id for id in range(world_size)])
+    devices_ids = ",".join([str(id) for id in range(world_size)])
     config_dict["gpu_device_ids"] = devices_ids
     config_dict["logits_datatype"] = "TYPE_FP32"
     config_dict["triton_backend"] = "tensorrtllm"  # or python
