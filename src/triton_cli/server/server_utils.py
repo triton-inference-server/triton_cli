@@ -232,7 +232,7 @@ class TRTLLMUtils:
 
 class VLLMUtils:
     """
-    A utility class for handling TRT LLM-specific models.
+    A utility class for handling vLLM specific models.
     """
 
     def __init__(self, model_path: str):

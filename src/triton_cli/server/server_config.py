@@ -184,11 +184,11 @@ class TritonServerConfig:
 
         return self._server_args
 
-    def server_path(self):
+    def server_path(self) -> str:
         """
         Returns
         -------
-        Path
+        str
             A path to the triton server binary or script
         """
 

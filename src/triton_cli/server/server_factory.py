@@ -167,29 +167,13 @@ class TritonServerFactory:
 
     @staticmethod
     def _get_triton_server_config(config):
-        """
-        Raises an exception if a tokenizer can not be found and is not specified with OpenAI Frontend
-        """
         if config.frontend == "openai":
             triton_config = TritonOpenAIServerConfig()
             triton_config["model-repository"] = config.model_repository
 
-            if config.openai_chat_template_tokenizer is None:
-                trtllm_utils = TRTLLMUtils(triton_config["model-repository"])
-                vllm_utils = VLLMUtils(triton_config["model-repository"])
-
-                if trtllm_utils.has_trtllm_model():
-                    triton_config["tokenizer"] = trtllm_utils.get_engine_path()
-                elif vllm_utils.has_vllm_model():
-                    triton_config["tokenizer"] = (
-                        vllm_utils.get_vllm_model_huggingface_id_or_path()
-                    )
-                else:
-                    raise TritonCLIException(
-                        "Unable to find a tokenizer to start the Triton OpenAI RESTful API, please use '--openai-chat-template-tokenizer' to specify a tokenizer."
-                    )
-            else:
-                triton_config["tokenizer"] = config.openai_chat_template_tokenizer
+            triton_config["tokenizer"] = (
+                TritonServerFactory._get_openai_chat_template_tokenizer(config)
+            )
 
             if config.verbose:
                 triton_config["tritonserver-log-verbose-level"] = "1"
@@ -200,3 +184,23 @@ class TritonServerFactory:
                 triton_config["log-verbose"] = "1"
 
         return triton_config
+
+    @staticmethod
+    def _get_openai_chat_template_tokenizer(config):
+        """
+        Raises an exception if a tokenizer can not be found and is not specified with OpenAI Frontend
+        """
+        if config.openai_chat_template_tokenizer:
+            return config.openai_chat_template_tokenizer
+
+        trtllm_utils = TRTLLMUtils(config.model_repository)
+        vllm_utils = VLLMUtils(config.model_repository)
+
+        if trtllm_utils.has_trtllm_model():
+            return trtllm_utils.get_engine_path()
+        elif vllm_utils.has_vllm_model():
+            return vllm_utils.get_vllm_model_huggingface_id_or_path()
+        else:
+            raise TritonCLIException(
+                "Unable to find a tokenizer to start the Triton OpenAI RESTful API, please use '--openai-chat-template-tokenizer' to specify a tokenizer."
+            )
