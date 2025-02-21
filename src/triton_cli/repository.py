@@ -364,7 +364,7 @@ class ModelRepository:
             token_dir=engines_path,
             token_type="auto",
             dry_run=False,
-            word_size=tp * pp,
+            world_size=tp * pp,
         )
 
     def __build_trtllm_engine(self, huggingface_id: str, engines_path: Path, tp, pp):
