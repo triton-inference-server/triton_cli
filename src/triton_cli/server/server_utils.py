@@ -276,7 +276,7 @@ class VLLMUtils:
                     self._model_repo_path,
                 ]
             )
-            # Example match: b'{PATH}/config.pbtxt:backend: "tensorrtllm"\n'
+            # Example match: b'{PATH}/config.pbtxt:backend: "vllm"\n'
             return Path(match.decode().split(":")[0])
         except subprocess.CalledProcessError:
             # The 'grep' command will return a non-zero exit code

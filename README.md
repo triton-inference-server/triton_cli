@@ -38,7 +38,7 @@ Server.
 
 ## Table of Contents
 
-| [Pre-requisites](#pre-requisites) | [Installation](#installation) | [Quickstart](#quickstart) | [Serving LLM Models](#serving-llm-models) | [Serving a vLLM Model](#serving-a-vllm-model) | [Serving a TRT-LLM Model](#serving-a-trt-llm-model) | [Additional Dependencies for Custom Environments](#additional-dependencies-for-custom-environments) | [Known Limitations](#known-limitations) |
+| [Pre-requisites](#pre-requisites) | [Installation](#installation) | [Quickstart](#quickstart) | [Serving LLM Models](#serving-llm-models) | [Serving a vLLM Model](#serving-a-vllm-model) | [Serving a TRT-LLM Model](#serving-a-trt-llm-model) | [Serving a LLM model with OpenAI API](#serving-a-llm-model-with-openai-api) | [Additional Dependencies for Custom Environments](#additional-dependencies-for-custom-environments) | [Known Limitations](#known-limitations) |
 
 ## Pre-requisites
 
@@ -295,6 +295,68 @@ triton infer -m llama-3.1-8b-instruct --prompt "machine learning is"
 # Profile model with GenAI-Perf
 triton profile -m llama-3.1-8b-instruct --backend tensorrtllm
 ```
+## Serving a LLM model with OpenAI API
+
+Triton CLI could also start the triton server with a OpenAI RESTful API Frontend.
+Triton Server's OpenAI Frontend supports the following API endpoints:
+
+- [POST /v1/chat/completions](https://platform.openai.com/docs/api-reference/chat/create)
+- [POST /v1/completions](https://platform.openai.com/docs/api-reference/completions/create)
+- [GET /v1/models](https://platform.openai.com/docs/api-reference/models/list)
+- [GET /v1/models/{model_name}](https://platform.openai.com/docs/api-reference/models/retrieve)
+- GET /metrics
+
+To start the triton server with a OpenAI RESTful API Frontend, attach the `--frontend openai` to the  `triton start` command.
+```bash
+triton start --frontend openai
+```
+By default, the server and its OpenAI api can be accessed at `http://localhost:9000`.
+
+> [!NOTE]
+> There could be more than one LLM models in the model repository, each model could have its own tokenizer_config.json.
+> OpenAI's `/v1/chat/completions` API requires a chat template from a tokenizer. By default, Triton CLI will
+> automatically search for a tokenizer for the chat template in the model repository. If you'd like to set
+> a tokenizer's chat template, specify the tokenzier with `--openai-chat-template-tokenizer {higgingface id or path to the tokenizer directory}`
+>
+> ex:  `triton start --frontend openai --openai-chat-template-tokenizer meta-llama/Meta-Llama-3.1-8B-Instruct`
+
+#### Example
+
+```bash
+docker run -ti \
+  --gpus all \
+  --network=host \
+  --shm-size=1g --ulimit memlock=-1 \
+  -v /tmp:/tmp \
+  -v ${HOME}/models:/root/models \
+  -v ${HOME}/.cache/huggingface:/root/.cache/huggingface \
+  nvcr.io/nvidia/tritonserver:25.01-trtllm-python-py3
+
+# Install the Triton CLI
+pip install git+https://github.com/triton-inference-server/triton_cli.git@main
+
+# Authenticate with huggingface for restricted models like Llama-2 and Llama-3
+huggingface-cli login
+
+# Build TRT LLM engine and generate a Triton model repository pointing at it
+triton remove -m all
+triton import -m llama-3.1-8b-instruct --backend tensorrtllm
+# For vllm backend:
+# triton import -m llama-3.1-8b-instruct --backend vllm
+
+# Start Triton with a OpenAI RESTful API Frontend
+triton start --frontend openai
+
+# Interact with model at http://localhost:9000
+curl -s http://localhost:9000/v1/chat/completions -H 'Content-Type: application/json' -d '{
+  "model": "llama-3.1-8b-instruct",
+  "messages": [{"role": "user", "content": "Say this is a test!"}]
+}'
+
+# Profile model with GenAI-Perf
+triton profile -m llama-3.1-8b-instruct --service-kind openai --endpoint-type chat --url localhost:9000 --streaming
+```
+
 ## Additional Dependencies for Custom Environments
 
 When using Triton CLI outside of official Triton NGC containers, you may

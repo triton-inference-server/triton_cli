@@ -193,14 +193,22 @@ class TritonServerFactory:
         if config.openai_chat_template_tokenizer:
             return config.openai_chat_template_tokenizer
 
+        logger.info(
+            "OpenAI frontend's tokenizer for chat template is not specify, searching for an available tokenizer in the model repository."
+        )
         trtllm_utils = TRTLLMUtils(config.model_repository)
         vllm_utils = VLLMUtils(config.model_repository)
 
         if trtllm_utils.has_trtllm_model():
-            return trtllm_utils.get_engine_path()
+            tokenizer_path = trtllm_utils.get_engine_path()
         elif vllm_utils.has_vllm_model():
-            return vllm_utils.get_vllm_model_huggingface_id_or_path()
+            tokenizer_path = vllm_utils.get_vllm_model_huggingface_id_or_path()
         else:
             raise TritonCLIException(
                 "Unable to find a tokenizer to start the Triton OpenAI RESTful API, please use '--openai-chat-template-tokenizer' to specify a tokenizer."
             )
+
+        logger.info(
+            f"Found tokenizer in '{tokenizer_path}' after searching for the tokenizer in the model repository"
+        )
+        return tokenizer_path
