@@ -192,7 +192,9 @@ class TRTLLMUtils:
                 json_config = json.loads(
                     json_format.MessageToJson(config, preserving_proto_field_name=True)
                 )
-                return Path(json_config["parameters"]["gpt_model_path"]["string_value"])
+                return str(
+                    Path(json_config["parameters"]["gpt_model_path"]["string_value"])
+                )
         except KeyError as e:
             raise Exception(
                 f"Unable to extract engine path from config file {config_path}. Key error: {str(e)}"
