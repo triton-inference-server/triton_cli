@@ -117,7 +117,7 @@ class TRTLLMUtils:
         -------
             A string indicating the path where the TRT LLM engines are stored with the tokenizer
         """
-        return self._get_engine_path(self._trtllm_model_config_path)
+        return str(self._get_engine_path(self._trtllm_model_config_path))
 
     def mpi_run(self, server_config: TritonServerConfig) -> str:
         """
@@ -176,7 +176,7 @@ class TRTLLMUtils:
             # if no matches are found.
             return None
 
-    def _get_engine_path(self, config_path: Path) -> str:
+    def _get_engine_path(self, config_path: Path) -> Path:
         """
         Parameters
         ----------
@@ -192,9 +192,7 @@ class TRTLLMUtils:
                 json_config = json.loads(
                     json_format.MessageToJson(config, preserving_proto_field_name=True)
                 )
-                return str(
-                    Path(json_config["parameters"]["gpt_model_path"]["string_value"])
-                )
+                return Path(json_config["parameters"]["gpt_model_path"]["string_value"])
         except KeyError as e:
             raise Exception(
                 f"Unable to extract engine path from config file {config_path}. Key error: {str(e)}"
