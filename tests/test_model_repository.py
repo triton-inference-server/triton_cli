@@ -30,7 +30,7 @@ from utils import TritonCommands
 from triton_cli.server.server_utils import TRTLLMUtils, VLLMUtils
 from triton_cli.common import DEFAULT_MODEL_REPO
 
-# Give 30min timeout for tests that download models from huggingface
+# Give ample 30min timeout for tests that download models from huggingface
 # where network speed can be intermittent, for test consistency.
 DOWNLOAD_TIMEOUT_SECS = 1800
 
