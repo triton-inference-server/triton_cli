@@ -297,7 +297,8 @@ triton profile -m llama-3.1-8b-instruct --backend tensorrtllm
 ```
 ## Serving a LLM model with OpenAI API
 
-Triton CLI could also start the triton server with a OpenAI RESTful API Frontend.
+Triton CLI could also start the triton server with a [OpenAI RESTful API Frontend](https://github.com/triton-inference-server/server/tree/main/python/openai).
+
 Triton Server's OpenAI Frontend supports the following API endpoints:
 
 - [POST /v1/chat/completions](https://platform.openai.com/docs/api-reference/chat/create)
@@ -310,7 +311,7 @@ To start the triton server with a OpenAI RESTful API Frontend, attach the `--fro
 ```bash
 triton start --frontend openai
 ```
-By default, the server and its OpenAI api can be accessed at `http://localhost:9000`.
+By default, the server and its OpenAI API can be accessed at `http://localhost:9000`.
 
 > [!NOTE]
 > There could be more than one LLM models in the model repository, each model could have its own tokenizer_config.json.
@@ -350,7 +351,7 @@ triton start --frontend openai
 # Interact with model at http://localhost:9000
 curl -s http://localhost:9000/v1/chat/completions -H 'Content-Type: application/json' -d '{
   "model": "llama-3.1-8b-instruct",
-  "messages": [{"role": "user", "content": "Say this is a test!"}]
+  "messages": [{"role": "user", "content": "What is machine learning?"}]
 }'
 
 # Profile model with GenAI-Perf
