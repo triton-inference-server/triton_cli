@@ -35,7 +35,7 @@ TEST_DIR = os.path.dirname(os.path.realpath(__file__))
 MODEL_REPO = os.path.join(TEST_DIR, "test_models")
 
 
-# Give ample 30min timeout for tests that download models from huggingface
+# Give 30min timeout for tests that download models from huggingface
 # where network speed can be intermittent, for test consistency.
 LLM_TIMEOUT_SECS = 1800
 
