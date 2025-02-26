@@ -56,7 +56,7 @@ class TritonServerFactory:
             List of GPU UUIDs to be mounted and used in the container
             Use ["all"] to include all GPUs
         mounts: list of str
-            The volumes to be mounted to the tritonserver container.
+            The volumes to be mounted to the tritonserver container
         labels: dict
             name-value pairs for label to set metadata for triton docker
             container. (Not the same as environment variables)
