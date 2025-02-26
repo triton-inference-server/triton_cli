@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright 2020-2024, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# Copyright 2020-2025, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,6 +13,11 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+from triton_cli.common import (
+    DEFAULT_TRITONSERVER_PATH,
+    DEFAULT_TRITONSERVER_OPENAI_FRONTEND_PATH,
+)
 
 
 class TritonServerConfig:
@@ -73,12 +78,19 @@ class TritonServerConfig:
         "tensorflow-version",
     ]
 
-    def __init__(self):
+    def __init__(self, server_path=None):
         """
         Construct TritonServerConfig
+
+        Parameters
+        ----------
+        server_path: string
+            path to the triton server binary. Default is "tritonserver" if unset.
         """
 
         self._server_args = {k: None for k in self.server_arg_keys}
+        self._server_path = server_path if server_path else DEFAULT_TRITONSERVER_PATH
+        self._server_name = "Triton Inference Server"
 
     @classmethod
     def allowed_keys(cls):
@@ -172,6 +184,16 @@ class TritonServerConfig:
 
         return self._server_args
 
+    def server_path(self) -> str:
+        """
+        Returns
+        -------
+        str
+            A path to the triton server binary or script
+        """
+
+        return self._server_path
+
     # TODO: Investigate what parameters are supported with TRT LLM's launching style.
     # For example, explicit launch mode is not. See the TRTLLMUtils class for a list of
     # supported args.
@@ -231,6 +253,45 @@ class TritonServerConfig:
             self._server_args[kebab_cased_key] = value
         else:
             raise Exception(
-                f"The argument '{key}' to the Triton Inference "
-                "Server is not currently supported."
+                f"The argument '{key}' to the {self._server_name}"
+                " is not currently supported."
             )
+
+
+class TritonOpenAIServerConfig(TritonServerConfig):
+    """
+    A config class to set arguments to the Triton Inference
+    Server with OpenAI RESTful API. An argument set to None will use the server default.
+    """
+
+    server_arg_keys = [
+        # triton server args
+        "tritonserver-log-verbose-level",
+        "host",
+        "backend",
+        "tokenizer",
+        "model-repository",
+        # uvicorn args
+        "openai-port",
+        "uvicorn-log-level",
+        # kserve frontend args
+        "enable-kserve-frontends",
+        "kserve-http-port",
+        "kserve-grpc-port",
+    ]
+
+    def __init__(self, server_path=None):
+        """
+        Construct TritonOpenAIServerConfig
+
+        Parameters
+        ----------
+        server_path: string
+            path to the Triton OpenAI Server python script. Default is "/opt/tritonserver/python/openai/openai_frontend/main.py" if unset.
+        """
+
+        self._server_args = {k: None for k in self.server_arg_keys}
+        self._server_path = (
+            server_path if server_path else DEFAULT_TRITONSERVER_OPENAI_FRONTEND_PATH
+        )
+        self._server_name = "Triton Inference Server with OpenAI RESTful API"

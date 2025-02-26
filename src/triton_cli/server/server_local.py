@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright 2020-2024, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# Copyright 2020-2025, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -34,21 +34,18 @@ class TritonServerLocal(TritonServer):
     tritonserver locally as as subprocess.
     """
 
-    def __init__(self, path, config, gpus):
+    def __init__(self, config, gpus):
         """
         Parameters
         ----------
-        path  : str
-            The absolute path to the tritonserver executable
         config : TritonServerConfig
-            the config object containing arguments for this server instance
+            the config object containing arguments and path for this server instance
         gpus: list of str
             List of GPU UUIDs to be made visible to Triton
         """
 
         self._tritonserver_process = None
         self._server_config = config
-        self._server_path = path
         self._gpus = gpus
         self._is_first_time_starting_server = True
 
@@ -84,47 +81,45 @@ class TritonServerLocal(TritonServer):
             f"Starting a Triton Server locally with model repository: {self._server_config['model-repository']}"
         )
 
-        if self._server_path:
-            # Get the appropriate server launch command
-            cmd = self._server_utils.get_launch_command(
-                tritonserver_path=self._server_path,
-                server_config=self._server_config,
-                cmd_as_list=True,
+        # Get the appropriate server launch command
+        cmd = self._server_utils.get_launch_command(
+            server_config=self._server_config,
+            cmd_as_list=True,
+        )
+
+        # Set environment, update with user config env
+        triton_env = os.environ.copy()
+
+        if env:
+            # Filter env variables that use env lookups
+            for variable, value in env.items():
+                if value.find("$") == -1:
+                    triton_env[variable] = value
+                else:
+                    # Collect the ones that need lookups to give to the shell
+                    triton_env[variable] = os.path.expandvars(value)
+
+        # List GPUs to be used by tritonserver
+        if self._gpus:
+            raise Exception(
+                "GPUs aren't configurable at this time, leave it unspecified."
             )
 
-            # Set environment, update with user config env
-            triton_env = os.environ.copy()
+        self._is_first_time_starting_server = False
 
-            if env:
-                # Filter env variables that use env lookups
-                for variable, value in env.items():
-                    if value.find("$") == -1:
-                        triton_env[variable] = value
-                    else:
-                        # Collect the ones that need lookups to give to the shell
-                        triton_env[variable] = os.path.expandvars(value)
-
-            # List GPUs to be used by tritonserver
-            if self._gpus:
-                raise Exception(
-                    "GPUs aren't configurable at this time, leave it unspecified."
-                )
-
-            self._is_first_time_starting_server = False
-
-            # Construct Popen command
-            try:
-                self._tritonserver_process = Popen(
-                    cmd,
-                    stdout=PIPE,
-                    stderr=STDOUT,
-                    start_new_session=True,
-                    universal_newlines=True,
-                    env=triton_env,
-                )
-            except Exception as e:
-                logger.error(e)
-                raise Exception(e)
+        # Construct Popen command
+        try:
+            self._tritonserver_process = Popen(
+                cmd,
+                stdout=PIPE,
+                stderr=STDOUT,
+                start_new_session=True,
+                universal_newlines=True,
+                env=triton_env,
+            )
+        except Exception as e:
+            logger.error(e)
+            raise Exception(e)
 
     def stop(self):
         """

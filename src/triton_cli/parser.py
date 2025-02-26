@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copyright 2023-2024, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# Copyright 2023-2025, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -40,6 +40,7 @@ from triton_cli.common import (
     DEFAULT_MODEL_REPO,
     DEFAULT_TRITONSERVER_IMAGE,
     LOGGER_NAME,
+    SUPPORTED_FRONTEND,
     TritonCLIException,
 )
 from triton_cli.client.client import InferenceServerException, TritonClient
@@ -155,6 +156,22 @@ def add_server_start_args(subcommands):
             required=False,
             default=300,
             help="Maximum number of seconds to wait for server startup. (Default: 300)",
+        )
+        subcommand.add_argument(
+            "--frontend",
+            choices=SUPPORTED_FRONTEND,
+            type=str,
+            required=False,
+            default="kserve",
+            help=f"The inference API frontend to use when starting the triton server. Default is the KServe api frontend. Choices: '{SUPPORTED_FRONTEND}'.",
+        )
+        subcommand.add_argument(
+            "--openai-chat-template-tokenizer",
+            type=str,
+            required=False,
+            # TODO: Should probably set a default tokenizer, like 'hf-internal-testing/llama-tokenizer', since not all tokenizers have a chat template
+            default=None,
+            help="HuggingFace ID or local folder path of the tokenizer to use for chat templates with the OpenAI API frontend. If no tokenizer is specified, it searches for and selects an LLM model's tokenizer from the model repository.",
         )
 
 
