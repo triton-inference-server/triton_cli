@@ -185,7 +185,7 @@ class ModelRepository:
                 )
 
             source_type = "local"
-            model_path = Path(source)
+            model_path = Path(source.replace(SOURCE_PREFIX_LOCAL, ""))
             if not model_path.exists():
                 raise TritonCLIException(
                     f"Local file path '{model_path}' provided by --source does not exist"
