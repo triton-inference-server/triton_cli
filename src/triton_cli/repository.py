@@ -212,8 +212,15 @@ class ModelRepository:
             #       point to downloaded engines, etc.
             self.__generate_ngc_model(name, ngc_model_name)
         else:
-            logger.debug(f"Copying {model_path} to {version_dir}")
-            shutil.copy(model_path, version_dir)
+            if model_path.is_dir():
+                logger.debug(f"Copying directory {model_path} to {version_dir}")
+                # If version_dir already exists, remove it first
+                if version_dir.exists():
+                    shutil.rmtree(version_dir)
+                shutil.copytree(model_path, version_dir)
+            else:
+                logger.debug(f"Copying file {model_path} to {version_dir}")
+                shutil.copy(model_path, version_dir)
 
         if verbose:
             self.list()
