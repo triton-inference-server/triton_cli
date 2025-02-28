@@ -1,5 +1,4 @@
-#!/usr/bin/env python3
-# Copyright 2023-2025, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# Copyright 2025, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -25,34 +24,39 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-
-import os
 from pathlib import Path
 
 
-class TritonCLIException(Exception):
-    pass
+class RepositoryHelper:
+    def __init__(self, repo: Path):
+        """
+        Construct Repository Helper
 
+        Parameters
+        ----------
+        repo: Path
+            path to the target Triton Model Repository
+        """
+        self.repo = repo
 
-LOGGER_NAME: str = "triton"
+    def create_model(
+        self, source: str, source_type: str, model_name: str, version: int = 1
+    ):
+        """
+        Parameters
+        ----------
+        source : str
+            The id/url/path of the model files, depending on the source_type
+        source_type: str
+            The type of the source, available options: {huggingface, ngc, local}
+        model_name : str
+            The proposed model name to be created inside the model repository
+        version: int
+            The version of the model to be created. Default is 1.
 
-# Server
-DEFAULT_TRITONSERVER_PATH: str = "tritonserver"
-DEFAULT_TRITONSERVER_OPENAI_FRONTEND_PATH: str = (
-    "/opt/tritonserver/python/openai/openai_frontend/main.py"
-)
-
-## Server Docker
-DEFAULT_SHM_SIZE: str = "1G"
-# A custom image containing both vLLM and TRT-LLM dependencies,
-# defined in triton_cli/docker/Dockerfile.
-DEFAULT_TRITONSERVER_IMAGE: str = "triton_llm"
-
-# Serving Frontend
-SUPPORTED_FRONTEND: set = {"kserve", "openai"}
-
-# Model Repository
-DEFAULT_MODEL_REPO: Path = Path.home() / "models"
-DEFAULT_HF_CACHE: Path = Path.home() / ".cache" / "huggingface"
-HF_CACHE: Path = Path(os.environ.get("HF_HOME", DEFAULT_HF_CACHE))
-SUPPORTED_BACKENDS: set = {"vllm", "tensorrtllm", "llmapi"}
+        Raises
+        -------
+        TritonCLIException
+            Raises an exception when creating the new model under the repository failed.
+        """
+        pass
