@@ -146,6 +146,59 @@ class TestE2E:
         )
 
     @pytest.mark.skipif(
+        os.environ.get("IMAGE_KIND") != "TRTLLM",
+        reason="Only run for TRT-LLM image with LLM-API",
+    )
+    @pytest.mark.parametrize(
+        "protocol",
+        [
+            "grpc",
+            pytest.param(
+                "http",
+                # NOTE: skip because xfail was causing server to not get cleaned up by test in background
+                marks=pytest.mark.skip(
+                    reason="http not supported decoupled models and model profiling yet"
+                ),
+            ),
+        ],
+    )
+    @pytest.mark.timeout(LLM_TIMEOUT_SECS)
+    def test_llmapi_e2e(self, llmapi_server, protocol):
+        # NOTE: llmapi "backend" is using the same api format as tensorrtllm(tensorrt_llm_bls) backend,
+        # Use the tensorrtllm backend as the profiling option.
+        model = os.environ.get("TRTLLM_MODEL")
+        assert model is not None, "TRTLLM_MODEL env var must be set!"
+        # Source is optional if using a "known: model"
+        source = os.environ.get("MODEL_SOURCE")
+        TritonCommands._clear()
+        TritonCommands._import(model, source=source, backend="llmapi")
+        llmapi_server.start()
+        TritonCommands._infer(model, prompt=PROMPT, protocol=protocol)
+        # TODO: update this to llmapi when genai-perf supports the llmapi backend's api format
+        TritonCommands._profile(model, backend="tensorrtllm")
+
+    @pytest.mark.skipif(
+        os.environ.get("IMAGE_KIND") != "TRTLLM",
+        reason="Only run for TRT-LLM image with LLM-API",
+    )
+    @pytest.mark.skipif(
+        os.environ.get("TRTLLM_MODEL") == "gpt2",
+        reason="gpt2's tokenizer doesn't have a chat template defined",
+    )
+    @pytest.mark.timeout(LLM_TIMEOUT_SECS)
+    def test_llmapi_openai_e2e(self, vllm_openai_server):
+        model = os.environ.get("TRTLLM_MODEL")
+        assert model is not None, "TRTLLM_MODEL env var must be set!"
+        # Source is optional if using a "known: model"
+        source = os.environ.get("MODEL_SOURCE")
+        TritonCommands._clear()
+        TritonCommands._import(model, source=source, backend="llmapi")
+        vllm_openai_server.start()
+        TritonCommands._profile(
+            model, service_kind="openai", endpoint_type="chat", url="localhost:9000"
+        )
+
+    @pytest.mark.skipif(
         os.environ.get("CI_PIPELINE") == "GITHUB_ACTIONS",
         reason="bandage/temporary fix",
     )
