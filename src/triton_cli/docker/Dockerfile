@@ -34,4 +34,4 @@ RUN mkdir -p /opt/tritonserver/backends/vllm && \
     rm -r /tmp/vllm_backend
 
 # vLLM runtime dependencies
-RUN pip install "vllm==0.6.3.post1" "setuptools==74.0.0"
+RUN pip install "vllm==0.6.3.post1" "setuptools>=74.1.1"
