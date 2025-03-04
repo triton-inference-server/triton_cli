@@ -27,7 +27,7 @@
 import os
 import pytest
 from utils import TritonCommands
-from triton_cli.server.server_utils import TRTLLMUtils, VLLMUtils
+from triton_cli.server.server_utils import TRTLLMUtils, VLLMUtils, LLMAPIUtils
 from triton_cli.common import DEFAULT_MODEL_REPO
 
 # Give ample 30min timeout for tests that download models from huggingface
@@ -42,8 +42,10 @@ class TestModelRepository:
     def test_can_not_find_models(self):
         trtllm_utils = TRTLLMUtils(DEFAULT_MODEL_REPO)
         vllm_utils = VLLMUtils(DEFAULT_MODEL_REPO)
+        llmapi_utils = LLMAPIUtils(DEFAULT_MODEL_REPO)
         assert not trtllm_utils.has_trtllm_model(), f"tensorrtllm model found in model repository: '{DEFAULT_MODEL_REPO}', but the test expect the tensorrtllm model not found"
         assert not vllm_utils.has_vllm_model(), f"vllm model found in model repository: '{DEFAULT_MODEL_REPO}', but the test expect the vllm model not found"
+        assert not llmapi_utils.has_llmapi_model(), f"llmapi model found in model repository: '{DEFAULT_MODEL_REPO}', but the test expect the llmapi model not found"
 
     @pytest.mark.skipif(
         os.environ.get("IMAGE_KIND") != "TRTLLM", reason="Only run for TRT-LLM image"
@@ -60,6 +62,22 @@ class TestModelRepository:
         assert (
             expected_engine_path == trtllm_utils.get_engine_path()
         ), f"engine path found is not as expected. Expected: {expected_engine_path}. Found: {trtllm_utils.get_engine_path()}"
+
+    @pytest.mark.skipif(
+        os.environ.get("IMAGE_KIND") != "TRTLLM", reason="Only run for TRT-LLM image"
+    )
+    @pytest.mark.timeout(DOWNLOAD_TIMEOUT_SECS)
+    def test_can_get_llmapi_model_id_from_model_repository(self):
+        model = "llama-2-7b-chat"
+        expected_model_id = "meta-llama/Llama-2-7b-chat-hf"
+        TritonCommands._import(model, backend="llmapi")
+        llmapi_utils = LLMAPIUtils(DEFAULT_MODEL_REPO)
+        assert (
+            llmapi_utils.has_llmapi_model()
+        ), f"no LLM API model found in model repository: '{DEFAULT_MODEL_REPO}'."
+        assert (
+            expected_model_id == llmapi_utils.get_llmapi_model_huggingface_id_or_path()
+        ), f"model id found is not as expected. Expected: {expected_model_id}. Found: {llmapi_utils.get_llmapi_model_huggingface_id_or_path()}"
 
     @pytest.mark.skipif(
         os.environ.get("IMAGE_KIND") != "VLLM", reason="Only run for VLLM image"
