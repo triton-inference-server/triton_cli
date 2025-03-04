@@ -142,6 +142,9 @@ class TritonPythonModel:
             None if kwargs["top_p"] is None or kwargs["top_p"] <= 0 else kwargs["top_p"]
         )
 
+        # Remove None values
+        kwargs = {k: v for k, v in kwargs.items() if v is not None}
+
         return kwargs
 
     @classmethod
@@ -244,6 +247,7 @@ class TritonPythonModel:
                 "name": "max_tokens",
                 "data_type": "TYPE_INT32",
                 "dims": [1],
+                "optional": True,
             },
             {
                 "name": "stop",
