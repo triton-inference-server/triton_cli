@@ -133,13 +133,13 @@ class TritonServerDocker(TritonServer):
         # Mount required directories
         volumes = {}
         # Mount model repository at same path in read-only mode for simplicity
-        volumes[self._server_config["model-repository"]] = {
-            "bind": self._server_config["model-repository"],
+        volumes[str(self._server_config["model-repository"])] = {
+            "bind": str(self._server_config["model-repository"]),
             "mode": "ro",
         }
         # Mount huggingface model cache to save time across runs
         # Use default cache in container for now.
-        volumes[HF_CACHE] = {
+        volumes[str(HF_CACHE)] = {
             "bind": "/root/.cache/huggingface",
             "mode": "rw",
         }
@@ -155,11 +155,13 @@ class TritonServerDocker(TritonServer):
         server_http_port = 8000
         server_grpc_port = 8001
         server_metrics_port = 8002
+        openai_http_port = 9000
 
         ports = {
             server_http_port: server_http_port,
             server_grpc_port: server_grpc_port,
             server_metrics_port: server_metrics_port,
+            openai_http_port: openai_http_port,
         }
         # Construct run command
         command = self._server_utils.get_launch_command(
