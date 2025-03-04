@@ -361,18 +361,12 @@ triton profile -m llama-3.1-8b-instruct --service-kind openai --endpoint-type ch
 
 ## Serving a HuggingFace LLM Model with LLM API
 
-> [!NOTE]
-> LLM API has not yet been integrated into the official triton server tensorrt_llm backend image yet.
-> To start the LLM API functionality, the user will only
-
 The LLM API is a high-level Python API and designed for Tensorrt LLM workflows. It could
 convert a LLM model in Hugging Face format into a Tensorrt LLM engine and serve the engine with a unified Python API without invoking different
 engine build and converting scripts.
 To use the LLM API with Triton CLI, import the model with `--backend llmapi`
 ```bash
-export MODEL_NAME="llama-3.1-8b-instruct"
-export HF_ID="meta-llama/Llama-3.1-8B-Instruct"
-triton import -m $MODEL_NAME --source "hf:$HF_ID" --backend llmapi
+triton import -m "llama-3.1-8b-instruct" --backend llmapi
 ```
 
 Huggingface models will be downloaded at runtime when starting the LLM API engine if not found
@@ -383,6 +377,15 @@ startup time. tensorrt_llm>=0.18.0 is required.
 #### Example
 
 ```bash
+docker run -ti \
+  --gpus all \
+  --network=host \
+  --shm-size=1g --ulimit memlock=-1 \
+  -v /tmp:/tmp \
+  -v ${HOME}/models:/root/models \
+  -v ${HOME}/.cache/huggingface:/root/.cache/huggingface \
+  nvcr.io/nvidia/tritonserver:25.03-trtllm-python-py3
+
 # Install the Triton CLI
 pip install git+https://github.com/triton-inference-server/triton_cli.git@main
 
@@ -394,7 +397,7 @@ triton remove -m all
 triton import -m llama-3.1-8b-instruct --backend llmapi
 
 # Start Triton pointing at the default model repository
-triton start --frontend openai --mode docker
+triton start --frontend openai
 
 # Interact with model at http://localhost:9000
 curl -s http://localhost:9000/v1/chat/completions -H 'Content-Type: application/json' -d '{
