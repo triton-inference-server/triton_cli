@@ -64,7 +64,7 @@ class TestModelRepository:
         ), f"engine path found is not as expected. Expected: {expected_engine_path}. Found: {trtllm_utils.get_engine_path()}"
 
     @pytest.mark.skipif(
-        os.environ.get("IMAGE_KIND") != "TRTLLM", reason="Only run for VLLM image"
+        os.environ.get("IMAGE_KIND") != "TRTLLM", reason="Only run for TRT-LLM image"
     )
     @pytest.mark.timeout(DOWNLOAD_TIMEOUT_SECS)
     def test_can_get_llmapi_model_id_from_model_repository(self):
