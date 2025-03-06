@@ -48,7 +48,7 @@ class TritonServerUtils:
         Parameters
         ----------
         server_config : TritonServerConfig
-            A TritonServerConfig object containing command-line arguments to run tritonserver
+            A TritonServerConfig object containing command-line arguments to run tritonserver.
         cmd_as_list : bool
             Whether the command string needs to be returned as a list of string (local requires list,
             docker requires str)
