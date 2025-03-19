@@ -335,7 +335,7 @@ docker run -ti \
   nvcr.io/nvidia/tritonserver:25.02-trtllm-python-py3
 
 # Install the Triton CLI
-pip install git+https://github.com/triton-inference-server/triton_cli.git@main
+pip install git+https://github.com/triton-inference-server/triton_cli.git@0.1.3
 
 # Authenticate with huggingface for restricted models like Llama-2 and Llama-3
 huggingface-cli login
