@@ -38,7 +38,7 @@ Server.
 
 ## Table of Contents
 
-| [Pre-requisites](#pre-requisites) | [Installation](#installation) | [Quickstart](#quickstart) | [Serving LLM Models](#serving-llm-models) | [Serving a vLLM Model](#serving-a-vllm-model) | [Serving a TRT-LLM Model](#serving-a-trt-llm-model) | [Serving a LLM model with OpenAI API](#serving-a-llm-model-with-openai-api) | [Additional Dependencies for Custom Environments](#additional-dependencies-for-custom-environments) | [Known Limitations](#known-limitations) |
+| [Pre-requisites](#pre-requisites) | [Installation](#installation) | [Quickstart](#quickstart) | [Serving LLM Models](#serving-llm-models) | [Serving a vLLM Model](#serving-a-vllm-model) | [Serving a TRT-LLM Model](#serving-a-trt-llm-model) | [Serving a LLM model with OpenAI API](#serving-a-llm-model-with-openai-api) | [Serving a HuggingFace LLM Model with LLM API](#serving-a-huggingface-llm-model-with-llm-api) | [Additional Dependencies for Custom Environments](#additional-dependencies-for-custom-environments) | [Known Limitations](#known-limitations) |
 
 ## Pre-requisites
 
@@ -352,7 +352,59 @@ triton start --frontend openai
 # Interact with model at http://localhost:9000
 curl -s http://localhost:9000/v1/chat/completions -H 'Content-Type: application/json' -d '{
   "model": "llama-3.1-8b-instruct",
-  "messages": [{"role": "user", "content": "What is machine learning?"}]
+  "messages": [{"role": "user", "content": "What is machine learning?"}],
+  "max_tokens": 256
+}'
+
+# Profile model with GenAI-Perf
+triton profile -m llama-3.1-8b-instruct --service-kind openai --endpoint-type chat --url localhost:9000 --streaming
+```
+
+## Serving a HuggingFace LLM Model with LLM API
+
+The LLM API is a high-level Python API and designed for Tensorrt LLM workflows. It could
+convert a LLM model in Hugging Face format into a Tensorrt LLM engine and serve the engine with a unified Python API without invoking different
+engine build and converting scripts.
+To use the LLM API with Triton CLI, import the model with `--backend llmapi`
+```bash
+triton import -m "llama-3.1-8b-instruct" --backend llmapi
+```
+
+Huggingface models will be downloaded at runtime when starting the LLM API engine if not found
+locally in the HuggingFace cache. No offline engine building step is required,
+but you can pre-download the model in advance to avoid downloading at server
+startup time. tensorrt_llm>=0.18.0 is required.
+
+#### Example
+
+```bash
+docker run -ti \
+  --gpus all \
+  --network=host \
+  --shm-size=1g --ulimit memlock=-1 \
+  -v /tmp:/tmp \
+  -v ${HOME}/models:/root/models \
+  -v ${HOME}/.cache/huggingface:/root/.cache/huggingface \
+  nvcr.io/nvidia/tritonserver:25.03-trtllm-python-py3
+
+# Install the Triton CLI
+pip install git+https://github.com/triton-inference-server/triton_cli.git@main
+
+# Authenticate with huggingface for restricted models like Llama-2 and Llama-3
+huggingface-cli login
+
+# Build TRT LLM engine and generate a Triton model repository pointing at it
+triton remove -m all
+triton import -m llama-3.1-8b-instruct --backend llmapi
+
+# Start Triton pointing at the default model repository
+triton start --frontend openai
+
+# Interact with model at http://localhost:9000
+curl -s http://localhost:9000/v1/chat/completions -H 'Content-Type: application/json' -d '{
+  "model": "llama-3.1-8b-instruct",
+  "messages": [{"role": "user", "content": "What is machine learning?"}],
+  "max_tokens": 256
 }'
 
 # Profile model with GenAI-Perf
