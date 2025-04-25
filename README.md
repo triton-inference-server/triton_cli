@@ -250,7 +250,7 @@ triton profile -m llama-3.1-8b-instruct --backend vllm
 > see [here](https://docs.nvidia.com/deeplearning/triton-inference-server/user-guide/docs/user_guide/model_configuration.html#instance-groups).
 
 The following models are currently supported for automating TRT-LLM
-engine builds through the CLI: https://nvidia.github.io/TensorRT-LLM/llm-api-examples/index.html#supported-models
+engine builds through the CLI: [TRT-LLM Supported Models](https://nvidia.github.io/TensorRT-LLM/latest/llm-api/index.html#supported-models)
 
 > [!NOTE]
 > 1. Building a TRT-LLM engine for Llama-2-7B, Llama-3-8B, or Llama-3.1-8B
