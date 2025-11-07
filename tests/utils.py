@@ -73,15 +73,10 @@ class TritonCommands:
             args += ["-i", protocol]
         run(args)
 
-    def _profile(model, backend=None, service_kind=None, endpoint_type=None, url=None):
+    def _profile(model, backend=None, endpoint_type=None, url=None):
         args = ["profile", "-m", model]
         if backend:
             args += ["--backend", backend]
-
-        # Do not add the service_kind argument because it is deprecated in genai-perf
-        # for compatibility, convert service_kind to endpoint_type as needed.
-        if service_kind == "openai" and not endpoint_type:
-            endpoint_type = "chat"
 
         if endpoint_type:
             args += ["--endpoint-type", endpoint_type]
