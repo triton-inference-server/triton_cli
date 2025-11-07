@@ -356,7 +356,7 @@ curl -s http://localhost:9000/v1/chat/completions -H 'Content-Type: application/
 }'
 
 # Profile model with GenAI-Perf
-triton profile -m llama-3.1-8b-instruct --service-kind openai --endpoint-type chat --url localhost:9000 --streaming
+triton profile -m llama-3.1-8b-instruct --endpoint-type chat --url localhost:9000 --streaming
 ```
 
 ## Additional Dependencies for Custom Environments

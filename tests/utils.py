@@ -77,15 +77,31 @@ class TritonCommands:
         args = ["profile", "-m", model]
         if backend:
             args += ["--backend", backend]
-        if service_kind:
-            args += ["--service-kind", service_kind]
+
+        # Do not add the service_kind argument because it is deprecated in genai-perf
+        # for compatibility, convert service_kind to endpoint_type as needed.
+        if service_kind == "openai" and not endpoint_type:
+            endpoint_type = "chat"
+
         if endpoint_type:
             args += ["--endpoint-type", endpoint_type]
+
         if url:
             args += ["--url", url]
-        # For mock models, use a real tokenizer since mock_llm doesn't exist on HuggingFace
-        if model == "mock_llm":
-            args += ["--tokenizer", "gpt2"]
+
+        # Map each model to its corresponding HuggingFace tokenizer.
+        # For the mock model, use a real tokenizer since "mock_llm" is not available on HuggingFace.
+        tokenizer_map = {
+            "mock_llm": "gpt2",
+            "gpt2": "gpt2",
+            "llama-3.1-8b-instruct": "meta-llama/Llama-3.1-8B-Instruct",
+            "llama-2-7b-chat": "meta-llama/Llama-2-7b-chat-hf",
+            "llama-2-7b": "meta-llama/Llama-2-7b-hf",
+        }
+
+        if model in tokenizer_map:
+            args += ["--tokenizer", tokenizer_map[model]]
+
         # NOTE: With default parameters, genai-perf may take upwards of 1m30s or 2m to run,
         # so limit the genai-perf run with --request-count to reduce time for testing purposes.
         args += ["--synthetic-input-tokens-mean", "100", "--", "--request-count", "10"]
