@@ -315,7 +315,6 @@ class ModelRepository:
         model_contents = json.dumps(
             {
                 "model": huggingface_id,
-                "disable_log_requests": True,
                 "gpu_memory_utilization": 0.85,
             }
         )
