@@ -49,7 +49,6 @@ requires-python = ">=3.10,<4"
 dependencies = [
     # Client deps - generally versioned together
     "grpcio>=1.67.0",
-    # "openai==1.107.3",  # Pin OpenAI SDK to match vLLM requirements
     # Use explicit client version matching genai-perf version for tagged release
     "tritonclient[all] == 2.55.0",
     "genai-perf @ git+https://github.com/triton-inference-server/perf_analyzer.git@r25.10#subdirectory=genai-perf",
