@@ -51,7 +51,7 @@ dependencies = [
     "grpcio>=1.67.0",
     # Use explicit client version matching genai-perf version for tagged release
     "tritonclient[all] == 2.55.0",
-    "genai-perf @ git+https://github.com/triton-inference-server/perf_analyzer.git@r25.10#subdirectory=genai-perf",
+    "genai-perf @ git+https://github.com/triton-inference-server/perf_analyzer.git@main#subdirectory=genai-perf",
     # Misc deps
     "directory-tree == 0.0.4", # may remove in future
     # https://github.com/docker/docker-py/issues/3256#issuecomment-2376439000
