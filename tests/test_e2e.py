@@ -89,9 +89,7 @@ class TestE2E:
         TritonCommands._clear()
         TritonCommands._import(model, source=source, backend="tensorrtllm")
         trtllm_openai_server.start()
-        TritonCommands._profile(
-            model, service_kind="openai", endpoint_type="chat", url="localhost:9000"
-        )
+        TritonCommands._profile(model, endpoint_type="chat", url="localhost:9000")
 
     @pytest.mark.skipif(
         os.environ.get("IMAGE_KIND") != "VLLM", reason="Only run for VLLM image"
@@ -141,9 +139,7 @@ class TestE2E:
         TritonCommands._clear()
         TritonCommands._import(model, source=source)
         vllm_openai_server.start()
-        TritonCommands._profile(
-            model, service_kind="openai", endpoint_type="chat", url="localhost:9000"
-        )
+        TritonCommands._profile(model, endpoint_type="chat", url="localhost:9000")
 
     @pytest.mark.skipif(
         os.environ.get("CI_PIPELINE") == "GITHUB_ACTIONS",
