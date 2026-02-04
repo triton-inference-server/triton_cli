@@ -48,7 +48,7 @@ class TritonServerUtils:
         Parameters
         ----------
         server_config : TritonServerConfig
-            A TritonServerConfig object containing command-line arguments to run tritonserver
+            A TritonServerConfig object containing command-line arguments to run tritonserver.
         cmd_as_list : bool
             Whether the command string needs to be returned as a list of string (local requires list,
             docker requires str)
@@ -293,6 +293,89 @@ class VLLMUtils:
         try:
             # assume the version is always "1"
             model_version_path = self._vllm_model_config_path.parent / "1"
+            model_config_json_file = model_version_path / "model.json"
+            with open(model_config_json_file) as json_data:
+                data = json.load(json_data)
+                model_id = data.get("model")
+                if not model_id:
+                    raise Exception(
+                        f"Unable to parse config from {model_config_json_file}"
+                    )
+                return model_id
+        except OSError:
+            raise Exception(f"Unable to open {model_config_json_file}")
+
+
+class LLMAPIUtils:
+    """
+    A utility class for handling LLMAPI specific models.
+    """
+
+    def __init__(self, model_path: Path):
+        self._model_repo_path = model_path
+        self._llmapi_model_path = self._find_llmapi_model_path()
+        self._is_llmapi_model = self._llmapi_model_path is not None
+
+    def has_llmapi_model(self) -> bool:
+        """
+        Returns
+        -------
+            A boolean indicating whether a LLMAPI model exists in the model repo
+        """
+        return self._is_llmapi_model
+
+    def get_llmapi_model_huggingface_id_or_path(self) -> str:
+        """
+        Returns
+        -------
+            The LLMAPI model's Huggingface Id or path
+        """
+        return self._find_llmapi_model_huggingface_id_or_path()
+
+    def _find_llmapi_model_path(self) -> Path:
+        """
+        Returns
+        -------
+            A pathlib.Path object containing the path to the LLMAPI model folder.
+        Assumptions
+        ----------
+            - Assumes only a single model uses the LLMAPI backend (could have multiple models)
+        """
+        # Search the llmapi model from all models in model repository
+        model_dirs = [
+            model_dir
+            for model_dir in self._model_repo_path.iterdir()
+            if model_dir.is_dir()
+        ]
+        for model_dir in model_dirs:
+            model_config_file = Path(self._model_repo_path) / model_dir / "config.pbtxt"
+            model_json_path = model_config_file.parent / "1" / "model.json"
+            # check if config.pbtxt exists
+            if model_config_file.is_file():
+                # read the config.pbtxt file and identify the backend
+                with open(model_config_file) as config_file:
+                    config = text_format.Parse(config_file.read(), mc.ModelConfig())
+                    json_config = json.loads(
+                        json_format.MessageToJson(
+                            config, preserving_proto_field_name=True
+                        )
+                    )
+                    # check if the model.json also exists.
+                    if json_config["backend"] == "python" and model_json_path.is_file():
+                        return model_config_file.parent
+
+        return None
+
+    def _find_llmapi_model_huggingface_id_or_path(self) -> str:
+        """
+        Returns
+        -------
+            The llmapi model's Huggingface Id or path
+        """
+        assert self._is_llmapi_model, "model Huggingface Id or path cannot be parsed from a model repository that does not contain a LLMAPI model."
+        try:
+            # assume the version is always "1"
+            model_version_path = self._llmapi_model_path / "1"
             model_config_json_file = model_version_path / "model.json"
             with open(model_config_json_file) as json_data:
                 data = json.load(json_data)

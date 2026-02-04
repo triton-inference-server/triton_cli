@@ -25,7 +25,7 @@ from triton_cli.common import (
     LOGGER_NAME,
     TritonCLIException,
 )
-from .server_utils import TRTLLMUtils, VLLMUtils
+from .server_utils import TRTLLMUtils, VLLMUtils, LLMAPIUtils
 
 logger = logging.getLogger(LOGGER_NAME)
 
@@ -198,11 +198,14 @@ class TritonServerFactory:
         )
         trtllm_utils = TRTLLMUtils(config.model_repository)
         vllm_utils = VLLMUtils(config.model_repository)
+        llmapi_utils = LLMAPIUtils(config.model_repository)
 
         if trtllm_utils.has_trtllm_model():
             tokenizer_path = trtllm_utils.get_engine_path()
         elif vllm_utils.has_vllm_model():
             tokenizer_path = vllm_utils.get_vllm_model_huggingface_id_or_path()
+        elif llmapi_utils.has_llmapi_model():
+            tokenizer_path = llmapi_utils.get_llmapi_model_huggingface_id_or_path()
         else:
             raise TritonCLIException(
                 "Unable to find a tokenizer to start the Triton OpenAI RESTful API, please use '--openai-chat-template-tokenizer' to specify a tokenizer."

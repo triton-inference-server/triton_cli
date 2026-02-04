@@ -68,6 +68,7 @@ KNOWN_MODEL_SOURCES = {
     "opt125m": "hf:facebook/opt-125m",
     "mistral-7b": "hf:mistralai/Mistral-7B-v0.1",
     "falcon-7b": "hf:tiiuae/falcon-7b",
+    "tinyllama-1.1b-chat-v1.0": "hf:TinyLlama/TinyLlama-1.1B-Chat-v1.0",
 }
 
 

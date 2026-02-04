@@ -1,2 +1,5 @@
 *.json
 *.cache
+
+# Except model.json from the llmapi template
+!templates/llmapi/1/model.json
