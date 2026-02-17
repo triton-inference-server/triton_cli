@@ -368,8 +368,14 @@ class ModelRepository:
         # config.max_batch_size = 256
 
         # Build engine directly to the target directory by setting workspace parameter
-        # This works with both old and new TensorRT-LLM API versions
-        engine = LLM(huggingface_id, build_config=config, workspace=str(engines_path))
+        # IMPORTANT: workspace parameter only works with TensorRT backend
+        # Explicitly set backend=None to ensure TensorRT backend is used (not PyTorch)
+        engine = LLM(
+            huggingface_id,
+            build_config=config,
+            workspace=str(engines_path),
+            backend=None,  # Force TensorRT backend (workspace only works with TensorRT)
+        )
 
         # For newer API versions that have save() method, we still call it
         # in case the workspace parameter doesn't work as expected
