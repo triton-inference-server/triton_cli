@@ -367,26 +367,54 @@ class ModelRepository:
         # config.max_seq_len = 8192
         # config.max_batch_size = 256
 
-        # Build engine directly to the target directory by setting workspace parameter
-        # IMPORTANT: workspace parameter only works with TensorRT backend
-        # Explicitly set backend=None to ensure TensorRT backend is used (not PyTorch)
-        engine = LLM(
-            huggingface_id,
-            build_config=config,
-            workspace=str(engines_path),
-            backend=None,  # Force TensorRT backend (workspace only works with TensorRT)
-        )
+        # NOTE: In Docker image, LLM defaults to PyTorch backend which doesn't support
+        # workspace parameter. Build without workspace and try to get engine location.
+        engine = LLM(huggingface_id, build_config=config)
 
-        # For newer API versions that have save() method, we still call it
-        # in case the workspace parameter doesn't work as expected
+        # Try multiple methods to get and save the engine
+        saved = False
+
+        # Method 1: Try save() if available
         if hasattr(engine, "save") and callable(getattr(engine, "save")):
             try:
                 engine.save(str(engines_path))
+                saved = True
+                logger.info(f"Saved engine using save() method to {engines_path}")
             except Exception as e:
-                # If save fails but engine was built to workspace, that's ok
-                logger.debug(
-                    f"LLM.save() failed but engine may already be in workspace: {e}"
+                logger.debug(f"LLM.save() failed: {e}")
+
+        # Method 2: Try to copy from workspace if save didn't work
+        if not saved and hasattr(engine, "workspace") and engine.workspace:
+            try:
+                import shutil
+
+                shutil.copytree(engine.workspace, engines_path, dirs_exist_ok=True)
+                saved = True
+                logger.info(
+                    f"Copied engine from workspace {engine.workspace} to {engines_path}"
                 )
+            except Exception as e:
+                logger.debug(f"Failed to copy from workspace: {e}")
+
+        # Method 3: Try to copy from _engine_dir if save and workspace didn't work
+        if not saved and hasattr(engine, "_engine_dir") and engine._engine_dir:
+            try:
+                import shutil
+
+                shutil.copytree(engine._engine_dir, engines_path, dirs_exist_ok=True)
+                saved = True
+                logger.info(
+                    f"Copied engine from _engine_dir {engine._engine_dir} to {engines_path}"
+                )
+            except Exception as e:
+                logger.debug(f"Failed to copy from _engine_dir: {e}")
+
+        if not saved:
+            raise RuntimeError(
+                f"Failed to save engine to {engines_path}. "
+                f"The LLM API in this TensorRT-LLM version doesn't support engine export. "
+                f"Available attributes: {[attr for attr in dir(engine) if not attr.startswith('_')]}"
+            )
 
         # The new trtllm(v0.17.0+) requires explicit calling shutdown to shutdown
         # the mpi blocking thread, or the engine process won't exit
