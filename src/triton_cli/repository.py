@@ -368,12 +368,38 @@ class ModelRepository:
         # config.max_batch_size = 256
 
         engine = LLM(huggingface_id, build_config=config)
-        # TODO: Investigate if LLM is internally saving a copy to a temp dir
-        engine.save(str(engines_path))
+
+        # Handle both old and new TensorRT-LLM API versions
+        # Newer versions have a save() method, older versions need manual copy
+        if hasattr(engine, "save") and callable(getattr(engine, "save")):
+            # New API: use save method
+            engine.save(str(engines_path))
+        else:
+            # Old API: manually copy engine files from workspace
+            logger.warning(
+                "LLM.save() method not found, using manual copy from workspace"
+            )
+            if hasattr(engine, "workspace") and engine.workspace:
+                import shutil
+
+                shutil.copytree(engine.workspace, engines_path, dirs_exist_ok=True)
+                logger.info(f"Copied engine from {engine.workspace} to {engines_path}")
+            elif hasattr(engine, "_engine_dir") and engine._engine_dir:
+                import shutil
+
+                shutil.copytree(engine._engine_dir, engines_path, dirs_exist_ok=True)
+                logger.info(
+                    f"Copied engine from {engine._engine_dir} to {engines_path}"
+                )
+            else:
+                raise RuntimeError(
+                    "Cannot find engine directory to copy from. Both save() method and workspace/engine_dir are unavailable."
+                )
 
         # The new trtllm(v0.17.0+) requires explicit calling shutdown to shutdown
         # the mpi blocking thread, or the engine process won't exit
-        engine.shutdown()
+        if hasattr(engine, "shutdown") and callable(getattr(engine, "shutdown")):
+            engine.shutdown()
 
     def __create_model_repository(
         self, name: str, version: int = 1, backend: str = None
