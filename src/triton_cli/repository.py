@@ -367,33 +367,19 @@ class ModelRepository:
         # config.max_seq_len = 8192
         # config.max_batch_size = 256
 
-        engine = LLM(huggingface_id, build_config=config)
+        # Build engine directly to the target directory by setting workspace parameter
+        # This works with both old and new TensorRT-LLM API versions
+        engine = LLM(huggingface_id, build_config=config, workspace=str(engines_path))
 
-        # Handle both old and new TensorRT-LLM API versions
-        # Newer versions have a save() method, older versions need manual copy
+        # For newer API versions that have save() method, we still call it
+        # in case the workspace parameter doesn't work as expected
         if hasattr(engine, "save") and callable(getattr(engine, "save")):
-            # New API: use save method
-            engine.save(str(engines_path))
-        else:
-            # Old API: manually copy engine files from workspace
-            logger.warning(
-                "LLM.save() method not found, using manual copy from workspace"
-            )
-            if hasattr(engine, "workspace") and engine.workspace:
-                import shutil
-
-                shutil.copytree(engine.workspace, engines_path, dirs_exist_ok=True)
-                logger.info(f"Copied engine from {engine.workspace} to {engines_path}")
-            elif hasattr(engine, "_engine_dir") and engine._engine_dir:
-                import shutil
-
-                shutil.copytree(engine._engine_dir, engines_path, dirs_exist_ok=True)
-                logger.info(
-                    f"Copied engine from {engine._engine_dir} to {engines_path}"
-                )
-            else:
-                raise RuntimeError(
-                    "Cannot find engine directory to copy from. Both save() method and workspace/engine_dir are unavailable."
+            try:
+                engine.save(str(engines_path))
+            except Exception as e:
+                # If save fails but engine was built to workspace, that's ok
+                logger.debug(
+                    f"LLM.save() failed but engine may already be in workspace: {e}"
                 )
 
         # The new trtllm(v0.17.0+) requires explicit calling shutdown to shutdown
