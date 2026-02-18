@@ -68,6 +68,7 @@ def parse_and_substitute(
     config_dict["tokenizer_type"] = token_type
     # Disable guided decoding by default (xgrammar requires additional configuration)
     config_dict["guided_decoding_backend"] = ""
+    config_dict["xgrammar_tokenizer_info_path"] = ""
 
     config_dict["max_queue_delay_microseconds"] = 0
     # Default echo = False
