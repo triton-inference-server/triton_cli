@@ -299,6 +299,18 @@ input [
     data_type: TYPE_STRING
     dims: [ 1 ]
     optional: true
+  },
+  {
+    name: "return_num_input_tokens"
+    data_type: TYPE_BOOL
+    dims: [ 1 ]
+    optional: true
+  },
+  {
+    name: "return_num_output_tokens"
+    data_type: TYPE_BOOL
+    dims: [ 1 ]
+    optional: true
   }
 ]
 output [
@@ -350,6 +362,16 @@ output [
   {
     name: "kv_cache_alloc_total_blocks"
     data_type: TYPE_INT32
+    dims: [ 1 ]
+  },
+  {
+    name: "num_input_tokens"
+    data_type: TYPE_UINT32
+    dims: [ 1 ]
+  },
+  {
+    name: "num_output_tokens"
+    data_type: TYPE_UINT32
     dims: [ 1 ]
   }
 ]
