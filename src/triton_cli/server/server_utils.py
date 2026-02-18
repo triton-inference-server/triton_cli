@@ -210,9 +210,11 @@ class TRTLLMUtils:
             engine(s).
         """
         assert self._is_trtllm_model, "World size cannot be parsed from a model repository that does not contain a TRT LLM model."
+        engine_path = self._get_engine_path(self._trtllm_model_config_path)
+        engine_config_path = engine_path / "config.json"
+
+        # Try to read config.json if it exists, otherwise use defaults
         try:
-            engine_path = self._get_engine_path(self._trtllm_model_config_path)
-            engine_config_path = engine_path / "config.json"
             with open(engine_config_path) as json_data:
                 data = json.load(json_data)
                 # FIXME: Revert handling using 'build_config' as the key when gpt migrates to using unified builder
@@ -226,8 +228,13 @@ class TRTLLMUtils:
                 tp = int(config.get("tensor_parallel", 1))
                 pp = int(config.get("pipeline_parallel", 1))
                 return tp * pp
-        except OSError:
-            raise Exception(f"Unable to open {engine_config_path}")
+        except FileNotFoundError:
+            # If config.json doesn't exist, use default world size
+            # Default tensor_parallel=1, pipeline_parallel=1, so world_size=1
+            logger.warning(
+                f"{engine_config_path} not found, using default world_size=1"
+            )
+            return 1
 
 
 class VLLMUtils:
