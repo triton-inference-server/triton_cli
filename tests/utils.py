@@ -89,7 +89,7 @@ class TritonCommands:
         tokenizer_map = {
             "mock_llm": "gpt2",
             "gpt2": "gpt2",
-            "mistral-7b": "mistralai/Mistral-7B-v0.1",
+            "mistral-7b": "mistralai/Mistral-7B-Instruct-v0.1",
             "falcon-7b": "tiiuae/falcon-7b",
             "opt125m": "facebook/opt-125m",
             "llama-3.1-8b-instruct": "meta-llama/Llama-3.1-8B-Instruct",

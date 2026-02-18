@@ -66,7 +66,7 @@ KNOWN_MODEL_SOURCES = {
     # Public
     "gpt2": "hf:gpt2",  # NOTE: Only supported with vLLM backend, not TensorRT-LLM
     "opt125m": "hf:facebook/opt-125m",
-    "mistral-7b": "hf:mistralai/Mistral-7B-v0.1",
+    "mistral-7b": "hf:mistralai/Mistral-7B-Instruct-v0.1",
     "falcon-7b": "hf:tiiuae/falcon-7b",
 }
 
