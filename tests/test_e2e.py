@@ -44,6 +44,10 @@ class TestE2E:
     @pytest.mark.skipif(
         os.environ.get("IMAGE_KIND") != "TRTLLM", reason="Only run for TRT-LLM image"
     )
+    @pytest.mark.skipif(
+        os.environ.get("TRTLLM_MODEL") == "gpt2",
+        reason="GPT2LMHeadModel architecture is not supported in TensorRT-LLM",
+    )
     @pytest.mark.parametrize(
         "protocol",
         [

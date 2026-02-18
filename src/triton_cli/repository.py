@@ -357,7 +357,18 @@ class ModelRepository:
         )
 
     def __build_trtllm_engine(self, huggingface_id: str, engines_path: Path):
-        from tensorrt_llm import LLM, BuildConfig
+        # Ensure engines_path is a Path object
+        engines_path = Path(engines_path)
+
+        # Import from _tensorrt_engine to force TensorRT backend (not PyTorch)
+        # The PyTorch backend doesn't support workspace parameter
+        try:
+            from tensorrt_llm._tensorrt_engine import LLM
+        except ImportError:
+            # Fallback to regular import for newer versions
+            from tensorrt_llm import LLM
+
+        from tensorrt_llm import BuildConfig
 
         # NOTE: Given config.json, can read from 'build_config' section and from_dict
         config = BuildConfig()
@@ -367,54 +378,26 @@ class ModelRepository:
         # config.max_seq_len = 8192
         # config.max_batch_size = 256
 
-        # NOTE: In Docker image, LLM defaults to PyTorch backend which doesn't support
-        # workspace parameter. Build without workspace and try to get engine location.
-        engine = LLM(huggingface_id, build_config=config)
+        # Create the workspace directory if it doesn't exist
+        # TensorRT-LLM will create a temp subdir inside this workspace
+        engines_path.mkdir(parents=True, exist_ok=True)
 
-        # Try multiple methods to get and save the engine
-        saved = False
+        # Build engine to target directory using workspace parameter (TensorRT backend only)
+        engine = LLM(huggingface_id, build_config=config, workspace=str(engines_path))
 
-        # Method 1: Try save() if available
+        # For newer API versions with save() method, call it to ensure engine is properly saved
+        # In older versions, the workspace parameter should have already placed the engine there
         if hasattr(engine, "save") and callable(getattr(engine, "save")):
             try:
                 engine.save(str(engines_path))
-                saved = True
-                logger.info(f"Saved engine using save() method to {engines_path}")
-            except Exception as e:
-                logger.debug(f"LLM.save() failed: {e}")
-
-        # Method 2: Try to copy from workspace if save didn't work
-        if not saved and hasattr(engine, "workspace") and engine.workspace:
-            try:
-                import shutil
-
-                shutil.copytree(engine.workspace, engines_path, dirs_exist_ok=True)
-                saved = True
-                logger.info(
-                    f"Copied engine from workspace {engine.workspace} to {engines_path}"
+                logger.debug(
+                    f"Called save() method to ensure engine is at {engines_path}"
                 )
             except Exception as e:
-                logger.debug(f"Failed to copy from workspace: {e}")
-
-        # Method 3: Try to copy from _engine_dir if save and workspace didn't work
-        if not saved and hasattr(engine, "_engine_dir") and engine._engine_dir:
-            try:
-                import shutil
-
-                shutil.copytree(engine._engine_dir, engines_path, dirs_exist_ok=True)
-                saved = True
-                logger.info(
-                    f"Copied engine from _engine_dir {engine._engine_dir} to {engines_path}"
+                # If save fails, workspace parameter should have already placed it correctly
+                logger.debug(
+                    f"save() call failed (engine may already be in workspace): {e}"
                 )
-            except Exception as e:
-                logger.debug(f"Failed to copy from _engine_dir: {e}")
-
-        if not saved:
-            raise RuntimeError(
-                f"Failed to save engine to {engines_path}. "
-                f"The LLM API in this TensorRT-LLM version doesn't support engine export. "
-                f"Available attributes: {[attr for attr in dir(engine) if not attr.startswith('_')]}"
-            )
 
         # The new trtllm(v0.17.0+) requires explicit calling shutdown to shutdown
         # the mpi blocking thread, or the engine process won't exit

@@ -64,7 +64,7 @@ KNOWN_MODEL_SOURCES = {
     "llama-3.1-8b": "hf:meta-llama/Meta-Llama-3.1-8B",
     "llama-3.1-8b-instruct": "hf:meta-llama/Meta-Llama-3.1-8B-Instruct",
     # Public
-    "gpt2": "hf:gpt2",
+    "gpt2": "hf:gpt2",  # NOTE: Only supported with vLLM backend, not TensorRT-LLM
     "opt125m": "hf:facebook/opt-125m",
     "mistral-7b": "hf:mistralai/Mistral-7B-v0.1",
     "falcon-7b": "hf:tiiuae/falcon-7b",
