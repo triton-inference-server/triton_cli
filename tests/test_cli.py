@@ -36,9 +36,7 @@ TEST_REPOS = [None, os.path.join("tmp", "models")]
 
 CUSTOM_VLLM_MODEL_SOURCES = [("vllm-model", "hf:gpt2")]
 
-# NOTE: GPT2 requires updated TensorRT-LLM with GPT2LMHeadModel registration
-# Using mistral-7b as it's supported in the current Docker image
-CUSTOM_TRTLLM_MODEL_SOURCES = [("trtllm-model", "hf:mistralai/Mistral-7B-v0.1")]
+CUSTOM_TRTLLM_MODEL_SOURCES = [("trtllm-model", "hf:gpt2")]
 
 # TODO: Add public NGC model for testing
 CUSTOM_NGC_MODEL_SOURCES = [("my-llm", "ngc:does-not-exist")]
