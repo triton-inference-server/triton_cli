@@ -1,4 +1,4 @@
-# Copyright 2023-2025, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# Copyright 2023-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -35,22 +35,33 @@ def parse_and_substitute(
     triton_model_dir, bls_model_name, engine_dir, token_dir, token_type, dry_run
 ):
     json_path = engine_dir + "/config.json"
-    with open(json_path) as j:
-        config_file = json.load(j)
+
+    # Try to read config.json if it exists, otherwise use defaults
+    config_file = None
+    try:
+        with open(json_path) as j:
+            config_file = json.load(j)
+    except FileNotFoundError:
+        print(f"Warning: {json_path} not found, using default configuration")
 
     config_dict = {}
     # These fields will cause parsing issues when parsing model config if not
     # replaced, so replace with sensible defaults.
 
-    # FIXME: Revert handling using 'build_config' as the key when gpt migrates to using unified builder
-    build_config_key = (
-        "builder_config"
-        if config_file.get("builder_config") is not None
-        else "build_config"
-    )
-    config_dict["triton_max_batch_size"] = config_file[build_config_key][
-        "max_batch_size"
-    ]
+    # Get max_batch_size from config.json if available, otherwise use default
+    if config_file:
+        # FIXME: Revert handling using 'build_config' as the key when gpt migrates to using unified builder
+        build_config_key = (
+            "builder_config"
+            if config_file.get("builder_config") is not None
+            else "build_config"
+        )
+        config_dict["triton_max_batch_size"] = config_file[build_config_key][
+            "max_batch_size"
+        ]
+    else:
+        # Default max_batch_size when config.json is not available
+        config_dict["triton_max_batch_size"] = 256
 
     config_dict["logits_datatype"] = "TYPE_FP32"
     config_dict["triton_backend"] = "tensorrtllm"  # or python
@@ -66,6 +77,9 @@ def parse_and_substitute(
     config_dict["engine_dir"] = engine_dir
     config_dict["tokenizer_dir"] = token_dir
     config_dict["tokenizer_type"] = token_type
+    # Disable guided decoding by default (xgrammar requires additional configuration)
+    config_dict["guided_decoding_backend"] = ""
+    config_dict["xgrammar_tokenizer_info_path"] = ""
 
     config_dict["max_queue_delay_microseconds"] = 0
     # Default echo = False

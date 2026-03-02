@@ -1,4 +1,4 @@
-# Copyright 2023-2025, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# Copyright 2023-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -323,13 +323,23 @@ class ModelRepository:
 
     def __generate_ngc_model(self, name: str, source: str):
         engines_path = ENGINE_DEST_PATH + "/" + source
+        # Find the actual engine directory that contains config.json
+        actual_engine_dir = self.__find_engine_directory(engines_path)
         parse_and_substitute(
-            str(self.repo), name, engines_path, engines_path, "auto", dry_run=False
+            str(self.repo),
+            name,
+            actual_engine_dir,
+            actual_engine_dir,
+            "auto",
+            dry_run=False,
         )
 
     def __generate_trtllm_model(self, name: str, huggingface_id: str):
         engines_path = ENGINE_DEST_PATH + "/" + name
-        engines = [engine for engine in Path(engines_path).glob("*.engine")]
+        # Search for engine files recursively since they might be in subdirectories
+        engines = list(Path(engines_path).glob("*.engine")) + list(
+            Path(engines_path).glob("*/*.engine")
+        )
         if engines:
             logger.warning(
                 f"Found existing engine(s) at {engines_path}, skipping build."
@@ -343,6 +353,10 @@ class ModelRepository:
             p.start()
             p.join()
 
+        # Find the actual engine directory that contains config.json
+        # When using workspace parameter, TRT-LLM creates a subdirectory
+        actual_engine_dir = self.__find_engine_directory(engines_path)
+
         # NOTE: In every case, the TRT LLM template should be filled in with values.
         # If the model exists, the CLI will raise an exception when creating the model repo.
         # If a user clears the model repo, they won't need to re-build the engines,
@@ -350,14 +364,53 @@ class ModelRepository:
         parse_and_substitute(
             triton_model_dir=str(self.repo),
             bls_model_name=name,
-            engine_dir=engines_path,
-            token_dir=engines_path,
+            engine_dir=actual_engine_dir,
+            token_dir=actual_engine_dir,
             token_type="auto",
             dry_run=False,
         )
 
+    def __find_engine_directory(self, workspace_path: str) -> str:
+        """
+        Find the actual engine directory that contains config.json.
+        When using the workspace parameter, TRT-LLM creates a subdirectory structure.
+        This method searches for config.json and returns its parent directory.
+        """
+        workspace_path = Path(workspace_path)
+
+        # First check if config.json exists directly in the workspace path
+        if (workspace_path / "config.json").exists():
+            return str(workspace_path)
+
+        # Search for config.json in subdirectories (up to 2 levels deep)
+        for config_file in workspace_path.glob("*/config.json"):
+            logger.info(f"Found engine directory at {config_file.parent}")
+            return str(config_file.parent)
+
+        for config_file in workspace_path.glob("*/*/config.json"):
+            logger.info(f"Found engine directory at {config_file.parent}")
+            return str(config_file.parent)
+
+        # If no config.json found, return the original path and let the error surface
+        logger.warning(
+            f"Could not find config.json in {workspace_path} or its subdirectories. "
+            f"Returning original path."
+        )
+        return str(workspace_path)
+
     def __build_trtllm_engine(self, huggingface_id: str, engines_path: Path):
-        from tensorrt_llm import LLM, BuildConfig
+        # Ensure engines_path is a Path object
+        engines_path = Path(engines_path)
+
+        # Import from _tensorrt_engine to force TensorRT backend (not PyTorch)
+        # The PyTorch backend doesn't support workspace parameter
+        try:
+            from tensorrt_llm._tensorrt_engine import LLM
+        except ImportError:
+            # Fallback to regular import for newer versions
+            from tensorrt_llm import LLM
+
+        from tensorrt_llm import BuildConfig
 
         # NOTE: Given config.json, can read from 'build_config' section and from_dict
         config = BuildConfig()
@@ -367,13 +420,31 @@ class ModelRepository:
         # config.max_seq_len = 8192
         # config.max_batch_size = 256
 
-        engine = LLM(huggingface_id, build_config=config)
-        # TODO: Investigate if LLM is internally saving a copy to a temp dir
-        engine.save(str(engines_path))
+        # Create the workspace directory if it doesn't exist
+        # TensorRT-LLM will create a temp subdir inside this workspace
+        engines_path.mkdir(parents=True, exist_ok=True)
+
+        # Build engine to target directory using workspace parameter (TensorRT backend only)
+        engine = LLM(huggingface_id, build_config=config, workspace=str(engines_path))
+
+        # For newer API versions with save() method, call it to ensure engine is properly saved
+        # In older versions, the workspace parameter should have already placed the engine there
+        if hasattr(engine, "save") and callable(getattr(engine, "save")):
+            try:
+                engine.save(str(engines_path))
+                logger.debug(
+                    f"Called save() method to ensure engine is at {engines_path}"
+                )
+            except Exception as e:
+                # If save fails, workspace parameter should have already placed it correctly
+                logger.debug(
+                    f"save() call failed (engine may already be in workspace): {e}"
+                )
 
         # The new trtllm(v0.17.0+) requires explicit calling shutdown to shutdown
         # the mpi blocking thread, or the engine process won't exit
-        engine.shutdown()
+        if hasattr(engine, "shutdown") and callable(getattr(engine, "shutdown")):
+            engine.shutdown()
 
     def __create_model_repository(
         self, name: str, version: int = 1, backend: str = None

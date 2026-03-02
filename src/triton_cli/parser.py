@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copyright 2023-2025, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# Copyright 2023-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -66,7 +66,7 @@ KNOWN_MODEL_SOURCES = {
     # Public
     "gpt2": "hf:gpt2",
     "opt125m": "hf:facebook/opt-125m",
-    "mistral-7b": "hf:mistralai/Mistral-7B-v0.1",
+    "mistral-7b": "hf:mistralai/Mistral-7B-Instruct-v0.1",
     "falcon-7b": "hf:tiiuae/falcon-7b",
 }
 
