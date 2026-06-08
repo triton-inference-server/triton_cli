@@ -1,4 +1,4 @@
-# Copyright 2024-2025, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# Copyright 2024-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -24,15 +24,18 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+import collections
 import io
 import json
+import os
+import tempfile
 import time
 import psutil
 import subprocess
 import requests
 from contextlib import redirect_stdout
 from triton_cli.main import run
-from subprocess import Popen
+from subprocess import Popen, STDOUT
 
 
 class TritonCommands:
@@ -132,6 +135,7 @@ class ScopedTritonServer:
         self.frontend = frontend
         self.timeout = timeout
         self.proc = None
+        self._log_path = None
 
     def __enter__(self):
         self.start()
@@ -154,9 +158,29 @@ class ScopedTritonServer:
             args += ["--mode", mode]
         if frontend:
             args += ["--frontend", frontend]
-        # Use Popen to run the server in the background as a separate process.
-        p = Popen(args)
+        # Redirect stdout/stderr to a temp file so the server's output can be
+        # surfaced in error messages if startup fails.
+        log_handle = tempfile.NamedTemporaryFile(
+            mode="wb", suffix=".log", prefix="triton_server_", delete=False
+        )
+        self._log_path = log_handle.name
+        try:
+            p = Popen(args, stdout=log_handle, stderr=STDOUT)
+        finally:
+            log_handle.close()
         return p
+
+    def _format_server_output(self, max_lines: int = 50) -> str:
+        if not self._log_path:
+            return "<server output not captured>"
+        try:
+            with open(self._log_path, errors="replace") as f:
+                tail = collections.deque(f, maxlen=max_lines)
+        except OSError as exc:
+            return f"<failed to read server log {self._log_path}: {exc}>"
+        if not tail:
+            return "<no server output produced>"
+        return "".join(tail)
 
     def wait_for_server_ready(self, timeout: int = 60):
         if not self.proc:
@@ -166,33 +190,60 @@ class ScopedTritonServer:
         while True:
             try:
                 if self.check_server_ready():
-                    break
+                    return
             except Exception as err:
-                result = self.proc.poll()
-                if result is not None and result != 0:
-                    raise RuntimeError("Server exited unexpectedly.") from err
+                exit_code = self.proc.poll()
+                elapsed = time.time() - start
+
+                if exit_code is not None:
+                    state = (
+                        "exited cleanly with code 0"
+                        if exit_code == 0
+                        else f"exited with code {exit_code}"
+                    )
+                    raise RuntimeError(
+                        f"Triton server {state} after {elapsed:.1f}s without "
+                        f"becoming ready (pid={self.proc.pid}, "
+                        f"timeout={timeout}s).\n"
+                        f"--- last server output ---\n"
+                        f"{self._format_server_output()}\n"
+                        f"--- end server output ---"
+                    ) from err
 
                 time.sleep(0.5)
                 if time.time() - start > timeout:
-                    raise RuntimeError("Server failed to start in time.") from err
+                    raise RuntimeError(
+                        f"Triton server did not become ready within "
+                        f"{timeout}s (pid={self.proc.pid}, process still "
+                        f"running).\n"
+                        f"--- last server output ---\n"
+                        f"{self._format_server_output()}\n"
+                        f"--- end server output ---"
+                    ) from err
 
     def kill_server(self, timeout: int = 60):
-        if not self.proc:
+        if self.proc:
+            try:
+                self.proc.terminate()
+                self.proc.wait(timeout=timeout)  # Wait for triton to clean up
+            except subprocess.TimeoutExpired:
+                self.proc.kill()
+                self.proc.wait()  # Indefinetely wait until the process is cleaned up.
+            except psutil.NoSuchProcess as e:
+                print(e)
+            except AttributeError as e:
+                print(e)
+        else:
             # If process wasn't started by this point, just print the error and
             # gracefully exit for now.
             print("ERROR: Server process wasn't started")
-            return
 
-        try:
-            self.proc.terminate()
-            self.proc.wait(timeout=timeout)  # Wait for triton to clean up
-        except subprocess.TimeoutExpired:
-            self.proc.kill()
-            self.proc.wait()  # Indefinetely wait until the process is cleaned up.
-        except psutil.NoSuchProcess as e:
-            print(e)
-        except AttributeError as e:
-            print(e)
+        if self._log_path:
+            try:
+                os.unlink(self._log_path)
+            except OSError:
+                pass
+            self._log_path = None
 
     def check_server_ready(self):
         if self.frontend == "openai":
