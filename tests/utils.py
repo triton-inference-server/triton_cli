@@ -27,7 +27,6 @@
 import collections
 import io
 import json
-import os
 import tempfile
 import time
 import psutil
@@ -237,7 +236,6 @@ class ScopedTritonServer:
             # If process wasn't started by this point, just print the error and
             # gracefully exit for now.
             print("ERROR: Server process wasn't started")
-
 
     def check_server_ready(self):
         if self.frontend == "openai":
