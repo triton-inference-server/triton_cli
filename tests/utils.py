@@ -238,12 +238,6 @@ class ScopedTritonServer:
             # gracefully exit for now.
             print("ERROR: Server process wasn't started")
 
-        if self._log_path:
-            try:
-                os.unlink(self._log_path)
-            except OSError:
-                pass
-            self._log_path = None
 
     def check_server_ready(self):
         if self.frontend == "openai":
