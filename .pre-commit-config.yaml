@@ -27,28 +27,30 @@
 default_install_hook_types: [pre-commit, commit-msg]
 
 repos:
-- repo: https://github.com/PyCQA/isort
-  rev: 5.12.0
+
+# Python formatting/linting
+## Run the Ruff formatter.
+- repo: https://github.com/astral-sh/ruff-pre-commit
+  rev: v0.5.2
   hooks:
-  - id: isort
-    additional_dependencies: [toml]
-- repo: https://github.com/psf/black
-  rev: 23.1.0
+    - id: ruff-format
+      exclude: "src/triton_cli/trt_llm/checkpoint_scripts|src/triton_cli/templates/trt_llm"
+
+## Run the Ruff linter.
+- repo: https://github.com/astral-sh/ruff-pre-commit
+  rev: v0.5.2
   hooks:
-  - id: black
-    types_or: [python, cython]
-- repo: https://github.com/PyCQA/flake8
-  rev: 7.3.0
+    - id: ruff
+      exclude: "src/triton_cli/trt_llm/checkpoint_scripts|src/triton_cli/templates/trt_llm"
+
+# Upgrade Python syntax
+- repo: https://github.com/asottile/pyupgrade
+  rev: v3.15.0
   hooks:
-  - id: flake8
-    args: [--max-line-length=88, --select=C,E,F,W,B,B950, --extend-ignore = E203,E501]
-    types_or: [python, cython]
-- repo: https://github.com/pre-commit/mirrors-clang-format
-  rev: v16.0.5
-  hooks:
-  - id: clang-format
-    types_or: [c, c++, cuda, proto, textproto, java]
-    args: ["-fallback-style=none", "-style=file", "-i"]
+  - id: pyupgrade
+    args: [--py38-plus]
+
+# Spellchecking
 - repo: https://github.com/codespell-project/codespell
   rev: v2.2.4
   hooks:
@@ -56,6 +58,7 @@ repos:
     additional_dependencies: [tomli]
     args: ["--toml", "pyproject.toml"]
     exclude: (?x)^(.*stemmer.*|.*stop_words.*|^CHANGELOG.md$)
+
 # Validates commit messages against the Conventional Commits format
 # (<commit_type>: <title>); PR titles are validated org-wide by the
 # conventional-pr reusable workflow.
@@ -76,6 +79,7 @@ repos:
   - id: check-json
   - id: check-toml
   - id: check-yaml
+    exclude: ^deploy(\/[^\/]+)*\/templates\/.*$
   - id: check-shebang-scripts-are-executable
   - id: end-of-file-fixer
     types_or: [c, c++, cuda, proto, textproto, java, python]
