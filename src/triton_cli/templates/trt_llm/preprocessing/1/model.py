@@ -1,4 +1,4 @@
-# Copyright 2024, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# Copyright 2024-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -28,6 +28,7 @@ import base64
 import io
 import json
 import os
+import time
 from typing import List
 
 import numpy as np
@@ -702,10 +703,10 @@ class VisionPreProcessor:
     in preparation for the vision encoder.
     """
 
-    # Bounds applied when fetching an image over the network. A deployment
-    # that needs different limits should change these alongside the outbound
-    # network policy it enforces around the server.
-    IMAGE_FETCH_TIMEOUT_SECONDS = 5
+    # Bounds on fetching an image from a request-supplied URL. Adjust these
+    # together with the outbound network policy enforced around the server.
+    IMAGE_FETCH_TIMEOUT_SECONDS = 5  # no data received for this long
+    IMAGE_FETCH_MAX_SECONDS = 30  # entire transfer
     IMAGE_FETCH_MAX_BYTES = 32 * 1024 * 1024
 
     def __init__(self,
@@ -771,21 +772,24 @@ class VisionPreProcessor:
                 image_buffer = io.BytesIO(image_data)
                 images.append(Image.open(image_buffer))
             else:
-                # This URL comes from the inference request, so bound how long
-                # the fetch may stall and how much it may return.
                 response = requests.get(
                     img_url,
                     stream=True,
                     timeout=self.IMAGE_FETCH_TIMEOUT_SECONDS)
                 response.raise_for_status()
-                # Read one byte past the limit so that an oversized response is
-                # rejected rather than silently truncated.
-                image_data = response.raw.read(self.IMAGE_FETCH_MAX_BYTES + 1,
-                                               decode_content=True)
-                if len(image_data) > self.IMAGE_FETCH_MAX_BYTES:
-                    raise ValueError(
-                        f"[TensorRT-LLM][ERROR] Image at {img_url} exceeds the "
-                        f"{self.IMAGE_FETCH_MAX_BYTES} byte limit.")
+                deadline = time.monotonic() + self.IMAGE_FETCH_MAX_SECONDS
+                image_data = bytearray()
+                for chunk in response.iter_content(chunk_size=65536):
+                    image_data.extend(chunk)
+                    if len(image_data) > self.IMAGE_FETCH_MAX_BYTES:
+                        raise ValueError(
+                            f"[TensorRT-LLM][ERROR] Image at {img_url} exceeds "
+                            f"the {self.IMAGE_FETCH_MAX_BYTES} byte limit.")
+                    if time.monotonic() > deadline:
+                        raise ValueError(
+                            f"[TensorRT-LLM][ERROR] Image at {img_url} took "
+                            f"longer than {self.IMAGE_FETCH_MAX_SECONDS} "
+                            "seconds to download.")
                 images.append(Image.open(io.BytesIO(image_data)))
         return images
 
