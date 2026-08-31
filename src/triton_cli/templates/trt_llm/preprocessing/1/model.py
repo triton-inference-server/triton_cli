@@ -702,6 +702,12 @@ class VisionPreProcessor:
     in preparation for the vision encoder.
     """
 
+    # Bounds applied when fetching an image over the network. A deployment
+    # that needs different limits should change these alongside the outbound
+    # network policy it enforces around the server.
+    IMAGE_FETCH_TIMEOUT_SECONDS = 5
+    IMAGE_FETCH_MAX_BYTES = 32 * 1024 * 1024
+
     def __init__(self,
                  vision_model_type,
                  vision_model_processor,
@@ -765,8 +771,22 @@ class VisionPreProcessor:
                 image_buffer = io.BytesIO(image_data)
                 images.append(Image.open(image_buffer))
             else:
-                images.append(
-                    Image.open(requests.get(img_url, stream=True).raw))
+                # This URL comes from the inference request, so bound how long
+                # the fetch may stall and how much it may return.
+                response = requests.get(
+                    img_url,
+                    stream=True,
+                    timeout=self.IMAGE_FETCH_TIMEOUT_SECONDS)
+                response.raise_for_status()
+                # Read one byte past the limit so that an oversized response is
+                # rejected rather than silently truncated.
+                image_data = response.raw.read(self.IMAGE_FETCH_MAX_BYTES + 1,
+                                               decode_content=True)
+                if len(image_data) > self.IMAGE_FETCH_MAX_BYTES:
+                    raise ValueError(
+                        f"[TensorRT-LLM][ERROR] Image at {img_url} exceeds the "
+                        f"{self.IMAGE_FETCH_MAX_BYTES} byte limit.")
+                images.append(Image.open(io.BytesIO(image_data)))
         return images
 
     def mllama_process(self, queries, img_urls=None, image_bytes=None):
