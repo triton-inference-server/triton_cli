@@ -28,7 +28,6 @@ import base64
 import io
 import json
 import os
-import time
 from typing import List
 
 import numpy as np
@@ -706,7 +705,6 @@ class VisionPreProcessor:
     # Bounds on fetching an image from a request-supplied URL. Adjust these
     # together with the outbound network policy enforced around the server.
     IMAGE_FETCH_TIMEOUT_SECONDS = 5  # no data received for this long
-    IMAGE_FETCH_MAX_SECONDS = 30  # entire transfer
     IMAGE_FETCH_MAX_BYTES = 32 * 1024 * 1024
 
     def __init__(self,
@@ -772,24 +770,16 @@ class VisionPreProcessor:
                 image_buffer = io.BytesIO(image_data)
                 images.append(Image.open(image_buffer))
             else:
-                response = requests.get(
-                    img_url,
-                    stream=True,
-                    timeout=self.IMAGE_FETCH_TIMEOUT_SECONDS)
-                response.raise_for_status()
-                deadline = time.monotonic() + self.IMAGE_FETCH_MAX_SECONDS
-                image_data = bytearray()
-                for chunk in response.iter_content(chunk_size=65536):
-                    image_data.extend(chunk)
-                    if len(image_data) > self.IMAGE_FETCH_MAX_BYTES:
-                        raise ValueError(
-                            f"[TensorRT-LLM][ERROR] Image at {img_url} exceeds "
-                            f"the {self.IMAGE_FETCH_MAX_BYTES} byte limit.")
-                    if time.monotonic() > deadline:
-                        raise ValueError(
-                            f"[TensorRT-LLM][ERROR] Image at {img_url} took "
-                            f"longer than {self.IMAGE_FETCH_MAX_SECONDS} "
-                            "seconds to download.")
+                with requests.get(
+                        img_url,
+                        stream=True,
+                        timeout=self.IMAGE_FETCH_TIMEOUT_SECONDS) as response:
+                    response.raise_for_status()
+                    image_data = bytearray()
+                    for chunk in response.iter_content(chunk_size=65536):
+                        if len(image_data) + len(chunk) > self.IMAGE_FETCH_MAX_BYTES:
+                            raise ValueError("Image exceeds the download size limit.")
+                        image_data.extend(chunk)
                 images.append(Image.open(io.BytesIO(image_data)))
         return images
 
