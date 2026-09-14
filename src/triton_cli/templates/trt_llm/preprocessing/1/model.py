@@ -1,4 +1,4 @@
-# Copyright 2024, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# Copyright 2024-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -702,6 +702,11 @@ class VisionPreProcessor:
     in preparation for the vision encoder.
     """
 
+    # Bounds on fetching an image from a request-supplied URL. Adjust these
+    # together with the outbound network policy enforced around the server.
+    IMAGE_FETCH_TIMEOUT_SECONDS = 5  # no data received for this long
+    IMAGE_FETCH_MAX_BYTES = 32 * 1024 * 1024
+
     def __init__(self,
                  vision_model_type,
                  vision_model_processor,
@@ -765,8 +770,17 @@ class VisionPreProcessor:
                 image_buffer = io.BytesIO(image_data)
                 images.append(Image.open(image_buffer))
             else:
-                images.append(
-                    Image.open(requests.get(img_url, stream=True).raw))
+                with requests.get(
+                        img_url,
+                        stream=True,
+                        timeout=self.IMAGE_FETCH_TIMEOUT_SECONDS) as response:
+                    response.raise_for_status()
+                    image_data = bytearray()
+                    for chunk in response.iter_content(chunk_size=65536):
+                        if len(image_data) + len(chunk) > self.IMAGE_FETCH_MAX_BYTES:
+                            raise ValueError("Image exceeds the download size limit.")
+                        image_data.extend(chunk)
+                images.append(Image.open(io.BytesIO(image_data)))
         return images
 
     def mllama_process(self, queries, img_urls=None, image_bytes=None):
