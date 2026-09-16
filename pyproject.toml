@@ -28,6 +28,7 @@
 name = "triton_cli"
 readme = "README.md"
 description = "Triton CLI - CLI tool to simplify Triton's debugging and development."
+license = "BSD-3-Clause"
 dynamic = ["version"]
 classifiers = [
     "Development Status :: 3 - Alpha",
@@ -80,7 +81,7 @@ triton = "triton_cli.main:main"
 
 # Build
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling==1.27.0"]
 build-backend = "hatchling.build"
 
 [tool.hatch.version]
